@@ -1,0 +1,24 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Launch GitFlick",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build",
+      // The apphost, not the .dll: running via `dotnet GitFlick.dll` would apply
+      // dotnet.exe's manifest instead of ours.
+      "program": "${workspaceFolder}/GitFlick/bin/Debug/net10.0/GitFlick.exe",
+      "args": [],
+      "cwd": "${workspaceFolder}/GitFlick",
+      "console": "internalConsole",
+      "stopAtEntry": false
+    },
+    {
+      "name": "Attach to GitFlick",
+      "type": "coreclr",
+      "request": "attach",
+      "processName": "GitFlick.exe"
+    }
+  ]
+}

@@ -1,0 +1,48 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:GitFlick.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="520" d:DesignHeight="260"
+        x:Class="GitFlick.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Icon="/Assets/gitflick.ico"
+        Title="GitFlick"
+        Width="520" Height="260"
+        WindowStartupLocation="Manual"
+        ShowInTaskbar="False">
+
+    <Design.DataContext>
+        <vm:MainViewModel />
+    </Design.DataContext>
+
+    <DockPanel Margin="20">
+
+        <Border DockPanel.Dock="Top"
+                IsVisible="{Binding HasHotkeyStatus}"
+                Background="#40F05133"
+                BorderBrush="#F05133"
+                BorderThickness="1"
+                CornerRadius="4"
+                Padding="10,8"
+                Margin="0,0,0,16">
+            <TextBlock Text="{Binding HotkeyStatus}" TextWrapping="Wrap" />
+        </Border>
+
+        <TextBlock DockPanel.Dock="Bottom"
+                   Text="{Binding SessionInfo}"
+                   Opacity="0.5"
+                   FontSize="11"
+                   HorizontalAlignment="Right" />
+
+        <StackPanel VerticalAlignment="Center" Spacing="10">
+            <TextBlock Text="GitFlick" FontSize="22" FontWeight="SemiBold" />
+            <TextBlock Text="Focus probe — if the hotkey works, you can type here without clicking."
+                       Opacity="0.7"
+                       TextWrapping="Wrap" />
+            <TextBox x:Name="FocusProbe" PlaceholderText="Type here" />
+        </StackPanel>
+
+    </DockPanel>
+
+</Window>
