@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -18,6 +19,7 @@ public partial class App : Application
     private MainViewModel? _viewModel;
     private ISettingsService? _settings;
     private IGlobalHotkeyService? _hotkeys;
+    private IGitService? _gitService;
     private TrayIcon? _trayIcon;
 
     private bool _isExiting;
@@ -45,7 +47,7 @@ public partial class App : Application
             _settings = new SettingsService();
             _settings.Load();
 
-            _viewModel = new MainViewModel();
+            _viewModel = new MainViewModel(_settings);
 
             // Built eagerly so summoning it costs a Show(), not a XAML parse. Deliberately
             // NOT assigned to desktop.MainWindow -- that would auto-show it during startup.
@@ -59,9 +61,27 @@ public partial class App : Application
 
             InitializeTrayIcon();
             InitializeHotkey();
+
+            _gitService = new GitService(_settings.Current.GitExecutablePath);
+            _ = CheckGitAvailabilityAsync();
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    /// <summary>
+    /// Warns in the window if git can't be found (spec §1). Fire-and-forget: a slow PATH probe
+    /// must never delay the tray coming up.
+    /// </summary>
+    private async Task CheckGitAvailabilityAsync()
+    {
+        var version = await _gitService!.GetVersionAsync().ConfigureAwait(false);
+
+        if (version is null)
+        {
+            Dispatcher.UIThread.Post(() => _viewModel?.ReportGitMissing(
+                "Git was not found. Install Git and add it to PATH, or set \"GitExecutablePath\" in settings.json."));
+        }
     }
 
     private void InitializeTrayIcon()
@@ -206,6 +226,7 @@ public partial class App : Application
         if (!_mainWindow.IsVisible)
         {
             PositionWindow();
+            _viewModel?.ResetForSummon();
         }
 
         _mainWindow.Show();
@@ -217,10 +238,26 @@ public partial class App : Application
         }
 
         _mainWindow.FocusInput();
-        _viewModel?.NoteShown();
 
         // Clear once the activation messages have drained, not before.
         Dispatcher.UIThread.Post(() => _suppressDeactivateHide = false, DispatcherPriority.Background);
+    }
+
+    /// <summary>
+    /// Holds off hide-on-deactivate while a modal or native dialog owns the foreground.
+    /// Dispose to re-arm it. This is the seam module ②'s folder picker needed.
+    /// </summary>
+    public IDisposable SuppressAutoHide()
+    {
+        _suppressDeactivateHide = true;
+        return new AutoHideScope(this);
+    }
+
+    private sealed class AutoHideScope(App app) : IDisposable
+    {
+        public void Dispose() => Dispatcher.UIThread.Post(
+            () => app._suppressDeactivateHide = false,
+            DispatcherPriority.Background);
     }
 
     private void HideWindow() => _mainWindow?.Hide();

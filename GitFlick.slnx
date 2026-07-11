@@ -1,3 +1,4 @@
 <Solution>
+  <Project Path="GitFlick.Tests/GitFlick.Tests.csproj" />
   <Project Path="GitFlick/GitFlick.csproj" />
 </Solution>

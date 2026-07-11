@@ -1,14 +1,15 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:GitFlick.ViewModels"
+        xmlns:models="using:GitFlick.Models"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="520" d:DesignHeight="260"
+        mc:Ignorable="d" d:DesignWidth="560" d:DesignHeight="440"
         x:Class="GitFlick.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Icon="/Assets/gitflick.ico"
         Title="GitFlick"
-        Width="520" Height="260"
+        Width="560" Height="440"
         WindowStartupLocation="Manual"
         ShowInTaskbar="False">
 
@@ -16,7 +17,7 @@
         <vm:MainViewModel />
     </Design.DataContext>
 
-    <DockPanel Margin="20">
+    <DockPanel Margin="16">
 
         <Border DockPanel.Dock="Top"
                 IsVisible="{Binding HasHotkeyStatus}"
@@ -25,23 +26,116 @@
                 BorderThickness="1"
                 CornerRadius="4"
                 Padding="10,8"
-                Margin="0,0,0,16">
+                Margin="0,0,0,12">
             <TextBlock Text="{Binding HotkeyStatus}" TextWrapping="Wrap" />
         </Border>
 
-        <TextBlock DockPanel.Dock="Bottom"
-                   Text="{Binding SessionInfo}"
-                   Opacity="0.5"
-                   FontSize="11"
-                   HorizontalAlignment="Right" />
+        <Border DockPanel.Dock="Top"
+                IsVisible="{Binding HasGitWarning}"
+                Background="#40F05133"
+                BorderBrush="#F05133"
+                BorderThickness="1"
+                CornerRadius="4"
+                Padding="10,8"
+                Margin="0,0,0,12">
+            <TextBlock Text="{Binding GitWarning}" TextWrapping="Wrap" />
+        </Border>
 
-        <StackPanel VerticalAlignment="Center" Spacing="10">
-            <TextBlock Text="GitFlick" FontSize="22" FontWeight="SemiBold" />
-            <TextBlock Text="Focus probe — if the hotkey works, you can type here without clicking."
-                       Opacity="0.7"
+        <!-- Palette -->
+        <Grid IsVisible="{Binding IsPaletteVisible}" RowDefinitions="Auto,Auto,*,Auto">
+
+            <TextBox Grid.Row="0"
+                     x:Name="SearchBox"
+                     PlaceholderText="Search pinned repositories…"
+                     FontSize="16"
+                     Padding="10,8"
+                     Text="{Binding SearchText}" />
+
+            <TextBlock Grid.Row="1"
+                       IsVisible="{Binding HasStatusMessage}"
+                       Text="{Binding StatusMessage}"
+                       Foreground="#F05133"
+                       Margin="2,8,0,0"
                        TextWrapping="Wrap" />
-            <TextBox x:Name="FocusProbe" PlaceholderText="Type here" />
-        </StackPanel>
+
+            <ListBox Grid.Row="2"
+                     x:Name="RepoList"
+                     Margin="0,12,0,0"
+                     ItemsSource="{Binding Repos}"
+                     SelectedItem="{Binding SelectedRepo}"
+                     Background="Transparent"
+                     BorderThickness="0">
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="models:RepositoryItem">
+                        <StackPanel Spacing="1" Margin="0,2">
+                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding Path}" Opacity="0.55" FontSize="11" TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+
+            <!-- Empty states, mutually exclusive with the list having content -->
+            <StackPanel Grid.Row="2"
+                        IsVisible="{Binding !HasPinnedRepos}"
+                        VerticalAlignment="Center"
+                        Spacing="6">
+                <TextBlock Text="No repositories pinned yet."
+                           HorizontalAlignment="Center"
+                           Opacity="0.7" />
+                <TextBlock Text="Press Ctrl+O to pick a folder."
+                           HorizontalAlignment="Center"
+                           Opacity="0.45"
+                           FontSize="12" />
+            </StackPanel>
+
+            <TextBlock Grid.Row="2"
+                       IsVisible="{Binding HasNoMatches}"
+                       Text="No matches."
+                       VerticalAlignment="Center"
+                       HorizontalAlignment="Center"
+                       Opacity="0.55" />
+
+            <TextBlock Grid.Row="3"
+                       Margin="2,10,0,0"
+                       Opacity="0.4"
+                       FontSize="11"
+                       Text="↑↓ select · Enter open · Ctrl+O add · Ctrl+D remove · Esc close" />
+        </Grid>
+
+        <!-- Workspace: a placeholder until modules 3 and 4 land -->
+        <Grid IsVisible="{Binding IsRepoOpen}" RowDefinitions="Auto,Auto,*,Auto">
+            <TextBlock Grid.Row="0"
+                       Text="{Binding OpenRepo.Name}"
+                       FontSize="22"
+                       FontWeight="SemiBold" />
+            <TextBlock Grid.Row="1"
+                       Text="{Binding OpenRepo.Path}"
+                       Opacity="0.55"
+                       FontSize="12"
+                       TextTrimming="CharacterEllipsis"
+                       Margin="0,2,0,0" />
+
+            <Border Grid.Row="2"
+                    Margin="0,20,0,0"
+                    BorderBrush="#30FFFFFF"
+                    BorderThickness="1"
+                    CornerRadius="4">
+                <TextBlock Text="Status, stage, commit, push and diff arrive in modules ③ and ④."
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           Opacity="0.5"
+                           TextWrapping="Wrap"
+                           TextAlignment="Center"
+                           Margin="20" />
+            </Border>
+
+            <TextBlock Grid.Row="3"
+                       Margin="2,10,0,0"
+                       Opacity="0.4"
+                       FontSize="11"
+                       Text="Esc back to the palette" />
+        </Grid>
 
     </DockPanel>
 
