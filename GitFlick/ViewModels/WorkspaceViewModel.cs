@@ -69,6 +69,9 @@ public partial class WorkspaceViewModel : ViewModelBase
     [ObservableProperty]
     public partial bool HasUnstagedFiles { get; set; }
 
+    [ObservableProperty]
+    public partial bool HasStashes { get; set; }
+
     /// <summary>True for a repo with no pending changes, so the UI can say so plainly.</summary>
     [ObservableProperty]
     public partial bool IsCleanTree { get; set; }
@@ -109,6 +112,7 @@ public partial class WorkspaceViewModel : ViewModelBase
 
             var stashes = await _git.GetStashesAsync(Repository.Path);
             Replace(Stashes, stashes);
+            HasStashes = Stashes.Count > 0;
         }
         catch (GitException ex)
         {

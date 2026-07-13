@@ -2,9 +2,9 @@ using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using GitFlick.ViewModels;
-using GitFlick.Models;
 
 namespace GitFlick.Views;
 
@@ -14,16 +14,29 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
 
-        // Arrow keys and Enter belong to the list even while the caret is in the search box,
-        // so they are handled here rather than letting the TextBox swallow them.
-        SearchBox.KeyDown += OnSearchBoxKeyDown;
+        // Palette navigation is handled on the tunnel (preview) so the window sees the keys
+        // before whatever control has focus — the search box OR the list after a click.
+        AddHandler(KeyDownEvent, OnPreviewKeyDown, RoutingStrategies.Tunnel);
 
-        // Double-click a file to move it across the staging line.
+        // Mouse users expect a double-click to open a repo / move a file across the staging line.
+        RepoList.DoubleTapped += (_, _) => (DataContext as MainViewModel)?.OpenSelected();
         UnstagedList.DoubleTapped += (_, _) => Workspace?.StageCommand.Execute(Workspace.SelectedUnstagedFile);
         StagedList.DoubleTapped += (_, _) => Workspace?.UnstageCommand.Execute(Workspace.SelectedStagedFile);
     }
 
     private WorkspaceViewModel? Workspace => (DataContext as MainViewModel)?.Workspace;
+
+    private void OnBackClick(object? sender, RoutedEventArgs e) => ReturnToPalette();
+
+    /// <summary>Leaves the workspace and returns focus to the palette search box.</summary>
+    private void ReturnToPalette()
+    {
+        if (DataContext is MainViewModel vm && vm.IsRepoOpen)
+        {
+            vm.CloseRepo();
+            FocusInput();
+        }
+    }
 
     /// <summary>
     /// Puts the caret where the user expects it the instant the window is summoned.
@@ -35,11 +48,49 @@ public partial class MainWindow : Window
         SearchBox.SelectAll();
     }
 
-    private void OnSearchBoxKeyDown(object? sender, KeyEventArgs e)
+    private void OnPreviewKeyDown(object? sender, KeyEventArgs e)
     {
         if (DataContext is not MainViewModel vm)
         {
             return;
+        }
+
+        // Escape always steps back: workspace -> palette, palette -> hidden.
+        if (e.Key == Key.Escape)
+        {
+            if (vm.IsRepoOpen)
+            {
+                ReturnToPalette();
+            }
+            else
+            {
+                Hide();
+            }
+
+            e.Handled = true;
+            return;
+        }
+
+        // Everything below is palette-only; workspace keystrokes (commit box, etc.) pass through.
+        if (!vm.IsPaletteVisible)
+        {
+            return;
+        }
+
+        if (e.KeyModifiers == KeyModifiers.Control)
+        {
+            switch (e.Key)
+            {
+                case Key.O:
+                    _ = PinRepositoryAsync();
+                    e.Handled = true;
+                    return;
+
+                case Key.D:
+                    vm.RemoveSelected();
+                    e.Handled = true;
+                    return;
+            }
         }
 
         switch (e.Key)
@@ -61,46 +112,6 @@ public partial class MainWindow : Window
                 e.Handled = true;
                 break;
         }
-    }
-
-    protected override void OnKeyDown(KeyEventArgs e)
-    {
-        if (DataContext is MainViewModel vm)
-        {
-            if (e.Key == Key.Escape)
-            {
-                if (vm.IsRepoOpen)
-                {
-                    vm.CloseRepo();
-                    FocusInput();
-                }
-                else
-                {
-                    Hide();
-                }
-
-                e.Handled = true;
-                return;
-            }
-
-            if (e.KeyModifiers == KeyModifiers.Control && vm.IsPaletteVisible)
-            {
-                switch (e.Key)
-                {
-                    case Key.O:
-                        _ = PinRepositoryAsync();
-                        e.Handled = true;
-                        return;
-
-                    case Key.D:
-                        vm.RemoveSelected();
-                        e.Handled = true;
-                        return;
-                }
-            }
-        }
-
-        base.OnKeyDown(e);
     }
 
     private async Task PinRepositoryAsync()

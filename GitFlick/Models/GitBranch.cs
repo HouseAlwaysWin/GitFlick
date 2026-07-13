@@ -13,4 +13,7 @@ public sealed record GitBranch
     public int Ahead { get; init; }
 
     public int Behind { get; init; }
+
+    /// <summary>Accessibility tools read this for a branch list item, so keep it to the name.</summary>
+    public override string ToString() => Name;
 }

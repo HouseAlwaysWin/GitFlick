@@ -4,7 +4,55 @@
              RequestedThemeVariant="Default">
              <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
 
+    <Application.Resources>
+        <!-- GitFlick accent = git orange, from the icon. -->
+        <SolidColorBrush x:Key="AccentBrush" Color="#F05133" />
+        <SolidColorBrush x:Key="AccentHoverBrush" Color="#FF6A4D" />
+        <SolidColorBrush x:Key="AccentPressedBrush" Color="#D84826" />
+    </Application.Resources>
+
     <Application.Styles>
         <FluentTheme />
+
+        <!-- Default buttons: subtle "ghost" chips that light up orange on hover, instead of
+             the flat Fluent grey. Exact-type selector, so ComboBox/scrollbar buttons are untouched. -->
+        <Style Selector="Button">
+            <Setter Property="Background" Value="#1FFFFFFF" />
+            <Setter Property="BorderBrush" Value="#33FFFFFF" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="5" />
+        </Style>
+        <Style Selector="Button:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#33F05133" />
+            <Setter Property="BorderBrush" Value="#80F05133" />
+        </Style>
+        <Style Selector="Button:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#4DF05133" />
+            <Setter Property="BorderBrush" Value="#F05133" />
+        </Style>
+
+        <!-- Primary buttons (Commit): solid git-orange. The background is forced on the
+             ContentPresenter in every state so the Fluent theme's default (blue) can't win.
+             Class name is "primary" to avoid colliding with any built-in "accent" class. -->
+        <Style Selector="Button.primary">
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <Style Selector="Button.primary /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource AccentBrush}" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="Button.primary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource AccentHoverBrush}" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="Button.primary:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource AccentPressedBrush}" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="Button.primary:disabled /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#55F05133" />
+            <Setter Property="Foreground" Value="#88FFFFFF" />
+        </Style>
     </Application.Styles>
 </Application>

@@ -100,7 +100,7 @@
                        Margin="2,10,0,0"
                        Opacity="0.4"
                        FontSize="11"
-                       Text="↑↓ select · Enter open · Ctrl+O add · Ctrl+D remove · Esc close" />
+                       Text="↑↓ select · Enter / double-click open · Ctrl+O add · Ctrl+D remove · Esc close" />
         </Grid>
 
         <!-- Workspace. The outer Panel keeps IsVisible bound to MainViewModel; the inner Grid
@@ -108,11 +108,14 @@
         <Panel IsVisible="{Binding IsRepoOpen}">
         <Grid DataContext="{Binding Workspace}"
               x:DataType="vm:WorkspaceViewModel"
-              RowDefinitions="Auto,Auto,*,Auto,Auto,Auto">
+              RowDefinitions="Auto,*,Auto,Auto,Auto">
 
-            <!-- Header: repo + branch + remote actions -->
+            <!-- One clean toolbar row. Branch and stash operations live in categorised flyouts
+                 rather than a second row of buttons. -->
             <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Button Content="← Back" Click="OnBackClick" VerticalAlignment="Center"
+                            ToolTip.Tip="Back to repositories (Esc)" />
                     <TextBlock Text="{Binding Repository.Name}" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
                     <Border Background="#33808080" CornerRadius="3" Padding="6,2" VerticalAlignment="Center">
                         <TextBlock Text="{Binding BranchName}" FontSize="12" />
@@ -129,42 +132,80 @@
                     <Button Content="Fetch" Command="{Binding FetchCommand}" />
                     <Button Content="Pull" Command="{Binding PullCommand}" />
                     <Button Content="Push" Command="{Binding PushCommand}" />
+
+                    <Button Content="Branch ▾">
+                        <Button.Flyout>
+                            <Flyout Placement="BottomEdgeAlignedRight">
+                                <StackPanel Width="300" Spacing="8" x:DataType="vm:WorkspaceViewModel">
+                                    <TextBlock Text="CREATE BRANCH" FontSize="10" Opacity="0.5" />
+                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                                        <TextBox Grid.Column="0" PlaceholderText="new branch name"
+                                                 Text="{Binding NewBranchName}" VerticalContentAlignment="Center" />
+                                        <Button Grid.Column="1" Content="Create" Command="{Binding CreateBranchCommand}" />
+                                    </Grid>
+
+                                    <Separator Margin="0,4" />
+
+                                    <TextBlock Text="BRANCHES" FontSize="10" Opacity="0.5" />
+                                    <ListBox MaxHeight="200"
+                                             ItemsSource="{Binding Branches}"
+                                             SelectedItem="{Binding SelectedBranch}">
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate x:DataType="models:GitBranch">
+                                                <Grid ColumnDefinitions="*,Auto">
+                                                    <TextBlock Grid.Column="0" Text="{Binding Name}" />
+                                                    <TextBlock Grid.Column="1" Text="current" FontSize="10" Opacity="0.5"
+                                                               IsVisible="{Binding IsCurrent}" />
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="6">
+                                        <Button Grid.Column="0" Content="Checkout" HorizontalAlignment="Stretch"
+                                                HorizontalContentAlignment="Center" Command="{Binding CheckoutCommand}" />
+                                        <Button Grid.Column="1" Content="Merge" HorizontalAlignment="Stretch"
+                                                HorizontalContentAlignment="Center" Command="{Binding MergeCommand}" />
+                                        <Button Grid.Column="2" Content="Delete" HorizontalAlignment="Stretch"
+                                                HorizontalContentAlignment="Center" Command="{Binding DeleteBranchCommand}" />
+                                    </Grid>
+                                    <TextBlock Text="Checkout / Merge / Delete act on the selected branch."
+                                               FontSize="10" Opacity="0.4" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Flyout>
+                        </Button.Flyout>
+                    </Button>
+
+                    <Button Content="Stash ▾">
+                        <Button.Flyout>
+                            <Flyout Placement="BottomEdgeAlignedRight">
+                                <StackPanel Width="260" Spacing="8" x:DataType="vm:WorkspaceViewModel">
+                                    <Grid ColumnDefinitions="*,*" ColumnSpacing="6">
+                                        <Button Grid.Column="0" Content="Stash changes" HorizontalAlignment="Stretch"
+                                                HorizontalContentAlignment="Center" Command="{Binding StashPushCommand}" />
+                                        <Button Grid.Column="1" Content="Pop latest" HorizontalAlignment="Stretch"
+                                                HorizontalContentAlignment="Center" Command="{Binding StashPopCommand}" />
+                                    </Grid>
+                                    <Separator Margin="0,4" />
+                                    <TextBlock Text="STASHES" FontSize="10" Opacity="0.5" />
+                                    <ListBox MaxHeight="160" ItemsSource="{Binding Stashes}">
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate x:DataType="models:StashEntry">
+                                                <TextBlock Text="{Binding Description}" TextTrimming="CharacterEllipsis" />
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                    <TextBlock Text="No stashes" IsVisible="{Binding !HasStashes}" Opacity="0.4" />
+                                </StackPanel>
+                            </Flyout>
+                        </Button.Flyout>
+                    </Button>
+
                     <Button Content="⟳" Command="{Binding RefreshCommand}" ToolTip.Tip="Refresh" />
                 </StackPanel>
             </Grid>
 
-            <!-- Branch + stash toolbar -->
-            <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto" Margin="0,10,0,0" IsEnabled="{Binding !IsBusy}">
-                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6">
-                    <ComboBox MinWidth="140"
-                              ItemsSource="{Binding Branches}"
-                              SelectedItem="{Binding SelectedBranch}">
-                        <ComboBox.ItemTemplate>
-                            <DataTemplate x:DataType="models:GitBranch">
-                                <TextBlock Text="{Binding Name}" />
-                            </DataTemplate>
-                        </ComboBox.ItemTemplate>
-                    </ComboBox>
-                    <Button Content="Checkout" Command="{Binding CheckoutCommand}" />
-                    <Button Content="Merge" Command="{Binding MergeCommand}" />
-                    <Button Content="Delete" Command="{Binding DeleteBranchCommand}" />
-                </StackPanel>
-
-                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" Margin="14,0,0,0">
-                    <TextBox Width="130" PlaceholderText="new branch"
-                             Text="{Binding NewBranchName}"
-                             VerticalContentAlignment="Center" />
-                    <Button Content="Create" Command="{Binding CreateBranchCommand}" />
-                </StackPanel>
-
-                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6">
-                    <Button Content="Stash" Command="{Binding StashPushCommand}" />
-                    <Button Content="Pop" Command="{Binding StashPopCommand}" />
-                </StackPanel>
-            </Grid>
-
             <!-- Two file lists: unstaged | staged -->
-            <Grid Grid.Row="2" ColumnDefinitions="*,12,*" Margin="0,12,0,0">
+            <Grid Grid.Row="1" ColumnDefinitions="*,12,*" Margin="0,14,0,0">
 
                 <DockPanel Grid.Column="0">
                     <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,4">
@@ -220,7 +261,7 @@
             </Grid>
 
             <!-- Commit -->
-            <TextBox Grid.Row="3"
+            <TextBox Grid.Row="2"
                      Margin="0,12,0,0"
                      MinHeight="56"
                      AcceptsReturn="True"
@@ -229,8 +270,8 @@
                      Text="{Binding CommitMessage}"
                      IsEnabled="{Binding !IsBusy}" />
 
-            <Grid Grid.Row="4" ColumnDefinitions="Auto,Auto,*" Margin="0,8,0,0">
-                <Button Grid.Column="0" Content="Commit" Command="{Binding CommitCommand}" IsEnabled="{Binding CanCommit}" />
+            <Grid Grid.Row="3" ColumnDefinitions="Auto,Auto,*" Margin="0,8,0,0">
+                <Button Grid.Column="0" Classes="primary" Content="Commit" Command="{Binding CommitCommand}" IsEnabled="{Binding CanCommit}" />
                 <TextBlock Grid.Column="1"
                            Text="✓ Working tree clean"
                            IsVisible="{Binding IsCleanTree}"
@@ -246,7 +287,7 @@
                            TextTrimming="CharacterEllipsis" />
             </Grid>
 
-            <TextBlock Grid.Row="5"
+            <TextBlock Grid.Row="4"
                        Margin="0,10,0,0"
                        Opacity="0.4"
                        FontSize="11"
