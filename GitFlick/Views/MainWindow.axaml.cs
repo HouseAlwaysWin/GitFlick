@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Platform.Storage;
 using GitFlick.ViewModels;
+using GitFlick.Models;
 
 namespace GitFlick.Views;
 
@@ -16,7 +17,13 @@ public partial class MainWindow : Window
         // Arrow keys and Enter belong to the list even while the caret is in the search box,
         // so they are handled here rather than letting the TextBox swallow them.
         SearchBox.KeyDown += OnSearchBoxKeyDown;
+
+        // Double-click a file to move it across the staging line.
+        UnstagedList.DoubleTapped += (_, _) => Workspace?.StageCommand.Execute(Workspace.SelectedUnstagedFile);
+        StagedList.DoubleTapped += (_, _) => Workspace?.UnstageCommand.Execute(Workspace.SelectedStagedFile);
     }
+
+    private WorkspaceViewModel? Workspace => (DataContext as MainViewModel)?.Workspace;
 
     /// <summary>
     /// Puts the caret where the user expects it the instant the window is summoned.

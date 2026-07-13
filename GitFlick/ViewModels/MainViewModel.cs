@@ -12,6 +12,7 @@ namespace GitFlick.ViewModels;
 public partial class MainViewModel : ViewModelBase
 {
     private readonly ISettingsService _settings;
+    private readonly IGitService _git;
     private readonly List<RepositoryItem> _pinned = [];
 
     /// <summary>
@@ -46,6 +47,10 @@ public partial class MainViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(IsPaletteVisible))]
     public partial RepositoryItem? OpenRepo { get; set; }
 
+    /// <summary>The open repository's workspace, or null while the palette is showing.</summary>
+    [ObservableProperty]
+    public partial WorkspaceViewModel? Workspace { get; set; }
+
     /// <summary>Repos matching the current search, best match first.</summary>
     public ObservableCollection<RepositoryItem> Repos { get; } = [];
 
@@ -61,15 +66,16 @@ public partial class MainViewModel : ViewModelBase
     [ObservableProperty]
     public partial bool HasNoMatches { get; set; }
 
-    /// <summary>Design-time only. The running app always supplies a settings service.</summary>
+    /// <summary>Design-time only. The running app always supplies real services.</summary>
     public MainViewModel()
-        : this(new SettingsService())
+        : this(new SettingsService(), new GitService())
     {
     }
 
-    public MainViewModel(ISettingsService settings)
+    public MainViewModel(ISettingsService settings, IGitService git)
     {
         _settings = settings;
+        _git = git;
         ReloadPinned();
     }
 
@@ -91,6 +97,7 @@ public partial class MainViewModel : ViewModelBase
     public void ResetForSummon()
     {
         OpenRepo = null;
+        Workspace = null;
         StatusMessage = string.Empty;
         SearchText = string.Empty;
         ApplyFilter();
@@ -143,10 +150,16 @@ public partial class MainViewModel : ViewModelBase
         if (SelectedRepo is { } selected)
         {
             OpenRepo = selected;
+            Workspace = new WorkspaceViewModel(_git, selected);
+            _ = Workspace.RefreshAsync();
         }
     }
 
-    public void CloseRepo() => OpenRepo = null;
+    public void CloseRepo()
+    {
+        OpenRepo = null;
+        Workspace = null;
+    }
 
     /// <summary>Moves the highlight by <paramref name="delta"/>, clamped to the list.</summary>
     public void MoveSelection(int delta)

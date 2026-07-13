@@ -47,7 +47,8 @@ public partial class App : Application
             _settings = new SettingsService();
             _settings.Load();
 
-            _viewModel = new MainViewModel(_settings);
+            _gitService = new GitService(_settings.Current.GitExecutablePath);
+            _viewModel = new MainViewModel(_settings, _gitService);
 
             // Built eagerly so summoning it costs a Show(), not a XAML parse. Deliberately
             // NOT assigned to desktop.MainWindow -- that would auto-show it during startup.
@@ -62,7 +63,6 @@ public partial class App : Application
             InitializeTrayIcon();
             InitializeHotkey();
 
-            _gitService = new GitService(_settings.Current.GitExecutablePath);
             _ = CheckGitAvailabilityAsync();
         }
 

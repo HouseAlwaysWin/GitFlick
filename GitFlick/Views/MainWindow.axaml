@@ -4,12 +4,12 @@
         xmlns:models="using:GitFlick.Models"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="560" d:DesignHeight="440"
+        mc:Ignorable="d" d:DesignWidth="780" d:DesignHeight="600"
         x:Class="GitFlick.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Icon="/Assets/gitflick.ico"
         Title="GitFlick"
-        Width="560" Height="440"
+        Width="780" Height="600"
         WindowStartupLocation="Manual"
         ShowInTaskbar="False">
 
@@ -103,39 +103,156 @@
                        Text="↑↓ select · Enter open · Ctrl+O add · Ctrl+D remove · Esc close" />
         </Grid>
 
-        <!-- Workspace: a placeholder until modules 3 and 4 land -->
-        <Grid IsVisible="{Binding IsRepoOpen}" RowDefinitions="Auto,Auto,*,Auto">
-            <TextBlock Grid.Row="0"
-                       Text="{Binding OpenRepo.Name}"
-                       FontSize="22"
-                       FontWeight="SemiBold" />
-            <TextBlock Grid.Row="1"
-                       Text="{Binding OpenRepo.Path}"
-                       Opacity="0.55"
-                       FontSize="12"
-                       TextTrimming="CharacterEllipsis"
-                       Margin="0,2,0,0" />
+        <!-- Workspace. The outer Panel keeps IsVisible bound to MainViewModel; the inner Grid
+             switches DataContext to the WorkspaceViewModel. -->
+        <Panel IsVisible="{Binding IsRepoOpen}">
+        <Grid DataContext="{Binding Workspace}"
+              x:DataType="vm:WorkspaceViewModel"
+              RowDefinitions="Auto,Auto,*,Auto,Auto,Auto">
 
-            <Border Grid.Row="2"
-                    Margin="0,20,0,0"
-                    BorderBrush="#30FFFFFF"
-                    BorderThickness="1"
-                    CornerRadius="4">
-                <TextBlock Text="Status, stage, commit, push and diff arrive in modules ③ and ④."
-                           HorizontalAlignment="Center"
+            <!-- Header: repo + branch + remote actions -->
+            <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Repository.Name}" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <Border Background="#33808080" CornerRadius="3" Padding="6,2" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding BranchName}" FontSize="12" />
+                    </Border>
+                    <TextBlock VerticalAlignment="Center" Opacity="0.6" FontSize="12"
+                               Text="{Binding Ahead, StringFormat='↑{0}'}"
+                               IsVisible="{Binding Ahead}" />
+                    <TextBlock VerticalAlignment="Center" Opacity="0.6" FontSize="12"
+                               Text="{Binding Behind, StringFormat='↓{0}'}"
+                               IsVisible="{Binding Behind}" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" IsEnabled="{Binding !IsBusy}">
+                    <Button Content="Fetch" Command="{Binding FetchCommand}" />
+                    <Button Content="Pull" Command="{Binding PullCommand}" />
+                    <Button Content="Push" Command="{Binding PushCommand}" />
+                    <Button Content="⟳" Command="{Binding RefreshCommand}" ToolTip.Tip="Refresh" />
+                </StackPanel>
+            </Grid>
+
+            <!-- Branch + stash toolbar -->
+            <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto" Margin="0,10,0,0" IsEnabled="{Binding !IsBusy}">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6">
+                    <ComboBox MinWidth="140"
+                              ItemsSource="{Binding Branches}"
+                              SelectedItem="{Binding SelectedBranch}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="models:GitBranch">
+                                <TextBlock Text="{Binding Name}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <Button Content="Checkout" Command="{Binding CheckoutCommand}" />
+                    <Button Content="Merge" Command="{Binding MergeCommand}" />
+                    <Button Content="Delete" Command="{Binding DeleteBranchCommand}" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" Margin="14,0,0,0">
+                    <TextBox Width="130" PlaceholderText="new branch"
+                             Text="{Binding NewBranchName}"
+                             VerticalContentAlignment="Center" />
+                    <Button Content="Create" Command="{Binding CreateBranchCommand}" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6">
+                    <Button Content="Stash" Command="{Binding StashPushCommand}" />
+                    <Button Content="Pop" Command="{Binding StashPopCommand}" />
+                </StackPanel>
+            </Grid>
+
+            <!-- Two file lists: unstaged | staged -->
+            <Grid Grid.Row="2" ColumnDefinitions="*,12,*" Margin="0,12,0,0">
+
+                <DockPanel Grid.Column="0">
+                    <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,4">
+                        <TextBlock Grid.Column="0" Text="Unstaged" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        <Button Grid.Column="1" Content="Stage all" FontSize="11"
+                                Command="{Binding StageAllCommand}" IsEnabled="{Binding !IsBusy}" />
+                    </Grid>
+                    <Border BorderBrush="#30808080" BorderThickness="1" CornerRadius="4">
+                        <Panel>
+                            <ListBox x:Name="UnstagedList"
+                                     Background="Transparent"
+                                     ItemsSource="{Binding UnstagedFiles}"
+                                     SelectedItem="{Binding SelectedUnstagedFile}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="models:GitStatusEntry">
+                                        <TextBlock Text="{Binding Path}" TextTrimming="CharacterEllipsis" />
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <TextBlock Text="No unstaged changes"
+                                       IsVisible="{Binding !HasUnstagedFiles}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       Opacity="0.35" IsHitTestVisible="False" />
+                        </Panel>
+                    </Border>
+                </DockPanel>
+
+                <DockPanel Grid.Column="2">
+                    <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,4">
+                        <TextBlock Grid.Column="0" Text="Staged" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        <Button Grid.Column="1" Content="Unstage all" FontSize="11"
+                                Command="{Binding UnstageAllCommand}" IsEnabled="{Binding !IsBusy}" />
+                    </Grid>
+                    <Border BorderBrush="#30808080" BorderThickness="1" CornerRadius="4">
+                        <Panel>
+                            <ListBox x:Name="StagedList"
+                                     Background="Transparent"
+                                     ItemsSource="{Binding StagedFiles}"
+                                     SelectedItem="{Binding SelectedStagedFile}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="models:GitStatusEntry">
+                                        <TextBlock Text="{Binding Path}" TextTrimming="CharacterEllipsis" />
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <TextBlock Text="Nothing staged"
+                                       IsVisible="{Binding !HasStagedFiles}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       Opacity="0.35" IsHitTestVisible="False" />
+                        </Panel>
+                    </Border>
+                </DockPanel>
+            </Grid>
+
+            <!-- Commit -->
+            <TextBox Grid.Row="3"
+                     Margin="0,12,0,0"
+                     MinHeight="56"
+                     AcceptsReturn="True"
+                     TextWrapping="Wrap"
+                     PlaceholderText="Commit message"
+                     Text="{Binding CommitMessage}"
+                     IsEnabled="{Binding !IsBusy}" />
+
+            <Grid Grid.Row="4" ColumnDefinitions="Auto,Auto,*" Margin="0,8,0,0">
+                <Button Grid.Column="0" Content="Commit" Command="{Binding CommitCommand}" IsEnabled="{Binding CanCommit}" />
+                <TextBlock Grid.Column="1"
+                           Text="✓ Working tree clean"
+                           IsVisible="{Binding IsCleanTree}"
+                           Margin="12,0,0,0"
                            VerticalAlignment="Center"
-                           Opacity="0.5"
-                           TextWrapping="Wrap"
-                           TextAlignment="Center"
-                           Margin="20" />
-            </Border>
+                           Foreground="#4CAF50"
+                           Opacity="0.8" />
+                <TextBlock Grid.Column="2"
+                           Text="{Binding StatusText}"
+                           Margin="12,0,0,0"
+                           VerticalAlignment="Center"
+                           Opacity="0.7"
+                           TextTrimming="CharacterEllipsis" />
+            </Grid>
 
-            <TextBlock Grid.Row="3"
-                       Margin="2,10,0,0"
+            <TextBlock Grid.Row="5"
+                       Margin="0,10,0,0"
                        Opacity="0.4"
                        FontSize="11"
-                       Text="Esc back to the palette" />
+                       Text="Double-click a file to stage/unstage · Esc back to the palette" />
         </Grid>
+        </Panel>
 
     </DockPanel>
 

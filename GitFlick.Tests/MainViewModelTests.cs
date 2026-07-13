@@ -31,7 +31,9 @@ public class MainViewModelTests : IDisposable
     private MainViewModel NewViewModel(out FakeSettingsService settings)
     {
         settings = new FakeSettingsService();
-        return new MainViewModel(settings);
+        // Fake git: these tests cover palette/navigation, and a real subprocess would race
+        // the temp-folder cleanup in Dispose.
+        return new MainViewModel(settings, new FakeGitService());
     }
 
     [Fact]
