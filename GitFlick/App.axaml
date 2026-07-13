@@ -14,21 +14,29 @@
     <Application.Styles>
         <FluentTheme />
 
-        <!-- Default buttons: subtle "ghost" chips that light up orange on hover, instead of
-             the flat Fluent grey. Exact-type selector, so ComboBox/scrollbar buttons are untouched. -->
+        <!-- Secondary buttons: soft orange-tinted chips (not flat grey). The background is set
+             on the ContentPresenter in every state so the Fluent theme's default can't win.
+             Exact-type selector, so ComboBox/scrollbar buttons are untouched. -->
         <Style Selector="Button">
-            <Setter Property="Background" Value="#1FFFFFFF" />
-            <Setter Property="BorderBrush" Value="#33FFFFFF" />
-            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Foreground" Value="#FFE7DF" />
             <Setter Property="CornerRadius" Value="5" />
         </Style>
-        <Style Selector="Button:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#33F05133" />
-            <Setter Property="BorderBrush" Value="#80F05133" />
+        <Style Selector="Button /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#2EF05133" />
+            <Setter Property="BorderBrush" Value="#73F05133" />
+            <Setter Property="BorderThickness" Value="1" />
         </Style>
-        <Style Selector="Button:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Style Selector="Button:pointerover /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="#4DF05133" />
             <Setter Property="BorderBrush" Value="#F05133" />
+        </Style>
+        <Style Selector="Button:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#66F05133" />
+            <Setter Property="BorderBrush" Value="#F05133" />
+        </Style>
+        <Style Selector="Button:disabled /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#14808080" />
+            <Setter Property="BorderBrush" Value="#2E808080" />
         </Style>
 
         <!-- Primary buttons (Commit): solid git-orange. The background is forced on the

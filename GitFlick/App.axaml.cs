@@ -64,6 +64,10 @@ public partial class App : Application
             InitializeHotkey();
 
             _ = CheckGitAvailabilityAsync();
+
+            // Show the window on launch so starting the app isn't invisible. It still lives in
+            // the tray afterwards: close/Esc/deactivate hides it, the hotkey re-summons it.
+            ShowWindow();
         }
 
         base.OnFrameworkInitializationCompleted();
