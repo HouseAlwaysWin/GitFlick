@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Threading;
@@ -114,6 +115,79 @@ public sealed class GitService : IGitService
 
     public Task<GitCommandResult> PushAsync(string repoPath, IProgress<string>? progress = null, CancellationToken cancellationToken = default)
         => RunAsync(repoPath, ["push", "--progress"], progress, cancellationToken);
+
+    public async Task<IReadOnlyList<CommitInfo>> GetCommitsAsync(
+        string repoPath,
+        int maxCount = 300,
+        bool firstParentOnly = false,
+        CancellationToken cancellationToken = default)
+    {
+        // A repo with no commits has an unborn HEAD, and `git log ... HEAD` then fails outright
+        // rather than printing nothing. Ask git directly instead of matching on its error text,
+        // which is fragile and translated.
+        var head = await RunAsync(repoPath, ["rev-parse", "--verify", "--quiet", "HEAD"], null, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (!head.Succeeded)
+        {
+            return [];
+        }
+
+        var args = new List<string>
+        {
+            "log",
+            "--no-show-signature",
+
+            // The graph builder assumes a parent never appears before its child. Plain reverse-
+            // chronological order can violate that under clock skew; --date-order cannot.
+            "--date-order",
+            "--decorate=full",
+            "--format=" + CommitLogParser.Format,
+            "--max-count=" + maxCount.ToString(CultureInfo.InvariantCulture),
+        };
+
+        if (firstParentOnly)
+        {
+            // One row per merge: the collapsed "what landed on this branch" view.
+            args.Add("--first-parent");
+            args.Add("HEAD");
+        }
+        else
+        {
+            // Every tip, so branches actually show up as lanes. Deliberately not --all, which
+            // would drag in refs/stash and clutter the graph.
+            args.Add("--branches");
+            args.Add("--remotes");
+            args.Add("--tags");
+            args.Add("HEAD");
+        }
+
+        var result = await RunAsync(repoPath, args, null, cancellationToken).ConfigureAwait(false);
+
+        if (!result.Succeeded)
+        {
+            throw new GitException($"git log failed: {result.FailureMessage}");
+        }
+
+        return CommitLogParser.Parse(result.StandardOutput);
+    }
+
+    public async Task<string> GetCommitDiffAsync(string repoPath, string sha, CancellationToken cancellationToken = default)
+    {
+        // -m so merge commits produce a patch instead of nothing at all.
+        var result = await RunAsync(
+            repoPath,
+            ["show", "--pretty=format:", "--patch", "-m", "--first-parent", sha],
+            null,
+            cancellationToken).ConfigureAwait(false);
+
+        if (!result.Succeeded)
+        {
+            throw new GitException($"git show failed: {result.FailureMessage}");
+        }
+
+        return result.StandardOutput;
+    }
 
     public async Task<IReadOnlyList<GitBranch>> GetBranchesAsync(string repoPath, CancellationToken cancellationToken = default)
     {

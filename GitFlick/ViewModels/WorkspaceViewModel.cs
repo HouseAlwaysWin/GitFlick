@@ -2,6 +2,8 @@ using System;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
+using Avalonia;
+using Avalonia.Controls;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GitFlick.Models;
@@ -97,8 +99,133 @@ public partial class WorkspaceViewModel : ViewModelBase
     public bool CanCommit =>
         !IsBusy && HasStagedFiles && !string.IsNullOrWhiteSpace(CommitMessage);
 
+    /// <summary>Row height of the commit list. The graph is drawn in row units, so it must match.</summary>
+    public const double CommitRowHeight = 26;
+
+    /// <summary>Bound so a huge history can't stall the UI (spec §5⑦ Level 2: keep it bounded).</summary>
+    private const int MaxCommits = 300;
+
+    public ObservableCollection<CommitInfo> Commits { get; } = [];
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(LeftPaneWidth))]
+    [NotifyPropertyChangedFor(nameof(DiffEmptyHint))]
+    [NotifyPropertyChangedFor(nameof(FooterHint))]
+    public partial bool IsHistoryMode { get; set; }
+
+    /// <summary>The history needs more room for the graph than the file lists do.</summary>
+    public GridLength LeftPaneWidth => IsHistoryMode ? new GridLength(560) : new GridLength(340);
+
+    public string DiffEmptyHint => IsHistoryMode
+        ? "Select a commit to see what it changed."
+        : "Select a changed file to see its diff.";
+
+    public string FooterHint => IsHistoryMode
+        ? "Click a commit to see its changes · Esc back to the palette"
+        : "Double-click a file to stage/unstage · Esc back to the palette";
+
+    [ObservableProperty]
+    public partial Models.CommitGraph? Graph { get; set; }
+
+    /// <summary>Pixels of graph on the left of each commit row, so the text clears the lanes.</summary>
+    [ObservableProperty]
+    public partial Thickness CommitListPadding { get; set; } = new(0);
+
+    [ObservableProperty]
+    public partial double GraphWidth { get; set; }
+
+    [ObservableProperty]
+    public partial CommitInfo? SelectedCommit { get; set; }
+
+    /// <summary>Collapses merges to one row each: "what actually landed on this branch".</summary>
+    [ObservableProperty]
+    public partial bool FirstParentOnly { get; set; }
+
+    [ObservableProperty]
+    public partial bool HasCommits { get; set; }
+
     /// <summary>The in-flight diff load. Exposed so callers and tests can await it.</summary>
     public Task DiffLoad { get; private set; } = Task.CompletedTask;
+
+    /// <summary>The in-flight history load. Exposed so callers and tests can await it.</summary>
+    public Task HistoryLoad { get; private set; } = Task.CompletedTask;
+
+    /// <summary>Reloads the history and rebuilds the lane graph. Never throws.</summary>
+    public async Task LoadHistoryAsync()
+    {
+        try
+        {
+            var commits = await _git.GetCommitsAsync(
+                Repository.Path, MaxCommits, FirstParentOnly);
+
+            Replace(Commits, commits);
+            HasCommits = Commits.Count > 0;
+
+            var graph = CommitGraphBuilder.Build(commits, FirstParentOnly);
+            Graph = graph;
+            GraphWidth = graph.Width;
+            CommitListPadding = new Thickness(graph.Width + 6, 0, 0, 0);
+
+            SelectedCommit = null;
+            ClearDiff();
+        }
+        catch (GitException ex)
+        {
+            StatusText = ex.Message;
+        }
+    }
+
+    [RelayCommand]
+    private void ShowChanges()
+    {
+        IsHistoryMode = false;
+        ClearDiff();
+    }
+
+    [RelayCommand]
+    private Task ShowHistory()
+    {
+        IsHistoryMode = true;
+        HistoryLoad = LoadHistoryAsync();
+        return HistoryLoad;
+    }
+
+    partial void OnFirstParentOnlyChanged(bool value)
+    {
+        if (IsHistoryMode)
+        {
+            HistoryLoad = LoadHistoryAsync();
+        }
+    }
+
+    partial void OnSelectedCommitChanged(CommitInfo? value)
+    {
+        if (value is null)
+        {
+            return;
+        }
+
+        DiffLoad = ShowCommitDiffAsync(value);
+    }
+
+    private async Task ShowCommitDiffAsync(CommitInfo commit)
+    {
+        DiffPath = $"{commit.ShortSha}  {commit.Subject}";
+        DiffText = "Loading…";
+
+        try
+        {
+            var diff = await _git.GetCommitDiffAsync(Repository.Path, commit.Sha);
+
+            DiffText = diff.Trim().Length == 0
+                ? "(no textual changes)"
+                : diff;
+        }
+        catch (GitException ex)
+        {
+            DiffText = ex.Message;
+        }
+    }
 
     /// <summary>Reloads status, branches and stashes from git. Never throws.</summary>
     public async Task RefreshAsync()

@@ -43,6 +43,12 @@ internal sealed class FakeGitService : IGitService
 
     public Task<GitCommandResult> PushAsync(string repoPath, IProgress<string>? progress = null, CancellationToken cancellationToken = default) => Task.FromResult(Ok);
 
+    public Task<IReadOnlyList<CommitInfo>> GetCommitsAsync(string repoPath, int maxCount = 300, bool firstParentOnly = false, CancellationToken cancellationToken = default)
+        => Task.FromResult<IReadOnlyList<CommitInfo>>([]);
+
+    public Task<string> GetCommitDiffAsync(string repoPath, string sha, CancellationToken cancellationToken = default)
+        => Task.FromResult(string.Empty);
+
     public Task<IReadOnlyList<GitBranch>> GetBranchesAsync(string repoPath, CancellationToken cancellationToken = default)
         => Task.FromResult<IReadOnlyList<GitBranch>>([]);
 

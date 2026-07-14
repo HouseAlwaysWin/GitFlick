@@ -1,3 +1,4 @@
+using System;
 using System.ComponentModel;
 using System.Threading.Tasks;
 using Avalonia;
@@ -5,6 +6,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
+using Avalonia.VisualTree;
 using AvaloniaEdit.TextMate;
 using GitFlick.ViewModels;
 using TextMateSharp.Grammars;
@@ -30,9 +32,25 @@ public partial class MainWindow : Window
         StagedList.DoubleTapped += (_, _) => Workspace?.UnstageCommand.Execute(Workspace.SelectedStagedFile);
 
         SetUpDiffEditor();
+        SetUpCommitGraph();
 
         DataContextChanged += (_, _) => ObserveViewModel();
         ObserveViewModel();
+    }
+
+    /// <summary>
+    /// The graph is an overlay on the commit list's left gutter, so it has to follow the list's
+    /// scrolling — otherwise the lanes slide away from the rows they belong to.
+    /// </summary>
+    private void SetUpCommitGraph()
+    {
+        CommitList.Loaded += (_, _) =>
+        {
+            if (CommitList.FindDescendantOfType<ScrollViewer>() is { } scroller)
+            {
+                scroller.ScrollChanged += (_, _) => GraphView.ScrollOffset = scroller.Offset.Y;
+            }
+        };
     }
 
     private WorkspaceViewModel? Workspace => (DataContext as MainViewModel)?.Workspace;

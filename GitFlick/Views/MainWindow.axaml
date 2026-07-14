@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:GitFlick.ViewModels"
         xmlns:models="using:GitFlick.Models"
+        xmlns:views="using:GitFlick.Views"
         xmlns:edit="using:AvaloniaEdit"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -17,6 +18,22 @@
     <Design.DataContext>
         <vm:MainViewModel />
     </Design.DataContext>
+
+    <Window.Styles>
+        <!-- Ref badges: local branch (default), remote, tag. -->
+        <Style Selector="Border.tag, Border.remote">
+            <Setter Property="Background" Value="#33808080" />
+        </Style>
+        <Style Selector="ItemsControl > ContentPresenter > Border">
+            <Setter Property="Background" Value="#40F05133" />
+        </Style>
+        <Style Selector="ItemsControl > ContentPresenter > Border.remote">
+            <Setter Property="Background" Value="#40588CF0" />
+        </Style>
+        <Style Selector="ItemsControl > ContentPresenter > Border.tag">
+            <Setter Property="Background" Value="#403FB950" />
+        </Style>
+    </Window.Styles>
 
     <DockPanel Margin="16">
 
@@ -130,6 +147,14 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" IsEnabled="{Binding !IsBusy}">
+                    <!-- The active view is the one wearing the accent. -->
+                    <Button Content="Changes" Command="{Binding ShowChangesCommand}"
+                            Classes.primary="{Binding !IsHistoryMode}" />
+                    <Button Content="History" Command="{Binding ShowHistoryCommand}"
+                            Classes.primary="{Binding IsHistoryMode}" />
+
+                    <Rectangle Width="1" Margin="4,4" Fill="#33FFFFFF" />
+
                     <Button Content="Fetch" Command="{Binding FetchCommand}" />
                     <Button Content="Pull" Command="{Binding PullCommand}" />
                     <Button Content="Push" Command="{Binding PushCommand}" />
@@ -205,10 +230,15 @@
                 </StackPanel>
             </Grid>
 
-            <!-- Files on the left (unstaged over staged), diff for the selected file on the right. -->
-            <Grid Grid.Row="1" ColumnDefinitions="340,12,*" Margin="0,14,0,0">
+            <!-- Left pane: file lists (Changes) or the commit graph (History). Right pane: diff. -->
+            <Grid Grid.Row="1" Margin="0,14,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="{Binding LeftPaneWidth}" />
+                    <ColumnDefinition Width="12" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
 
-                <Grid Grid.Column="0" RowDefinitions="*,10,*">
+                <Grid Grid.Column="0" RowDefinitions="*,10,*" IsVisible="{Binding !IsHistoryMode}">
 
                     <DockPanel Grid.Row="0">
                         <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,4">
@@ -263,6 +293,86 @@
                     </DockPanel>
                 </Grid>
 
+                <!-- History: commit list with the lane graph drawn over its left gutter. -->
+                <DockPanel Grid.Column="0" IsVisible="{Binding IsHistoryMode}">
+                    <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,4">
+                        <TextBlock Grid.Column="0" Text="History" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        <CheckBox Grid.Column="1"
+                                  Content="First-parent only"
+                                  FontSize="11"
+                                  IsChecked="{Binding FirstParentOnly}"
+                                  ToolTip.Tip="Collapse each merged branch to a single row — what actually landed on this branch." />
+                    </Grid>
+
+                    <Border BorderBrush="#30808080" BorderThickness="1" CornerRadius="4" ClipToBounds="True">
+                        <Panel>
+                            <ListBox x:Name="CommitList"
+                                     Background="Transparent"
+                                     Padding="{Binding CommitListPadding}"
+                                     ItemsSource="{Binding Commits}"
+                                     SelectedItem="{Binding SelectedCommit}">
+                                <ListBox.Styles>
+                                    <!-- Rows must be exactly as tall as the graph's row unit, or
+                                         the lanes drift out of alignment with the dots. -->
+                                    <Style Selector="ListBoxItem">
+                                        <Setter Property="Height" Value="26" />
+                                        <Setter Property="MinHeight" Value="26" />
+                                        <Setter Property="Padding" Value="4,0" />
+                                    </Style>
+                                </ListBox.Styles>
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="models:CommitInfo">
+                                        <Grid ColumnDefinitions="Auto,*,Auto,Auto" VerticalAlignment="Center">
+                                            <ItemsControl Grid.Column="0" ItemsSource="{Binding Refs}" Margin="0,0,6,0">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <StackPanel Orientation="Horizontal" Spacing="3" />
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate x:DataType="models:GitRef">
+                                                        <Border Classes.tag="{Binding IsTag}"
+                                                                Classes.remote="{Binding IsRemoteBranch}"
+                                                                CornerRadius="3" Padding="4,1"
+                                                                VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding Name}" FontSize="10" />
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+
+                                            <TextBlock Grid.Column="1" Text="{Binding Subject}"
+                                                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+
+                                            <TextBlock Grid.Column="2" Text="{Binding Author}"
+                                                       Opacity="0.5" FontSize="11" Margin="8,0"
+                                                       VerticalAlignment="Center" />
+
+                                            <TextBlock Grid.Column="3" Text="{Binding ShortSha}"
+                                                       Opacity="0.4" FontSize="11"
+                                                       FontFamily="Cascadia Mono,Consolas,monospace"
+                                                       VerticalAlignment="Center" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+
+                            <views:CommitGraphView x:Name="GraphView"
+                                                   Graph="{Binding Graph}"
+                                                   Width="{Binding GraphWidth}"
+                                                   RowHeight="26"
+                                                   HorizontalAlignment="Left"
+                                                   VerticalAlignment="Stretch"
+                                                   IsHitTestVisible="False" />
+
+                            <TextBlock Text="No commits yet."
+                                       IsVisible="{Binding !HasCommits}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       Opacity="0.35" IsHitTestVisible="False" />
+                        </Panel>
+                    </Border>
+                </DockPanel>
+
                 <!-- Diff viewer -->
                 <DockPanel Grid.Column="2">
                     <TextBlock DockPanel.Dock="Top"
@@ -289,7 +399,7 @@
                                              HorizontalScrollBarVisibility="Auto"
                                              VerticalScrollBarVisibility="Auto"
                                              IsVisible="{Binding HasDiff}" />
-                            <TextBlock Text="Select a changed file to see its diff."
+                            <TextBlock Text="{Binding DiffEmptyHint}"
                                        IsVisible="{Binding !HasDiff}"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"
                                        Opacity="0.35" IsHitTestVisible="False" />
@@ -298,7 +408,7 @@
                 </DockPanel>
             </Grid>
 
-            <!-- Commit -->
+            <!-- Commit (staging only — History has nothing to commit) -->
             <TextBox Grid.Row="2"
                      Margin="0,12,0,0"
                      MinHeight="56"
@@ -306,9 +416,11 @@
                      TextWrapping="Wrap"
                      PlaceholderText="Commit message"
                      Text="{Binding CommitMessage}"
+                     IsVisible="{Binding !IsHistoryMode}"
                      IsEnabled="{Binding !IsBusy}" />
 
-            <Grid Grid.Row="3" ColumnDefinitions="Auto,Auto,*" Margin="0,8,0,0">
+            <Grid Grid.Row="3" ColumnDefinitions="Auto,Auto,*" Margin="0,8,0,0"
+                  IsVisible="{Binding !IsHistoryMode}">
                 <Button Grid.Column="0" Classes="primary" Content="Commit" Command="{Binding CommitCommand}" IsEnabled="{Binding CanCommit}" />
                 <TextBlock Grid.Column="1"
                            Text="✓ Working tree clean"
@@ -329,7 +441,7 @@
                        Margin="0,10,0,0"
                        Opacity="0.4"
                        FontSize="11"
-                       Text="Double-click a file to stage/unstage · Esc back to the palette" />
+                       Text="{Binding FooterHint}" />
         </Grid>
         </Panel>
 

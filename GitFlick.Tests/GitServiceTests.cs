@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using GitFlick.Models;
@@ -252,6 +253,116 @@ public class GitServiceTests
 
         Assert.True(merge.Succeeded, merge.FailureMessage);
         Assert.True(System.IO.File.Exists(System.IO.Path.Combine(repo.Path, "feature.txt")));
+    }
+
+    /// <summary>Builds: main(3 commits) with a feature branch merged back in via --no-ff.</summary>
+    private static TestRepo MergeTopology()
+    {
+        var repo = new TestRepo();
+
+        repo.WriteFile("a.txt", "1");
+        repo.Git("add", "-A");
+        repo.Git("commit", "-m", "first on main");
+
+        repo.Git("checkout", "-b", "feature");
+        repo.WriteFile("f.txt", "f");
+        repo.Git("add", "-A");
+        repo.Git("commit", "-m", "feature work");
+
+        repo.Git("checkout", "main");
+        repo.WriteFile("a.txt", "2");
+        repo.Git("add", "-A");
+        repo.Git("commit", "-m", "second on main");
+
+        repo.Git("merge", "--no-ff", "-m", "Merge feature", "feature");
+        repo.Git("tag", "v1.0");
+
+        return repo;
+    }
+
+    [Fact]
+    public async Task Commits_carry_parents_refs_and_head()
+    {
+        using var repo = MergeTopology();
+
+        var commits = await _git.GetCommitsAsync(repo.Path);
+
+        var merge = commits.First(c => c.Subject == "Merge feature");
+        Assert.True(merge.IsMerge);
+        Assert.Equal(2, merge.Parents.Count);   // a merge must report BOTH parents, or no lanes
+        Assert.True(merge.IsHead);
+        Assert.Contains(merge.Refs, r => r.Name == "main" && r.Kind == GitRefKind.LocalBranch);
+        Assert.Contains(merge.Refs, r => r.Name == "v1.0" && r.Kind == GitRefKind.Tag);
+
+        Assert.Contains(commits, c => c.Subject == "feature work");
+        Assert.Contains(commits, c => c.Refs.Any(r => r.Name == "feature"));
+
+        // The root has no parents.
+        Assert.Empty(commits.Single(c => c.Subject == "first on main").Parents);
+    }
+
+    [Fact]
+    public async Task Commits_are_ordered_so_a_parent_never_precedes_its_child()
+    {
+        // The lane algorithm depends on this. --date-order guarantees it; plain log ordering
+        // does not, and a violation makes lanes wait forever for a SHA that already went by.
+        using var repo = MergeTopology();
+
+        var commits = await _git.GetCommitsAsync(repo.Path);
+        var seen = new HashSet<string>();
+
+        foreach (var commit in commits)
+        {
+            foreach (var parent in commit.Parents)
+            {
+                Assert.False(seen.Contains(parent), $"parent {parent[..7]} came before its child");
+            }
+
+            seen.Add(commit.Sha);
+        }
+    }
+
+    [Fact]
+    public async Task First_parent_only_drops_the_merged_branch_commits()
+    {
+        using var repo = MergeTopology();
+
+        var full = await _git.GetCommitsAsync(repo.Path);
+        var collapsed = await _git.GetCommitsAsync(repo.Path, firstParentOnly: true);
+
+        Assert.Contains(full, c => c.Subject == "feature work");
+        Assert.DoesNotContain(collapsed, c => c.Subject == "feature work");
+
+        // The merge stays: one row standing for the whole branch that landed.
+        Assert.Contains(collapsed, c => c.Subject == "Merge feature");
+        Assert.True(collapsed.Count < full.Count);
+    }
+
+    [Fact]
+    public async Task Commit_diff_shows_what_that_commit_changed()
+    {
+        using var repo = new TestRepo();
+        repo.WriteFile("a.txt", "one\n");
+        repo.Git("add", "-A");
+        repo.Git("commit", "-m", "first");
+
+        repo.WriteFile("a.txt", "one\n二行\n");
+        repo.Git("add", "-A");
+        repo.Git("commit", "-m", "second");
+
+        var head = (await _git.GetCommitsAsync(repo.Path)).First();
+        var diff = await _git.GetCommitDiffAsync(repo.Path, head.Sha);
+
+        Assert.Contains("+二行", diff);   // CJK survives the commit diff too
+        Assert.Contains("a.txt", diff);
+    }
+
+    [Fact]
+    public async Task A_repo_with_no_commits_yields_an_empty_history_rather_than_an_error()
+    {
+        using var repo = new TestRepo();   // freshly init'd, nothing committed
+
+        Assert.Empty(await _git.GetCommitsAsync(repo.Path));
     }
 
     [Fact]

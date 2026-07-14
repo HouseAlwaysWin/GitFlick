@@ -48,6 +48,20 @@ public interface IGitService
 
     Task<GitCommandResult> PushAsync(string repoPath, IProgress<string>? progress = null, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// History for the graph. <paramref name="firstParentOnly"/> collapses merges to one row each
+    /// (spec §5⑦'s "first-parent" view); otherwise every branch/remote/tag tip is included.
+    /// Always date-ordered, so a parent never precedes its child — the graph builder depends on it.
+    /// </summary>
+    Task<IReadOnlyList<CommitInfo>> GetCommitsAsync(
+        string repoPath,
+        int maxCount = 300,
+        bool firstParentOnly = false,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>The full patch introduced by one commit.</summary>
+    Task<string> GetCommitDiffAsync(string repoPath, string sha, CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<GitBranch>> GetBranchesAsync(string repoPath, CancellationToken cancellationToken = default);
 
     Task<GitCommandResult> CheckoutAsync(string repoPath, string branch, CancellationToken cancellationToken = default);
