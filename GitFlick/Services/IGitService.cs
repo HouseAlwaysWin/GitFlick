@@ -72,6 +72,9 @@ public interface IGitService
 
     Task<GitCommandResult> MergeAsync(string repoPath, string branch, CancellationToken cancellationToken = default);
 
+    /// <summary>Replays one commit onto the current branch.</summary>
+    Task<GitCommandResult> CherryPickAsync(string repoPath, string sha, CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<StashEntry>> GetStashesAsync(string repoPath, CancellationToken cancellationToken = default);
 
     Task<GitCommandResult> StashPushAsync(string repoPath, string? message = null, CancellationToken cancellationToken = default);

@@ -24,13 +24,6 @@ public partial class App : Application
 
     private bool _isExiting;
 
-    /// <summary>
-    /// Guards against the window hiding itself during the activation handover, when the
-    /// outgoing foreground window can briefly bounce a Deactivated event off ours.
-    /// Module ② will reuse this seam for the folder picker.
-    /// </summary>
-    private bool _suppressDeactivateHide;
-
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);
@@ -54,9 +47,6 @@ public partial class App : Application
             // NOT assigned to desktop.MainWindow -- that would auto-show it during startup.
             _mainWindow = new MainWindow { DataContext = _viewModel };
             _mainWindow.Closing += OnMainWindowClosing;
-            _mainWindow.Deactivated += OnMainWindowDeactivated;
-
-            WarmUpWindow();
 
             desktop.ShutdownRequested += OnShutdownRequested;
 
@@ -65,8 +55,9 @@ public partial class App : Application
 
             _ = CheckGitAvailabilityAsync();
 
-            // Show the window on launch so starting the app isn't invisible. It still lives in
-            // the tray afterwards: close/Esc/deactivate hides it, the hotkey re-summons it.
+            // It behaves like an ordinary windowed app: it opens on launch, minimises to the
+            // taskbar, and only goes to the tray when you actually dismiss it (X, Esc, hotkey).
+            // Losing focus does NOT hide it.
             ShowWindow();
         }
 
@@ -144,6 +135,10 @@ public partial class App : Application
 
     private void OnHotkeyPressed(object? sender, EventArgs e) => ToggleWindow();
 
+    /// <summary>
+    /// Hotkey behaviour: bring it up, or dismiss it to the tray if it's already in front.
+    /// A minimised window counts as "not in front", so the hotkey restores it.
+    /// </summary>
     private void ToggleWindow()
     {
         if (_mainWindow is null)
@@ -151,7 +146,9 @@ public partial class App : Application
             return;
         }
 
-        if (_mainWindow.IsVisible && _mainWindow.IsActive)
+        if (_mainWindow.IsVisible
+            && _mainWindow.IsActive
+            && _mainWindow.WindowState != WindowState.Minimized)
         {
             HideWindow();
         }
@@ -161,27 +158,7 @@ public partial class App : Application
         }
     }
 
-    /// <summary>
-    /// Creates the native window once, off-screen and unactivated, so the first hotkey press
-    /// pays a ~2 ms Show() instead of ~300 ms of window creation. Measured, not assumed.
-    /// </summary>
-    private void WarmUpWindow()
-    {
-        if (_mainWindow is null)
-        {
-            return;
-        }
-
-        _suppressDeactivateHide = true;
-        _mainWindow.ShowActivated = false;
-        _mainWindow.Position = new PixelPoint(-32000, -32000);
-        _mainWindow.Show();
-        _mainWindow.Hide();
-        _mainWindow.ShowActivated = true;
-        _suppressDeactivateHide = false;
-    }
-
-    /// <summary>Centres the launcher on whichever monitor the mouse is on.</summary>
+    /// <summary>Centres the window on whichever monitor the mouse is on.</summary>
     private void PositionWindow()
     {
         if (_mainWindow is null)
@@ -220,14 +197,16 @@ public partial class App : Application
             return;
         }
 
-        _suppressDeactivateHide = true;
+        var wasHidden = !_mainWindow.IsVisible;
 
         if (_mainWindow.WindowState == WindowState.Minimized)
         {
             _mainWindow.WindowState = WindowState.Normal;
         }
 
-        if (!_mainWindow.IsVisible)
+        // Only re-centre and reset when coming back from the tray. Restoring from the taskbar
+        // should leave the window where the user put it, and leave them where they were.
+        if (wasHidden)
         {
             PositionWindow();
             _viewModel?.ResetForSummon();
@@ -242,28 +221,9 @@ public partial class App : Application
         }
 
         _mainWindow.FocusInput();
-
-        // Clear once the activation messages have drained, not before.
-        Dispatcher.UIThread.Post(() => _suppressDeactivateHide = false, DispatcherPriority.Background);
     }
 
-    /// <summary>
-    /// Holds off hide-on-deactivate while a modal or native dialog owns the foreground.
-    /// Dispose to re-arm it. This is the seam module ②'s folder picker needed.
-    /// </summary>
-    public IDisposable SuppressAutoHide()
-    {
-        _suppressDeactivateHide = true;
-        return new AutoHideScope(this);
-    }
-
-    private sealed class AutoHideScope(App app) : IDisposable
-    {
-        public void Dispose() => Dispatcher.UIThread.Post(
-            () => app._suppressDeactivateHide = false,
-            DispatcherPriority.Background);
-    }
-
+    /// <summary>Dismisses to the tray. Only X, Esc and the hotkey do this — never focus loss.</summary>
     private void HideWindow() => _mainWindow?.Hide();
 
     /// <summary>
@@ -316,18 +276,9 @@ public partial class App : Application
             return;
         }
 
-        // The title bar's X means "get out of my way", not "quit". Only the tray exits.
+        // X means "get out of my way", not "quit": it hides to the tray. Minimize is left alone
+        // so it behaves like any other app, and only the tray's Exit really quits.
         e.Cancel = true;
-        HideWindow();
-    }
-
-    private void OnMainWindowDeactivated(object? sender, EventArgs e)
-    {
-        if (_isExiting || _suppressDeactivateHide)
-        {
-            return;
-        }
-
         HideWindow();
     }
 

@@ -108,13 +108,9 @@ public partial class WorkspaceViewModel : ViewModelBase
     public ObservableCollection<CommitInfo> Commits { get; } = [];
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(LeftPaneWidth))]
     [NotifyPropertyChangedFor(nameof(DiffEmptyHint))]
     [NotifyPropertyChangedFor(nameof(FooterHint))]
     public partial bool IsHistoryMode { get; set; }
-
-    /// <summary>The history needs more room for the graph than the file lists do.</summary>
-    public GridLength LeftPaneWidth => IsHistoryMode ? new GridLength(560) : new GridLength(340);
 
     public string DiffEmptyHint => IsHistoryMode
         ? "Select a commit to see what it changed."
@@ -196,6 +192,36 @@ public partial class WorkspaceViewModel : ViewModelBase
         {
             HistoryLoad = LoadHistoryAsync();
         }
+    }
+
+    [RelayCommand]
+    private Task CheckoutCommit()
+    {
+        if (SelectedCommit is not { } commit)
+        {
+            return Task.CompletedTask;
+        }
+
+        // Checking out a bare SHA detaches HEAD, which is rarely what you meant. If a local
+        // branch sits on this commit, check that out instead.
+        var target = commit.Refs.FirstOrDefault(r => r.Kind == GitRefKind.LocalBranch)?.Name ?? commit.Sha;
+
+        return RunAsync(
+            () => _git.CheckoutAsync(Repository.Path, target),
+            $"Checked out {target}");
+    }
+
+    [RelayCommand]
+    private Task CherryPick()
+    {
+        if (SelectedCommit is not { } commit)
+        {
+            return Task.CompletedTask;
+        }
+
+        return RunAsync(
+            () => _git.CherryPickAsync(Repository.Path, commit.Sha),
+            $"Cherry-picked {commit.ShortSha}");
     }
 
     partial void OnSelectedCommitChanged(CommitInfo? value)
@@ -464,6 +490,12 @@ public partial class WorkspaceViewModel : ViewModelBase
         {
             IsBusy = false;
             await RefreshAsync();
+
+            // Checkout, cherry-pick, merge and friends move HEAD, so the graph is stale too.
+            if (IsHistoryMode)
+            {
+                await LoadHistoryAsync();
+            }
         }
     }
 

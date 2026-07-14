@@ -246,6 +246,9 @@ public sealed class GitService : IGitService
     public Task<GitCommandResult> MergeAsync(string repoPath, string branch, CancellationToken cancellationToken = default)
         => RunAsync(repoPath, ["merge", branch], null, cancellationToken);
 
+    public Task<GitCommandResult> CherryPickAsync(string repoPath, string sha, CancellationToken cancellationToken = default)
+        => RunAsync(repoPath, ["cherry-pick", sha], null, cancellationToken);
+
     public async Task<IReadOnlyList<StashEntry>> GetStashesAsync(string repoPath, CancellationToken cancellationToken = default)
     {
         // "stash@{0}\0<subject>" per line.

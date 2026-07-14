@@ -60,6 +60,8 @@ internal sealed class FakeGitService : IGitService
 
     public Task<GitCommandResult> MergeAsync(string repoPath, string branch, CancellationToken cancellationToken = default) => Task.FromResult(Ok);
 
+    public Task<GitCommandResult> CherryPickAsync(string repoPath, string sha, CancellationToken cancellationToken = default) => Task.FromResult(Ok);
+
     public Task<IReadOnlyList<StashEntry>> GetStashesAsync(string repoPath, CancellationToken cancellationToken = default)
         => Task.FromResult<IReadOnlyList<StashEntry>>([]);
 

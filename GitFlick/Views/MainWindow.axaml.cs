@@ -4,10 +4,12 @@ using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using Avalonia.VisualTree;
 using AvaloniaEdit.TextMate;
+using GitFlick.Models;
 using GitFlick.ViewModels;
 using TextMateSharp.Grammars;
 
@@ -41,16 +43,48 @@ public partial class MainWindow : Window
     /// <summary>
     /// The graph is an overlay on the commit list's left gutter, so it has to follow the list's
     /// scrolling — otherwise the lanes slide away from the rows they belong to.
+    ///
+    /// ScrollChanged is a routed event, so it is caught as it bubbles up from the ListBox's inner
+    /// ScrollViewer. Looking that ScrollViewer up ahead of time does not work: the History pane
+    /// starts collapsed, so at Loaded the template isn't applied and there is nothing to find.
     /// </summary>
     private void SetUpCommitGraph()
     {
-        CommitList.Loaded += (_, _) =>
+        CommitList.AddHandler(ScrollViewer.ScrollChangedEvent, OnCommitListScrolled, RoutingStrategies.Bubble);
+
+        // Right-click doesn't select in a ListBox, but the context menu acts on the selection —
+        // so make the commit under the pointer the selected one before the menu opens.
+        CommitList.AddHandler(PointerPressedEvent, OnCommitListPointerPressed, RoutingStrategies.Tunnel);
+    }
+
+    private void OnCommitListScrolled(object? sender, ScrollChangedEventArgs e)
+    {
+        if (e.Source is ScrollViewer scroller)
         {
-            if (CommitList.FindDescendantOfType<ScrollViewer>() is { } scroller)
-            {
-                scroller.ScrollChanged += (_, _) => GraphView.ScrollOffset = scroller.Offset.Y;
-            }
-        };
+            GraphView.ScrollOffset = scroller.Offset.Y;
+        }
+    }
+
+    private void OnCommitListPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (!e.GetCurrentPoint(CommitList).Properties.IsRightButtonPressed)
+        {
+            return;
+        }
+
+        if ((e.Source as Visual)?.FindAncestorOfType<ListBoxItem>() is { DataContext: CommitInfo commit }
+            && Workspace is { } workspace)
+        {
+            workspace.SelectedCommit = commit;
+        }
+    }
+
+    private async void OnCopyShaClick(object? sender, RoutedEventArgs e)
+    {
+        if (Workspace?.SelectedCommit is { } commit && Clipboard is { } clipboard)
+        {
+            await clipboard.SetTextAsync(commit.Sha);
+        }
     }
 
     private WorkspaceViewModel? Workspace => (DataContext as MainViewModel)?.Workspace;
@@ -216,10 +250,6 @@ public partial class MainWindow : Window
         {
             return;
         }
-
-        // The native folder dialog takes the foreground, which would otherwise trip
-        // hide-on-deactivate and make the launcher vanish behind the picker.
-        using var _ = (Application.Current as App)?.SuppressAutoHide();
 
         var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
         {

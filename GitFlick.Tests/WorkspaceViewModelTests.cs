@@ -1,3 +1,4 @@
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using GitFlick.Models;
@@ -232,6 +233,83 @@ public class WorkspaceViewModelTests
         Assert.Equal("a.txt", vm.DiffPath);
         Assert.Contains("+staged", vm.DiffText);
         Assert.Null(vm.SelectedUnstagedFile);   // the other list's selection was cleared
+    }
+
+    [Fact]
+    public async Task Checkout_of_a_commit_prefers_its_branch_over_detaching_head()
+    {
+        using var repo = new TestRepo();
+        repo.WriteFile("a.txt", "1");
+        repo.Git("add", "-A");
+        repo.Git("commit", "-m", "first");
+        repo.Git("branch", "feature");   // 'feature' now sits on the same commit as main
+
+        var vm = ForRepo(repo);
+        await vm.ShowHistoryCommand.ExecuteAsync(null);
+
+        var commit = vm.Commits.Single();
+        Assert.Contains(commit.Refs, r => r.Name == "feature");
+
+        vm.SelectedCommit = commit;
+        await vm.CheckoutCommitCommand.ExecuteAsync(null);
+
+        // Checking out a bare SHA would detach HEAD; a branch on the commit must win.
+        var head = repo.Git("rev-parse", "--abbrev-ref", "HEAD").Trim();
+        Assert.NotEqual("HEAD", head);   // "HEAD" here would mean detached
+    }
+
+    [Fact]
+    public async Task Cherry_pick_replays_a_commit_onto_the_current_branch()
+    {
+        using var repo = new TestRepo();
+        repo.WriteFile("a.txt", "base");
+        repo.Git("add", "-A");
+        repo.Git("commit", "-m", "base");
+
+        // A commit that only exists on a side branch.
+        repo.Git("checkout", "-b", "side");
+        repo.WriteFile("picked.txt", "picked content");
+        repo.Git("add", "-A");
+        repo.Git("commit", "-m", "the one to pick");
+
+        repo.Git("checkout", "main");
+        Assert.False(File.Exists(Path.Combine(repo.Path, "picked.txt")));
+
+        var vm = ForRepo(repo);
+        await vm.ShowHistoryCommand.ExecuteAsync(null);
+
+        vm.SelectedCommit = vm.Commits.Single(c => c.Subject == "the one to pick");
+        await vm.CherryPickCommand.ExecuteAsync(null);
+
+        // The file it introduced now exists on main.
+        Assert.True(File.Exists(Path.Combine(repo.Path, "picked.txt")));
+        Assert.Equal("main", repo.Git("rev-parse", "--abbrev-ref", "HEAD").Trim());
+    }
+
+    [Fact]
+    public async Task History_reloads_after_an_operation_moves_head()
+    {
+        using var repo = new TestRepo();
+        repo.WriteFile("a.txt", "1");
+        repo.Git("add", "-A");
+        repo.Git("commit", "-m", "first");
+
+        var vm = ForRepo(repo);
+        await vm.ShowHistoryCommand.ExecuteAsync(null);
+        Assert.Single(vm.Commits);
+
+        // A cherry-pick adds a commit; the graph must not still show the old history.
+        repo.Git("checkout", "-b", "side");
+        repo.WriteFile("b.txt", "2");
+        repo.Git("add", "-A");
+        repo.Git("commit", "-m", "second");
+        repo.Git("checkout", "main");
+
+        await vm.ShowHistoryCommand.ExecuteAsync(null);
+        vm.SelectedCommit = vm.Commits.Single(c => c.Subject == "second");
+        await vm.CherryPickCommand.ExecuteAsync(null);
+
+        Assert.Contains(vm.Commits, c => c.Subject == "second" && c.Refs.Any(r => r.Name == "main"));
     }
 
     [Fact]

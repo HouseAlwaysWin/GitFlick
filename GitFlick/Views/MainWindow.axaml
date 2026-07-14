@@ -13,7 +13,7 @@
         Title="GitFlick"
         Width="1060" Height="660"
         WindowStartupLocation="Manual"
-        ShowInTaskbar="False">
+        ShowInTaskbar="True">
 
     <Design.DataContext>
         <vm:MainViewModel />
@@ -230,13 +230,20 @@
                 </StackPanel>
             </Grid>
 
-            <!-- Left pane: file lists (Changes) or the commit graph (History). Right pane: diff. -->
+            <!-- Left pane: file lists (Changes) or the commit graph (History). Right pane: diff.
+                 The splitter owns the width from here on — deliberately not bound to the view
+                 model, so switching modes never overrides where the user dragged it. -->
             <Grid Grid.Row="1" Margin="0,14,0,0">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="{Binding LeftPaneWidth}" />
-                    <ColumnDefinition Width="12" />
-                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="480" MinWidth="240" />
+                    <ColumnDefinition Width="8" />
+                    <ColumnDefinition Width="*" MinWidth="280" />
                 </Grid.ColumnDefinitions>
+
+                <GridSplitter Grid.Column="1"
+                              ResizeDirection="Columns"
+                              Background="Transparent"
+                              ResizeBehavior="PreviousAndNext" />
 
                 <Grid Grid.Column="0" RowDefinitions="*,10,*" IsVisible="{Binding !IsHistoryMode}">
 
@@ -311,6 +318,18 @@
                                      Padding="{Binding CommitListPadding}"
                                      ItemsSource="{Binding Commits}"
                                      SelectedItem="{Binding SelectedCommit}">
+                                <ListBox.ContextFlyout>
+                                    <MenuFlyout>
+                                        <MenuItem Header="Checkout"
+                                                  Command="{Binding CheckoutCommitCommand}"
+                                                  ToolTip.Tip="Checks out the branch on this commit, or the commit itself (detached HEAD)." />
+                                        <MenuItem Header="Cherry-pick"
+                                                  Command="{Binding CherryPickCommand}"
+                                                  ToolTip.Tip="Replay this commit on top of the current branch." />
+                                        <Separator />
+                                        <MenuItem Header="Copy SHA" Click="OnCopyShaClick" />
+                                    </MenuFlyout>
+                                </ListBox.ContextFlyout>
                                 <ListBox.Styles>
                                     <!-- Rows must be exactly as tall as the graph's row unit, or
                                          the lanes drift out of alignment with the dots. -->
