@@ -169,6 +169,72 @@ public class WorkspaceViewModelTests
     }
 
     [Fact]
+    public async Task Selecting_an_unstaged_file_loads_its_diff()
+    {
+        using var repo = new TestRepo();
+        repo.WriteFile("a.txt", "one\ntwo\n");
+        repo.Git("add", "-A");
+        repo.Git("commit", "-m", "first");
+        repo.WriteFile("a.txt", "one\nTWO\n");
+
+        var vm = ForRepo(repo);
+        await vm.RefreshAsync();
+        Assert.False(vm.HasDiff);   // nothing selected yet
+
+        vm.SelectedUnstagedFile = vm.UnstagedFiles.Single();
+        await vm.DiffLoad;
+
+        Assert.True(vm.HasDiff);
+        Assert.Equal("a.txt", vm.DiffPath);
+        Assert.Contains("-two", vm.DiffText);
+        Assert.Contains("+TWO", vm.DiffText);
+    }
+
+    [Fact]
+    public async Task Selecting_an_untracked_file_shows_it_as_all_added()
+    {
+        using var repo = new TestRepo();
+        repo.WriteFile("seed.txt", "s");
+        repo.Git("add", "-A");
+        repo.Git("commit", "-m", "seed");
+        repo.WriteFile("fresh.txt", "brand new\n");
+
+        var vm = ForRepo(repo);
+        await vm.RefreshAsync();
+
+        vm.SelectedUnstagedFile = vm.UnstagedFiles.Single(f => f.Path == "fresh.txt");
+        await vm.DiffLoad;
+
+        Assert.Contains("+brand new", vm.DiffText);
+    }
+
+    [Fact]
+    public async Task Selecting_a_staged_file_shows_the_staged_diff_and_clears_the_other_selection()
+    {
+        using var repo = new TestRepo();
+        repo.WriteFile("a.txt", "base\n");
+        repo.Git("add", "-A");
+        repo.Git("commit", "-m", "first");
+        repo.WriteFile("a.txt", "staged\n");
+        repo.Git("add", "a.txt");
+        repo.WriteFile("b.txt", "unstaged\n");
+
+        var vm = ForRepo(repo);
+        await vm.RefreshAsync();
+
+        vm.SelectedUnstagedFile = vm.UnstagedFiles.Single(f => f.Path == "b.txt");
+        await vm.DiffLoad;
+        Assert.Equal("b.txt", vm.DiffPath);
+
+        vm.SelectedStagedFile = vm.StagedFiles.Single(f => f.Path == "a.txt");
+        await vm.DiffLoad;
+
+        Assert.Equal("a.txt", vm.DiffPath);
+        Assert.Contains("+staged", vm.DiffText);
+        Assert.Null(vm.SelectedUnstagedFile);   // the other list's selection was cleared
+    }
+
+    [Fact]
     public async Task A_failed_operation_surfaces_gits_error_without_throwing()
     {
         using var repo = new TestRepo();

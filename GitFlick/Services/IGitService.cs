@@ -20,6 +20,18 @@ public interface IGitService
 
     Task<GitStatus> GetStatusAsync(string repoPath, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// The unified diff for one path. <paramref name="staged"/> selects <c>--cached</c>.
+    /// An untracked file has nothing to diff against, so it is compared to an empty file
+    /// and comes back as all-added.
+    /// </summary>
+    Task<string> GetDiffAsync(
+        string repoPath,
+        string path,
+        bool staged,
+        bool untracked = false,
+        CancellationToken cancellationToken = default);
+
     Task<GitCommandResult> StageAsync(string repoPath, string path, CancellationToken cancellationToken = default);
 
     Task<GitCommandResult> StageAllAsync(string repoPath, CancellationToken cancellationToken = default);

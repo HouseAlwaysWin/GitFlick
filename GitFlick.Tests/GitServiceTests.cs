@@ -83,6 +83,80 @@ public class GitServiceTests
     }
 
     [Fact]
+    public async Task Diff_shows_unstaged_changes_with_added_and_removed_lines()
+    {
+        using var repo = new TestRepo();
+        repo.WriteFile("a.txt", "one\ntwo\n");
+        repo.Git("add", "-A");
+        repo.Git("commit", "-m", "first");
+
+        repo.WriteFile("a.txt", "one\nTWO\n");
+
+        var diff = await _git.GetDiffAsync(repo.Path, "a.txt", staged: false);
+
+        Assert.Contains("-two", diff);
+        Assert.Contains("+TWO", diff);
+        Assert.Contains("@@", diff);
+    }
+
+    [Fact]
+    public async Task Staged_and_unstaged_diffs_are_different_views()
+    {
+        using var repo = new TestRepo();
+        repo.WriteFile("a.txt", "base\n");
+        repo.Git("add", "-A");
+        repo.Git("commit", "-m", "first");
+
+        repo.WriteFile("a.txt", "staged\n");
+        repo.Git("add", "a.txt");        // "staged" is now in the index
+        repo.WriteFile("a.txt", "worktree\n");  // and the worktree moved on again
+
+        var staged = await _git.GetDiffAsync(repo.Path, "a.txt", staged: true);
+        var unstaged = await _git.GetDiffAsync(repo.Path, "a.txt", staged: false);
+
+        Assert.Contains("+staged", staged);       // index vs HEAD
+        Assert.Contains("-staged", unstaged);     // worktree vs index
+        Assert.Contains("+worktree", unstaged);
+    }
+
+    [Fact]
+    public async Task Diff_of_an_untracked_file_shows_it_as_all_added()
+    {
+        using var repo = new TestRepo();
+        repo.WriteFile("seed.txt", "s");
+        repo.Git("add", "-A");
+        repo.Git("commit", "-m", "seed");
+
+        // Untracked: plain `git diff` prints nothing, so this must go through --no-index.
+        repo.WriteFile("brand-new.txt", "hello\nworld\n");
+
+        var plain = await _git.GetDiffAsync(repo.Path, "brand-new.txt", staged: false);
+        Assert.Empty(plain);   // proves the untracked flag is actually needed
+
+        var diff = await _git.GetDiffAsync(repo.Path, "brand-new.txt", staged: false, untracked: true);
+
+        Assert.Contains("+hello", diff);
+        Assert.Contains("+world", diff);
+    }
+
+    [Fact]
+    public async Task Diff_keeps_cjk_content_and_paths_readable()
+    {
+        using var repo = new TestRepo();
+        repo.WriteFile("報告.txt", "第一行\n");
+        repo.Git("add", "-A");
+        repo.Git("commit", "-m", "first");
+
+        repo.WriteFile("報告.txt", "第一行\n第二行\n");
+
+        var diff = await _git.GetDiffAsync(repo.Path, "報告.txt", staged: false);
+
+        Assert.Contains("+第二行", diff);
+        Assert.Contains("報告.txt", diff);
+        Assert.DoesNotContain("\\346", diff);   // no octal escaping
+    }
+
+    [Fact]
     public async Task Unstage_moves_a_file_back_to_the_worktree()
     {
         using var repo = new TestRepo();

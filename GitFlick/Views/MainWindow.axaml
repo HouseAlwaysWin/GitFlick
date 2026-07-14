@@ -2,14 +2,15 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:GitFlick.ViewModels"
         xmlns:models="using:GitFlick.Models"
+        xmlns:edit="using:AvaloniaEdit"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="780" d:DesignHeight="600"
+        mc:Ignorable="d" d:DesignWidth="1060" d:DesignHeight="660"
         x:Class="GitFlick.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Icon="/Assets/gitflick.ico"
         Title="GitFlick"
-        Width="780" Height="600"
+        Width="1060" Height="660"
         WindowStartupLocation="Manual"
         ShowInTaskbar="False">
 
@@ -204,55 +205,92 @@
                 </StackPanel>
             </Grid>
 
-            <!-- Two file lists: unstaged | staged -->
-            <Grid Grid.Row="1" ColumnDefinitions="*,12,*" Margin="0,14,0,0">
+            <!-- Files on the left (unstaged over staged), diff for the selected file on the right. -->
+            <Grid Grid.Row="1" ColumnDefinitions="340,12,*" Margin="0,14,0,0">
 
-                <DockPanel Grid.Column="0">
-                    <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,4">
-                        <TextBlock Grid.Column="0" Text="Unstaged" FontWeight="SemiBold" VerticalAlignment="Center" />
-                        <Button Grid.Column="1" Content="Stage all" FontSize="11"
-                                Command="{Binding StageAllCommand}" IsEnabled="{Binding !IsBusy}" />
-                    </Grid>
-                    <Border BorderBrush="#30808080" BorderThickness="1" CornerRadius="4">
-                        <Panel>
-                            <ListBox x:Name="UnstagedList"
-                                     Background="Transparent"
-                                     ItemsSource="{Binding UnstagedFiles}"
-                                     SelectedItem="{Binding SelectedUnstagedFile}">
-                                <ListBox.ItemTemplate>
-                                    <DataTemplate x:DataType="models:GitStatusEntry">
-                                        <TextBlock Text="{Binding Path}" TextTrimming="CharacterEllipsis" />
-                                    </DataTemplate>
-                                </ListBox.ItemTemplate>
-                            </ListBox>
-                            <TextBlock Text="No unstaged changes"
-                                       IsVisible="{Binding !HasUnstagedFiles}"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center"
-                                       Opacity="0.35" IsHitTestVisible="False" />
-                        </Panel>
-                    </Border>
-                </DockPanel>
+                <Grid Grid.Column="0" RowDefinitions="*,10,*">
 
+                    <DockPanel Grid.Row="0">
+                        <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,4">
+                            <TextBlock Grid.Column="0" Text="Unstaged" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            <Button Grid.Column="1" Content="Stage all" FontSize="11"
+                                    Command="{Binding StageAllCommand}" IsEnabled="{Binding !IsBusy}" />
+                        </Grid>
+                        <Border BorderBrush="#30808080" BorderThickness="1" CornerRadius="4">
+                            <Panel>
+                                <ListBox x:Name="UnstagedList"
+                                         Background="Transparent"
+                                         ItemsSource="{Binding UnstagedFiles}"
+                                         SelectedItem="{Binding SelectedUnstagedFile}">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate x:DataType="models:GitStatusEntry">
+                                            <TextBlock Text="{Binding Path}" TextTrimming="CharacterEllipsis" />
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                                <TextBlock Text="No unstaged changes"
+                                           IsVisible="{Binding !HasUnstagedFiles}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           Opacity="0.35" IsHitTestVisible="False" />
+                            </Panel>
+                        </Border>
+                    </DockPanel>
+
+                    <DockPanel Grid.Row="2">
+                        <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,4">
+                            <TextBlock Grid.Column="0" Text="Staged" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            <Button Grid.Column="1" Content="Unstage all" FontSize="11"
+                                    Command="{Binding UnstageAllCommand}" IsEnabled="{Binding !IsBusy}" />
+                        </Grid>
+                        <Border BorderBrush="#30808080" BorderThickness="1" CornerRadius="4">
+                            <Panel>
+                                <ListBox x:Name="StagedList"
+                                         Background="Transparent"
+                                         ItemsSource="{Binding StagedFiles}"
+                                         SelectedItem="{Binding SelectedStagedFile}">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate x:DataType="models:GitStatusEntry">
+                                            <TextBlock Text="{Binding Path}" TextTrimming="CharacterEllipsis" />
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                                <TextBlock Text="Nothing staged"
+                                           IsVisible="{Binding !HasStagedFiles}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           Opacity="0.35" IsHitTestVisible="False" />
+                            </Panel>
+                        </Border>
+                    </DockPanel>
+                </Grid>
+
+                <!-- Diff viewer -->
                 <DockPanel Grid.Column="2">
-                    <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,4">
-                        <TextBlock Grid.Column="0" Text="Staged" FontWeight="SemiBold" VerticalAlignment="Center" />
-                        <Button Grid.Column="1" Content="Unstage all" FontSize="11"
-                                Command="{Binding UnstageAllCommand}" IsEnabled="{Binding !IsBusy}" />
-                    </Grid>
-                    <Border BorderBrush="#30808080" BorderThickness="1" CornerRadius="4">
+                    <TextBlock DockPanel.Dock="Top"
+                               Margin="0,0,0,4"
+                               FontWeight="SemiBold"
+                               TextTrimming="CharacterEllipsis"
+                               Text="{Binding DiffPath, StringFormat='Diff — {0}'}"
+                               IsVisible="{Binding HasDiff}" />
+                    <TextBlock DockPanel.Dock="Top"
+                               Margin="0,0,0,4"
+                               FontWeight="SemiBold"
+                               Opacity="0.6"
+                               Text="Diff"
+                               IsVisible="{Binding !HasDiff}" />
+
+                    <Border BorderBrush="#30808080" BorderThickness="1" CornerRadius="4" ClipToBounds="True">
                         <Panel>
-                            <ListBox x:Name="StagedList"
-                                     Background="Transparent"
-                                     ItemsSource="{Binding StagedFiles}"
-                                     SelectedItem="{Binding SelectedStagedFile}">
-                                <ListBox.ItemTemplate>
-                                    <DataTemplate x:DataType="models:GitStatusEntry">
-                                        <TextBlock Text="{Binding Path}" TextTrimming="CharacterEllipsis" />
-                                    </DataTemplate>
-                                </ListBox.ItemTemplate>
-                            </ListBox>
-                            <TextBlock Text="Nothing staged"
-                                       IsVisible="{Binding !HasStagedFiles}"
+                            <edit:TextEditor x:Name="DiffEditor"
+                                             IsReadOnly="True"
+                                             ShowLineNumbers="False"
+                                             FontFamily="Cascadia Mono,Consolas,Menlo,monospace"
+                                             FontSize="12"
+                                             Background="Transparent"
+                                             HorizontalScrollBarVisibility="Auto"
+                                             VerticalScrollBarVisibility="Auto"
+                                             IsVisible="{Binding HasDiff}" />
+                            <TextBlock Text="Select a changed file to see its diff."
+                                       IsVisible="{Binding !HasDiff}"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"
                                        Opacity="0.35" IsHitTestVisible="False" />
                         </Panel>

@@ -83,8 +83,22 @@ public partial class WorkspaceViewModel : ViewModelBase
     [ObservableProperty]
     public partial string StatusText { get; set; } = string.Empty;
 
+    /// <summary>The unified diff of the selected file, shown in the diff viewer.</summary>
+    [ObservableProperty]
+    public partial string DiffText { get; set; } = string.Empty;
+
+    /// <summary>Path of the file the diff belongs to; empty when nothing is selected.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasDiff))]
+    public partial string DiffPath { get; set; } = string.Empty;
+
+    public bool HasDiff => DiffPath.Length > 0;
+
     public bool CanCommit =>
         !IsBusy && HasStagedFiles && !string.IsNullOrWhiteSpace(CommitMessage);
+
+    /// <summary>The in-flight diff load. Exposed so callers and tests can await it.</summary>
+    public Task DiffLoad { get; private set; } = Task.CompletedTask;
 
     /// <summary>Reloads status, branches and stashes from git. Never throws.</summary>
     public async Task RefreshAsync()
@@ -97,6 +111,11 @@ public partial class WorkspaceViewModel : ViewModelBase
             Upstream = status.Upstream;
             Ahead = status.Ahead;
             Behind = status.Behind;
+
+            // The lists are about to be rebuilt, so any showing diff is about to be stale.
+            SelectedUnstagedFile = null;
+            SelectedStagedFile = null;
+            ClearDiff();
 
             Replace(UnstagedFiles, status.Unstaged);
             Replace(StagedFiles, status.Staged);
@@ -235,6 +254,58 @@ public partial class WorkspaceViewModel : ViewModelBase
         }
 
         return RunAsync(() => _git.StashPopAsync(Repository.Path), "Popped stash");
+    }
+
+    // Selecting in one list clears the other, so the diff always corresponds to exactly one file.
+    partial void OnSelectedUnstagedFileChanged(GitStatusEntry? value)
+    {
+        if (value is null)
+        {
+            return;
+        }
+
+        SelectedStagedFile = null;
+        DiffLoad = ShowDiffAsync(value, staged: false);
+    }
+
+    partial void OnSelectedStagedFileChanged(GitStatusEntry? value)
+    {
+        if (value is null)
+        {
+            return;
+        }
+
+        SelectedUnstagedFile = null;
+        DiffLoad = ShowDiffAsync(value, staged: true);
+    }
+
+    private async Task ShowDiffAsync(GitStatusEntry entry, bool staged)
+    {
+        DiffPath = entry.Path;
+        DiffText = "Loading…";
+
+        try
+        {
+            var diff = await _git.GetDiffAsync(
+                Repository.Path,
+                entry.Path,
+                staged,
+                untracked: entry.Kind == GitChangeKind.Untracked);
+
+            DiffText = diff.Trim().Length == 0
+                ? "(no textual changes)"
+                : diff;
+        }
+        catch (GitException ex)
+        {
+            DiffText = ex.Message;
+        }
+    }
+
+    private void ClearDiff()
+    {
+        DiffPath = string.Empty;
+        DiffText = string.Empty;
     }
 
     private IProgress<string> Progress() => new Progress<string>(line => StatusText = line);

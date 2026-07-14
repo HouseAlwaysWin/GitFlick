@@ -24,6 +24,9 @@ internal sealed class FakeGitService : IGitService
     public Task<GitStatus> GetStatusAsync(string repoPath, CancellationToken cancellationToken = default)
         => Task.FromResult(new GitStatus());
 
+    public Task<string> GetDiffAsync(string repoPath, string path, bool staged, bool untracked = false, CancellationToken cancellationToken = default)
+        => Task.FromResult(string.Empty);
+
     public Task<GitCommandResult> StageAsync(string repoPath, string path, CancellationToken cancellationToken = default) => Task.FromResult(Ok);
 
     public Task<GitCommandResult> StageAllAsync(string repoPath, CancellationToken cancellationToken = default) => Task.FromResult(Ok);

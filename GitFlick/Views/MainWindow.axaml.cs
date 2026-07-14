@@ -1,15 +1,21 @@
+using System.ComponentModel;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
+using AvaloniaEdit.TextMate;
 using GitFlick.ViewModels;
+using TextMateSharp.Grammars;
 
 namespace GitFlick.Views;
 
 public partial class MainWindow : Window
 {
+    private MainViewModel? _observedMain;
+    private WorkspaceViewModel? _observedWorkspace;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -22,9 +28,81 @@ public partial class MainWindow : Window
         RepoList.DoubleTapped += (_, _) => (DataContext as MainViewModel)?.OpenSelected();
         UnstagedList.DoubleTapped += (_, _) => Workspace?.StageCommand.Execute(Workspace.SelectedUnstagedFile);
         StagedList.DoubleTapped += (_, _) => Workspace?.UnstageCommand.Execute(Workspace.SelectedStagedFile);
+
+        SetUpDiffEditor();
+
+        DataContextChanged += (_, _) => ObserveViewModel();
+        ObserveViewModel();
     }
 
     private WorkspaceViewModel? Workspace => (DataContext as MainViewModel)?.Workspace;
+
+    /// <summary>
+    /// TextMate does the syntax colouring (spec §1: don't hand-roll a highlighter); the
+    /// background renderer tints whole +/- lines on top of it.
+    /// </summary>
+    private void SetUpDiffEditor()
+    {
+        DiffEditor.TextArea.TextView.BackgroundRenderers.Add(new DiffLineBackgroundRenderer());
+
+        var registryOptions = new RegistryOptions(ThemeName.DarkPlus);
+        var installation = DiffEditor.InstallTextMate(registryOptions);
+        installation.SetGrammar(registryOptions.GetScopeByLanguageId("diff"));
+    }
+
+    // AvaloniaEdit's document isn't a good binding target, so the diff text is pushed into the
+    // editor whenever the workspace reports a new one.
+    private void ObserveViewModel()
+    {
+        if (_observedMain is not null)
+        {
+            _observedMain.PropertyChanged -= OnMainPropertyChanged;
+        }
+
+        _observedMain = DataContext as MainViewModel;
+
+        if (_observedMain is not null)
+        {
+            _observedMain.PropertyChanged += OnMainPropertyChanged;
+        }
+
+        ObserveWorkspace();
+    }
+
+    private void OnMainPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(MainViewModel.Workspace))
+        {
+            ObserveWorkspace();
+        }
+    }
+
+    private void ObserveWorkspace()
+    {
+        if (_observedWorkspace is not null)
+        {
+            _observedWorkspace.PropertyChanged -= OnWorkspacePropertyChanged;
+        }
+
+        _observedWorkspace = Workspace;
+
+        if (_observedWorkspace is not null)
+        {
+            _observedWorkspace.PropertyChanged += OnWorkspacePropertyChanged;
+        }
+
+        UpdateDiffEditor();
+    }
+
+    private void OnWorkspacePropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(WorkspaceViewModel.DiffText))
+        {
+            UpdateDiffEditor();
+        }
+    }
+
+    private void UpdateDiffEditor() => DiffEditor.Text = _observedWorkspace?.DiffText ?? string.Empty;
 
     private void OnBackClick(object? sender, RoutedEventArgs e) => ReturnToPalette();
 

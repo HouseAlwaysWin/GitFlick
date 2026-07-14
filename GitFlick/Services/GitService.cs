@@ -62,6 +62,35 @@ public sealed class GitService : IGitService
         return PorcelainV2Parser.Parse(result.StandardOutput);
     }
 
+    public async Task<string> GetDiffAsync(
+        string repoPath,
+        string path,
+        bool staged,
+        bool untracked = false,
+        CancellationToken cancellationToken = default)
+    {
+        // An untracked file is in neither HEAD nor the index, so plain `git diff` prints
+        // nothing. Diffing it against an empty file renders it as all-added. --no-index
+        // exits 1 when the files differ, which here is the expected outcome, not a failure.
+        var args = untracked
+            ? new[] { "diff", "--no-index", "--", NullDevice, path }
+            : staged
+                ? ["diff", "--cached", "--", path]
+                : new[] { "diff", "--", path };
+
+        var result = await RunAsync(repoPath, args, null, cancellationToken).ConfigureAwait(false);
+
+        if (result.Succeeded || (untracked && result.ExitCode == 1))
+        {
+            return result.StandardOutput;
+        }
+
+        throw new GitException($"git diff failed: {result.FailureMessage}");
+    }
+
+    /// <summary>Git accepts this on Windows too — it is git's own null path, not the OS's.</summary>
+    private const string NullDevice = "/dev/null";
+
     public Task<GitCommandResult> StageAsync(string repoPath, string path, CancellationToken cancellationToken = default)
         => RunAsync(repoPath, ["add", "--", path], null, cancellationToken);
 

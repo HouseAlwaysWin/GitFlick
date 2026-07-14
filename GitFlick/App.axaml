@@ -14,6 +14,10 @@
     <Application.Styles>
         <FluentTheme />
 
+        <!-- AvaloniaEdit ships its own control theme. Without this the TextEditor has no
+             template and renders as an empty box, even with a document loaded. -->
+        <StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />
+
         <!-- Secondary buttons: soft orange-tinted chips (not flat grey). The background is set
              on the ContentPresenter in every state so the Fluent theme's default can't win.
              Exact-type selector, so ComboBox/scrollbar buttons are untouched. -->
