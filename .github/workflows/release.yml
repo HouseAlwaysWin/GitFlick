@@ -1,0 +1,92 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Verify (build + test)
+        shell: powershell
+        run: powershell -ExecutionPolicy Bypass -File scripts/verify.ps1
+
+      # Self-contained single file: largest download but needs no .NET installed. Compression shrinks
+      # the exe; DebugType=none keeps PDBs out of the artifact.
+      - name: Publish application (self-contained, single file)
+        shell: powershell
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          $core = $version.Split('-')[0]
+          $parts = $core.Split('.')
+          if ($parts.Count -ne 3) { throw "Tag version must be major.minor.patch: $version" }
+          $asmver = "$($parts[0]).$($parts[1]).$($parts[2]).0"
+          dotnet publish GitFlick/GitFlick.csproj `
+            -c Release -r win-x64 --self-contained true `
+            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:IncludeAllContentForSelfExtract=true -p:EnableCompressionInSingleFile=true `
+            -p:DebugType=none -p:DebugSymbols=false `
+            "-p:Version=$version" "-p:AssemblyVersion=$asmver" "-p:FileVersion=$asmver" "-p:InformationalVersion=$version" `
+            -o ./publish
+          if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed ($LASTEXITCODE)" }
+
+      - name: Strip debug symbols
+        shell: powershell
+        run: Get-ChildItem ./publish -Filter *.pdb -Recurse -File -ErrorAction SilentlyContinue | Remove-Item -Force
+
+      - name: Zip the portable application
+        shell: powershell
+        run: Compress-Archive -Path ./publish/* -DestinationPath GitFlick_win-x64.zip
+
+      # Optional installer alongside the portable zip: an Inno Setup wizard with Start-Menu / desktop
+      # shortcuts and an uninstaller. Per-user by default (no admin).
+      - name: Build Windows installer (Inno Setup)
+        shell: powershell
+        run: |
+          choco install innosetup --no-progress -y
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup install failed ($LASTEXITCODE)" }
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { throw "ISCC.exe not found at $iscc" }
+          $src = (Resolve-Path './publish').Path
+          & $iscc "/DAppVersion=$version" "/DSourceDir=$src" installer\GitFlick.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC failed ($LASTEXITCODE)" }
+          Get-ChildItem installer\output
+
+      - name: Generate checksum manifest
+        shell: powershell
+        run: |
+          $lines = @()
+          $zipHash = (Get-FileHash GitFlick_win-x64.zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          $lines += "$zipHash  GitFlick_win-x64.zip"
+          $setup = Get-ChildItem installer\output\GitFlick_Setup_*.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($setup) {
+            $setupHash = (Get-FileHash $setup.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            $lines += "$setupHash  $($setup.Name)"
+          }
+          $lines | Set-Content -Encoding ascii SHA256SUMS.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            GitFlick_win-x64.zip
+            installer/output/GitFlick_Setup_*.exe
+            SHA256SUMS.txt
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

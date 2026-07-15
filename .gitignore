@@ -187,6 +187,9 @@ DocProject/Help/html
 # Click-Once directory
 publish/
 
+# Inno Setup installer output (built by scripts/build-installer.ps1 and CI)
+installer/output/
+
 # Publish Web Output
 *.[Pp]ublish.xml
 *.azurePubxml
