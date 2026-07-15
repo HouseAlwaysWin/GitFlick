@@ -578,6 +578,47 @@ public partial class WorkspaceViewModel : ViewModelBase
         OnPropertyChanged(labelProperty);   // the "(N)" count moved
     }
 
+    /// <summary>
+    /// Set by the View: asks the user to confirm a checkout while the working tree is dirty, and
+    /// returns true to proceed. Null (e.g. in tests) means "no guard, just do it".
+    /// </summary>
+    public Func<string, Task<bool>>? ConfirmDirtyCheckout { get; set; }
+
+    /// <summary>Runs a checkout, but warns first when there are uncommitted (tracked) changes.</summary>
+    private async Task GuardedCheckout(string target, string successMessage)
+    {
+        if (!await ConfirmCheckoutAllowed(target))
+        {
+            return;
+        }
+
+        await RunAsync(() => _git.CheckoutAsync(Repository.Path, target), successMessage);
+    }
+
+    private async Task<bool> ConfirmCheckoutAllowed(string target)
+    {
+        if (ConfirmDirtyCheckout is null)
+        {
+            return true;
+        }
+
+        // Re-read status so the guard reflects reality, not a stale snapshot. Untracked files
+        // don't block a checkout, so they don't count as "dirty" for this warning.
+        bool dirty;
+        try
+        {
+            var status = await _git.GetStatusAsync(Repository.Path);
+            dirty = status.Staged.Any()
+                 || status.Unstaged.Any(e => e.Kind != GitChangeKind.Untracked);
+        }
+        catch (GitException)
+        {
+            dirty = !IsCleanTree;
+        }
+
+        return !dirty || await ConfirmDirtyCheckout(target);
+    }
+
     [RelayCommand]
     private Task CheckoutCommit()
     {
@@ -590,9 +631,7 @@ public partial class WorkspaceViewModel : ViewModelBase
         // branch sits on this commit, check that out instead.
         var target = commit.Refs.FirstOrDefault(r => r.Kind == GitRefKind.LocalBranch)?.Name ?? commit.Sha;
 
-        return RunAsync(
-            () => _git.CheckoutAsync(Repository.Path, target),
-            $"Checked out {target}");
+        return GuardedCheckout(target, $"Checked out {target}");
     }
 
     /// <summary>
@@ -612,7 +651,7 @@ public partial class WorkspaceViewModel : ViewModelBase
             ? reference.Name[(reference.Name.IndexOf('/') + 1)..]
             : reference.Name;
 
-        return RunAsync(() => _git.CheckoutAsync(Repository.Path, target), $"Checked out {target}");
+        return GuardedCheckout(target, $"Checked out {target}");
     }
 
     [RelayCommand]
@@ -852,7 +891,7 @@ public partial class WorkspaceViewModel : ViewModelBase
             return Task.CompletedTask;
         }
 
-        return RunAsync(() => _git.CheckoutAsync(Repository.Path, branch.Name), $"Switched to {branch.Name}");
+        return GuardedCheckout(branch.Name, $"Switched to {branch.Name}");
     }
 
     [RelayCommand]

@@ -8,10 +8,13 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
+using Avalonia.Layout;
+using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.VisualTree;
 using AvaloniaEdit.TextMate;
 using GitFlick.Models;
+using GitFlick.Services;
 using GitFlick.ViewModels;
 using TextMateSharp.Grammars;
 
@@ -30,6 +33,10 @@ public partial class MainWindow : Window
         // before whatever control has focus — the search box OR the list after a click.
         AddHandler(KeyDownEvent, OnPreviewKeyDown, RoutingStrategies.Tunnel);
 
+        // Give memory back to the OS once dismissed to the tray, and stand down the moment we're
+        // summoned again. Catches every hide path (Esc, X, hotkey) via the one IsVisible signal.
+        PropertyChanged += OnWindowVisibilityChanged;
+
         // Mouse users expect a double-click to open a repo / move a file across the staging line.
         RepoList.DoubleTapped += (_, _) => (DataContext as MainViewModel)?.OpenSelected();
         UnstagedList.DoubleTapped += (_, _) => Workspace?.StageCommand.Execute(Workspace.SelectedUnstagedFile);
@@ -44,6 +51,25 @@ public partial class MainWindow : Window
 
         DataContextChanged += (_, _) => ObserveViewModel();
         ObserveViewModel();
+    }
+
+    private void OnWindowVisibilityChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
+    {
+        if (e.Property != IsVisibleProperty)
+        {
+            return;
+        }
+
+        if (IsVisible)
+        {
+            ProcessMemoryTrimService.NotifyActivity("window-shown");
+        }
+        else
+        {
+            // Compacting GC + working-set release a couple of seconds after we're dismissed. A
+            // quick re-summon fires NotifyActivity and cancels it, so it only runs while idle.
+            _ = ProcessMemoryTrimService.RequestIdleTrimAsync("window-hidden", TimeSpan.FromSeconds(2));
+        }
     }
 
     /// <summary>
@@ -269,9 +295,60 @@ public partial class MainWindow : Window
         if (_observedWorkspace is not null)
         {
             _observedWorkspace.PropertyChanged += OnWorkspacePropertyChanged;
+            _observedWorkspace.ConfirmDirtyCheckout = ConfirmDirtyCheckoutAsync;
         }
 
         UpdateDiffEditor();
+    }
+
+    /// <summary>
+    /// The branch-switch safety net: with uncommitted changes, ask before checking out. Shown for
+    /// the Branch flyout, the commit context menu, and double-clicking a branch badge.
+    /// </summary>
+    private async Task<bool> ConfirmDirtyCheckoutAsync(string target)
+    {
+        var cancel = new Button { Content = "Cancel", MinWidth = 92, HorizontalContentAlignment = HorizontalAlignment.Center };
+        var proceed = new Button { Content = "Switch anyway", MinWidth = 92, HorizontalContentAlignment = HorizontalAlignment.Center };
+        proceed.Classes.Add("primary");
+
+        var dialog = new Window
+        {
+            Title = "Uncommitted changes",
+            SizeToContent = SizeToContent.WidthAndHeight,
+            CanResize = false,
+            ShowInTaskbar = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Content = new Border
+            {
+                Padding = new Thickness(22),
+                Child = new StackPanel
+                {
+                    Spacing = 18,
+                    MaxWidth = 380,
+                    Children =
+                    {
+                        new TextBlock
+                        {
+                            TextWrapping = TextWrapping.Wrap,
+                            Text = $"You have uncommitted changes.\n\nSwitch to “{target}” anyway? " +
+                                   "Git keeps your changes if it can, and refuses the switch if any would be overwritten.",
+                        },
+                        new StackPanel
+                        {
+                            Orientation = Orientation.Horizontal,
+                            Spacing = 8,
+                            HorizontalAlignment = HorizontalAlignment.Right,
+                            Children = { cancel, proceed },
+                        },
+                    },
+                },
+            },
+        };
+
+        cancel.Click += (_, _) => dialog.Close(false);
+        proceed.Click += (_, _) => dialog.Close(true);
+
+        return await dialog.ShowDialog<bool>(this);
     }
 
     private void OnWorkspacePropertyChanged(object? sender, PropertyChangedEventArgs e)

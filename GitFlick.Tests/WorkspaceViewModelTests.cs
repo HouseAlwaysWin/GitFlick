@@ -276,6 +276,71 @@ public class WorkspaceViewModelTests
     }
 
     [Fact]
+    public async Task Checkout_with_uncommitted_changes_asks_first_and_a_cancel_blocks_it()
+    {
+        using var repo = new TestRepo();
+        repo.WriteFile("a.txt", "1");
+        repo.Git("add", "-A");
+        repo.Git("commit", "-m", "first");
+        repo.Git("branch", "feature");
+        repo.WriteFile("a.txt", "uncommitted edit");   // dirty, tracked
+
+        var vm = ForRepo(repo);
+        await vm.RefreshAsync();
+
+        var asked = false;
+        vm.ConfirmDirtyCheckout = _ => { asked = true; return Task.FromResult(false); };   // user cancels
+
+        await vm.CheckoutRef(new GitRef("feature", GitRefKind.LocalBranch));
+
+        Assert.True(asked);
+        Assert.Equal("main", repo.Git("rev-parse", "--abbrev-ref", "HEAD").Trim());   // not switched
+    }
+
+    [Fact]
+    public async Task Checkout_with_uncommitted_changes_proceeds_once_confirmed()
+    {
+        using var repo = new TestRepo();
+        repo.WriteFile("a.txt", "1");
+        repo.Git("add", "-A");
+        repo.Git("commit", "-m", "first");
+        repo.Git("branch", "feature");
+        repo.WriteFile("a.txt", "uncommitted edit");   // carries over to feature (same commit)
+
+        var vm = ForRepo(repo);
+        await vm.RefreshAsync();
+
+        var asked = false;
+        vm.ConfirmDirtyCheckout = _ => { asked = true; return Task.FromResult(true); };   // user confirms
+
+        await vm.CheckoutRef(new GitRef("feature", GitRefKind.LocalBranch));
+
+        Assert.True(asked);
+        Assert.Equal("feature", repo.Git("rev-parse", "--abbrev-ref", "HEAD").Trim());
+    }
+
+    [Fact]
+    public async Task Checkout_with_a_clean_tree_does_not_prompt()
+    {
+        using var repo = new TestRepo();
+        repo.WriteFile("a.txt", "1");
+        repo.Git("add", "-A");
+        repo.Git("commit", "-m", "first");
+        repo.Git("branch", "feature");
+
+        var vm = ForRepo(repo);
+        await vm.RefreshAsync();
+
+        var asked = false;
+        vm.ConfirmDirtyCheckout = _ => { asked = true; return Task.FromResult(true); };
+
+        await vm.CheckoutRef(new GitRef("feature", GitRefKind.LocalBranch));
+
+        Assert.False(asked);   // clean tree, so no warning
+        Assert.Equal("feature", repo.Git("rev-parse", "--abbrev-ref", "HEAD").Trim());
+    }
+
+    [Fact]
     public async Task CheckoutRef_ignores_a_tag()
     {
         using var repo = new TestRepo();
