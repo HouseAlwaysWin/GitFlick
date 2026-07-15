@@ -189,6 +189,59 @@ public sealed class GitService : IGitService
         return result.StandardOutput;
     }
 
+    public async Task<IReadOnlyList<CommitFileEntry>> GetCommitFilesAsync(string repoPath, string sha, CancellationToken cancellationToken = default)
+    {
+        // --name-status: one "M\tpath" line per file. --no-renames keeps it to a single tab
+        // (a rename would otherwise be "R100\told\tnew"). -m --first-parent matches the patch below.
+        var result = await RunAsync(
+            repoPath,
+            ["show", "--name-status", "--no-renames", "--format=", "-m", "--first-parent", sha],
+            null,
+            cancellationToken).ConfigureAwait(false);
+
+        if (!result.Succeeded)
+        {
+            throw new GitException($"git show --name-status failed: {result.FailureMessage}");
+        }
+
+        var files = new List<CommitFileEntry>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var raw in result.StandardOutput.Split('\n'))
+        {
+            var line = raw.TrimEnd('\r');
+            var tab = line.IndexOf('\t');
+            if (tab <= 0)
+            {
+                continue;
+            }
+
+            var path = line[(tab + 1)..];
+            if (path.Length > 0 && seen.Add(path))
+            {
+                files.Add(new CommitFileEntry(path, line[..tab]));
+            }
+        }
+
+        return files;
+    }
+
+    public async Task<string> GetCommitFileDiffAsync(string repoPath, string sha, string path, CancellationToken cancellationToken = default)
+    {
+        var result = await RunAsync(
+            repoPath,
+            ["show", "--format=", "--patch", "-m", "--first-parent", sha, "--", path],
+            null,
+            cancellationToken).ConfigureAwait(false);
+
+        if (!result.Succeeded)
+        {
+            throw new GitException($"git show (file) failed: {result.FailureMessage}");
+        }
+
+        return result.StandardOutput;
+    }
+
     public async Task<IReadOnlyList<GitBranch>> GetBranchesAsync(string repoPath, CancellationToken cancellationToken = default)
     {
         // NUL-separated fields, one local ref per line. %(HEAD) is "*" for the current branch.

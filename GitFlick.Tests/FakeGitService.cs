@@ -49,6 +49,12 @@ internal sealed class FakeGitService : IGitService
     public Task<string> GetCommitDiffAsync(string repoPath, string sha, CancellationToken cancellationToken = default)
         => Task.FromResult(string.Empty);
 
+    public Task<IReadOnlyList<CommitFileEntry>> GetCommitFilesAsync(string repoPath, string sha, CancellationToken cancellationToken = default)
+        => Task.FromResult<IReadOnlyList<CommitFileEntry>>([]);
+
+    public Task<string> GetCommitFileDiffAsync(string repoPath, string sha, string path, CancellationToken cancellationToken = default)
+        => Task.FromResult(string.Empty);
+
     public Task<IReadOnlyList<GitBranch>> GetBranchesAsync(string repoPath, CancellationToken cancellationToken = default)
         => Task.FromResult<IReadOnlyList<GitBranch>>([]);
 

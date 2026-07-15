@@ -130,6 +130,39 @@ public partial class MainViewModel : ViewModelBase
         SelectedRepo = Repos.FirstOrDefault(r => r.Path == full);
     }
 
+    /// <summary>
+    /// Pins <paramref name="path"/> if it isn't already, then drops straight into its workspace.
+    /// This is the "Open" button's one-shot equivalent of pinning (Ctrl+O) and pressing Enter;
+    /// picking an already-pinned folder just opens it rather than reporting a duplicate.
+    /// </summary>
+    public void OpenRepository(string path)
+    {
+        var full = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+
+        if (!IsGitRepository(full))
+        {
+            StatusMessage = $"'{Path.GetFileName(full)}' is not a Git repository.";
+            return;
+        }
+
+        var repos = _settings.Current.PinnedRepos;
+
+        if (!repos.Any(p => string.Equals(p, full, StringComparison.OrdinalIgnoreCase)))
+        {
+            repos.Add(full);
+            _settings.Save();
+        }
+
+        StatusMessage = string.Empty;
+        SearchText = string.Empty;
+        ReloadPinned();
+
+        // Select from the unfiltered list (search was just cleared), then open it. Set the
+        // selection after ReloadPinned, since ApplyFilter resets it to the first match.
+        SelectedRepo = Repos.FirstOrDefault(r => string.Equals(r.Path, full, StringComparison.OrdinalIgnoreCase));
+        OpenSelected();
+    }
+
     public void RemoveSelected()
     {
         if (SelectedRepo is not { } selected)

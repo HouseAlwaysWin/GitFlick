@@ -74,6 +74,44 @@ public class MainViewModelTests : IDisposable
     }
 
     [Fact]
+    public void OpenRepository_pins_a_new_repo_and_opens_it()
+    {
+        var vm = NewViewModel(out var settings);
+
+        vm.OpenRepository(_repoA);
+
+        Assert.Contains(_repoA, settings.Current.PinnedRepos);
+        Assert.True(vm.IsRepoOpen);
+        Assert.Equal("repo-alpha", vm.OpenRepo!.Name);
+    }
+
+    [Fact]
+    public void OpenRepository_opens_an_already_pinned_repo_without_duplicating()
+    {
+        var vm = NewViewModel(out var settings);
+        vm.AddRepository(_repoA);
+
+        vm.OpenRepository(_repoA);
+
+        Assert.Single(settings.Current.PinnedRepos);
+        Assert.True(vm.IsRepoOpen);
+        Assert.Equal("repo-alpha", vm.OpenRepo!.Name);
+        Assert.Empty(vm.StatusMessage);
+    }
+
+    [Fact]
+    public void OpenRepository_rejects_a_non_git_folder()
+    {
+        var vm = NewViewModel(out var settings);
+
+        vm.OpenRepository(_notRepo);
+
+        Assert.Empty(settings.Current.PinnedRepos);
+        Assert.False(vm.IsRepoOpen);
+        Assert.Contains("not a Git repository", vm.StatusMessage);
+    }
+
+    [Fact]
     public void RemoveSelected_unpins_and_persists()
     {
         var vm = NewViewModel(out var settings);

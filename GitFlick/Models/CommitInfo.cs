@@ -46,5 +46,15 @@ public sealed record CommitInfo
 
     public string ShortSha => Sha.Length >= 7 ? Sha[..7] : Sha;
 
+    /// <summary>Author date in the viewer's local time, for the History "Date" column.</summary>
+    public string WhenDisplay => When.LocalDateTime.ToString("yyyy-MM-dd HH:mm");
+
     public override string ToString() => Subject;
+}
+
+/// <summary>One file touched by a commit, for the History view's per-file diff list.</summary>
+public sealed record CommitFileEntry(string Path, string Status)
+{
+    /// <summary>The leading git status letter (M/A/D/…) for a compact column indicator.</summary>
+    public string Badge => Status.Length > 0 ? Status[..1] : "?";
 }

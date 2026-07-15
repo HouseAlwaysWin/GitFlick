@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
+using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -32,6 +34,10 @@ public partial class MainWindow : Window
         RepoList.DoubleTapped += (_, _) => (DataContext as MainViewModel)?.OpenSelected();
         UnstagedList.DoubleTapped += (_, _) => Workspace?.StageCommand.Execute(Workspace.SelectedUnstagedFile);
         StagedList.DoubleTapped += (_, _) => Workspace?.UnstageCommand.Execute(Workspace.SelectedStagedFile);
+
+        // Multi-select: Enter (or the context menu) acts on every selected file at once.
+        UnstagedList.KeyDown += (_, e) => { if (e.Key == Key.Enter) { StageSelectedFiles(); e.Handled = true; } };
+        StagedList.KeyDown += (_, e) => { if (e.Key == Key.Enter) { UnstageSelectedFiles(); e.Handled = true; } };
 
         SetUpDiffEditor();
         SetUpCommitGraph();
@@ -87,7 +93,111 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>The Commit column is click-to-copy: it copies the full SHA of the row it sits on.</summary>
+    private async void OnCopyShaCellClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Button { DataContext: CommitInfo commit } && Clipboard is { } clipboard)
+        {
+            await clipboard.SetTextAsync(commit.Sha);
+
+            if (Workspace is { } workspace)
+            {
+                workspace.StatusText = $"Copied {commit.ShortSha} to clipboard";
+            }
+        }
+    }
+
+    // History column resize: a grip sits on each internal column boundary and trades width between
+    // the two columns it separates, so every column (Message included, since it's the flexible one
+    // the Message|Author grip borrows from) is resizable. The header and every row bind the shared
+    // widths. Done by hand (not a GridSplitter) so it can't fight the binding or the sort buttons.
+    private const double MinColumnWidth = 50;
+    private string? _resizingBoundary;
+    private double _resizeStartPointerX;
+    private double _startAuthor;
+    private double _startDate;
+    private double _startCommit;
+
+    private void OnColumnGripPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (sender is not Border { Tag: string boundary } grip || Workspace is not { } ws)
+        {
+            return;
+        }
+
+        _resizingBoundary = boundary;
+        _resizeStartPointerX = e.GetPosition(this).X;
+        _startAuthor = ws.AuthorColumnWidth.Value;
+        _startDate = ws.DateColumnWidth.Value;
+        _startCommit = ws.CommitColumnWidth.Value;
+
+        e.Pointer.Capture(grip);
+        e.Handled = true;
+    }
+
+    private void OnColumnGripMoved(object? sender, PointerEventArgs e)
+    {
+        if (_resizingBoundary is null || Workspace is not { } ws)
+        {
+            return;
+        }
+
+        var d = e.GetPosition(this).X - _resizeStartPointerX;
+
+        switch (_resizingBoundary)
+        {
+            case "MsgAuthor":   // Message is the flexible column, so it just absorbs the change.
+                ws.AuthorColumnWidth = new GridLength(Math.Max(MinColumnWidth, _startAuthor - d));
+                break;
+
+            case "AuthorDate":  // trade between the two fixed neighbours, keeping their sum constant
+                d = Math.Clamp(d, MinColumnWidth - _startAuthor, _startDate - MinColumnWidth);
+                ws.AuthorColumnWidth = new GridLength(_startAuthor + d);
+                ws.DateColumnWidth = new GridLength(_startDate - d);
+                break;
+
+            case "DateCommit":
+                d = Math.Clamp(d, MinColumnWidth - _startDate, _startCommit - MinColumnWidth);
+                ws.DateColumnWidth = new GridLength(_startDate + d);
+                ws.CommitColumnWidth = new GridLength(_startCommit - d);
+                break;
+        }
+    }
+
+    private void OnColumnGripReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        if (_resizingBoundary is not null)
+        {
+            e.Pointer.Capture(null);
+            _resizingBoundary = null;
+            e.Handled = true;
+        }
+    }
+
     private WorkspaceViewModel? Workspace => (DataContext as MainViewModel)?.Workspace;
+
+    private void OnStageSelectedClick(object? sender, RoutedEventArgs e) => StageSelectedFiles();
+
+    private void OnUnstageSelectedClick(object? sender, RoutedEventArgs e) => UnstageSelectedFiles();
+
+    private void StageSelectedFiles()
+    {
+        if (Workspace is { } ws)
+        {
+            _ = ws.StageFiles(SelectedEntries(UnstagedList));
+        }
+    }
+
+    private void UnstageSelectedFiles()
+    {
+        if (Workspace is { } ws)
+        {
+            _ = ws.UnstageFiles(SelectedEntries(StagedList));
+        }
+    }
+
+    private static IReadOnlyList<GitStatusEntry> SelectedEntries(ListBox list) =>
+        list.SelectedItems?.Cast<GitStatusEntry>().ToList() ?? [];
 
     /// <summary>
     /// TextMate does the syntax colouring (spec §1: don't hand-roll a highlighter); the
@@ -263,6 +373,37 @@ public partial class MainWindow : Window
         }
 
         FocusInput();
+    }
+
+    private async void OnOpenRepositoryClick(object? sender, RoutedEventArgs e) => await OpenRepositoryAsync();
+
+    /// <summary>
+    /// The "Open" button: pick a folder and drop straight into its workspace. Unlike Ctrl+O
+    /// (which only pins), this opens the repository once it's added.
+    /// </summary>
+    private async Task OpenRepositoryAsync()
+    {
+        if (DataContext is not MainViewModel vm)
+        {
+            return;
+        }
+
+        var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = "Open a Git repository",
+            AllowMultiple = false,
+        });
+
+        if (folders.Count > 0 && folders[0].TryGetLocalPath() is { } path)
+        {
+            vm.OpenRepository(path);
+        }
+
+        // A rejected pick (non-repo) or a cancel leaves the palette up — put the caret back.
+        if (vm.IsPaletteVisible)
+        {
+            FocusInput();
+        }
     }
 
     private void ScrollSelectionIntoView(MainViewModel vm)

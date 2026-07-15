@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
@@ -10,6 +12,30 @@ using GitFlick.Models;
 using GitFlick.Services;
 
 namespace GitFlick.ViewModels;
+
+/// <summary>
+/// Which column the history is ordered by. <see cref="Graph"/> is git's own topological
+/// (<c>--date-order</c>) order — the only one the lane graph can be drawn against, so any other
+/// choice hides the graph. Only Author and Date are user-sortable.
+/// </summary>
+public enum HistorySortColumn
+{
+    Graph,
+    Author,
+    Date,
+}
+
+/// <summary>One tickable option in a history multi-select filter (an author or a branch).
+/// Toggling <see cref="IsSelected"/> re-filters the list.</summary>
+public partial class FilterOption : ObservableObject
+{
+    public FilterOption(string name) => Name = name;
+
+    public string Name { get; }
+
+    [ObservableProperty]
+    public partial bool IsSelected { get; set; }
+}
 
 /// <summary>
 /// The per-repository workspace: status split into staged/unstaged, the commit box, and the
@@ -118,7 +144,7 @@ public partial class WorkspaceViewModel : ViewModelBase
 
     public string FooterHint => IsHistoryMode
         ? "Click a commit to see its changes · Esc back to the palette"
-        : "Double-click a file to stage/unstage · Esc back to the palette";
+        : "Double-click, or select multiple (Ctrl/Shift) and press Enter, to stage/unstage · Esc back";
 
     [ObservableProperty]
     public partial Models.CommitGraph? Graph { get; set; }
@@ -133,12 +159,122 @@ public partial class WorkspaceViewModel : ViewModelBase
     [ObservableProperty]
     public partial CommitInfo? SelectedCommit { get; set; }
 
+    /// <summary>The files the selected commit changed; picking one shows just that file's diff.</summary>
+    public ObservableCollection<CommitFileEntry> CommitFiles { get; } = [];
+
+    [ObservableProperty]
+    public partial CommitFileEntry? SelectedCommitFile { get; set; }
+
+    [ObservableProperty]
+    public partial bool HasCommitFiles { get; set; }
+
+    /// <summary>SHA whose file list is showing, so a file diff loads against the right commit.</summary>
+    private string? _selectedCommitSha;
+
     /// <summary>Collapses merges to one row each: "what actually landed on this branch".</summary>
     [ObservableProperty]
     public partial bool FirstParentOnly { get; set; }
 
     [ObservableProperty]
     public partial bool HasCommits { get; set; }
+
+    /// <summary>Which column the list is ordered by. Anything but <see cref="HistorySortColumn.Graph"/> hides the graph.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowGraph))]
+    [NotifyPropertyChangedFor(nameof(AuthorSortGlyph))]
+    [NotifyPropertyChangedFor(nameof(DateSortGlyph))]
+    public partial HistorySortColumn SortColumn { get; set; } = HistorySortColumn.Graph;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(AuthorSortGlyph))]
+    [NotifyPropertyChangedFor(nameof(DateSortGlyph))]
+    public partial bool SortDescending { get; set; }
+
+    /// <summary>
+    /// Whether the lane graph shows. It needs git's order (no column sort) and a parent-closed set.
+    /// A branch filter keeps a valid sub-DAG (all ancestors of the tips), so the graph is rebuilt
+    /// for it; an author filter does not (an author's commits link through other people's), so it
+    /// stays hidden there.
+    /// </summary>
+    public bool ShowGraph => SortColumn == HistorySortColumn.Graph && !HasAuthorFilter;
+
+    // The active column wears an arrow; the rest show nothing.
+    public string AuthorSortGlyph => GlyphFor(HistorySortColumn.Author);
+    public string DateSortGlyph => GlyphFor(HistorySortColumn.Date);
+
+    private string GlyphFor(HistorySortColumn column) =>
+        SortColumn == column ? (SortDescending ? " ▼" : " ▲") : string.Empty;
+
+    /// <summary>Distinct authors in the loaded history; ticking any narrows the list to those.</summary>
+    public ObservableCollection<FilterOption> AuthorFilters { get; } = [];
+
+    /// <summary>The authors matching <see cref="AuthorFilterSearch"/> — what the flyout actually shows.</summary>
+    public ObservableCollection<FilterOption> FilteredAuthorFilters { get; } = [];
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowGraph))]
+    [NotifyPropertyChangedFor(nameof(AuthorFilterLabel))]
+    public partial bool HasAuthorFilter { get; set; }
+
+    public string AuthorFilterLabel =>
+        HasAuthorFilter ? $"Authors ({AuthorFilters.Count(a => a.IsSelected)}) ▾" : "Authors ▾";
+
+    /// <summary>Fuzzy query that narrows the author checklist so a long list isn't a scroll marathon.</summary>
+    [ObservableProperty]
+    public partial string AuthorFilterSearch { get; set; } = string.Empty;
+
+    partial void OnAuthorFilterSearchChanged(string value) =>
+        Narrow(AuthorFilters, FilteredAuthorFilters, value);
+
+    /// <summary>Distinct branches/remotes in the loaded history; ticking narrows to their commits.</summary>
+    public ObservableCollection<FilterOption> BranchFilters { get; } = [];
+
+    /// <summary>The branches matching <see cref="BranchFilterSearch"/> — what the flyout actually shows.</summary>
+    public ObservableCollection<FilterOption> FilteredBranchFilters { get; } = [];
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowGraph))]
+    [NotifyPropertyChangedFor(nameof(BranchFilterLabel))]
+    public partial bool HasBranchFilter { get; set; }
+
+    public string BranchFilterLabel =>
+        HasBranchFilter ? $"Branches ({BranchFilters.Count(b => b.IsSelected)}) ▾" : "Branches ▾";
+
+    [ObservableProperty]
+    public partial string BranchFilterSearch { get; set; } = string.Empty;
+
+    partial void OnBranchFilterSearchChanged(string value) =>
+        Narrow(BranchFilters, FilteredBranchFilters, value);
+
+    /// <summary>Suppresses per-item re-filtering while several ticks change at once.</summary>
+    private bool _suppressFilterApply;
+
+    // Column widths for the History table, shared by the header and every row so a drag on one
+    // splitter resizes the whole column. Message takes the remaining space, so it isn't listed.
+    [ObservableProperty]
+    public partial GridLength AuthorColumnWidth { get; set; } = new(92);
+
+    [ObservableProperty]
+    public partial GridLength DateColumnWidth { get; set; } = new(110);
+
+    [ObservableProperty]
+    public partial GridLength CommitColumnWidth { get; set; } = new(66);
+
+    /// <summary>
+    /// Left/right inset on the header row so its columns line up with the list rows despite the
+    /// graph gutter (left) and the item padding + scrollbar (right). Tracks <see cref="ShowGraph"/>.
+    /// </summary>
+    [ObservableProperty]
+    public partial Thickness HistoryHeaderMargin { get; set; } = new(4, 0, HistoryRightInset, 0);
+
+    /// <summary>Reserves the right edge for the item padding and the overlay scrollbar.</summary>
+    private const double HistoryRightInset = 14;
+
+    /// <summary>History as git returned it — the order the graph was built for. Restored on reset.</summary>
+    private List<CommitInfo> _graphOrder = [];
+
+    /// <summary>Suppresses the diff reload while the list is being re-sorted under a kept selection.</summary>
+    private bool _reorderingCommits;
 
     /// <summary>The in-flight diff load. Exposed so callers and tests can await it.</summary>
     public Task DiffLoad { get; private set; } = Task.CompletedTask;
@@ -154,13 +290,18 @@ public partial class WorkspaceViewModel : ViewModelBase
             var commits = await _git.GetCommitsAsync(
                 Repository.Path, MaxCommits, FirstParentOnly);
 
-            Replace(Commits, commits);
-            HasCommits = Commits.Count > 0;
+            _graphOrder = commits.ToList();
 
-            var graph = CommitGraphBuilder.Build(commits, FirstParentOnly);
-            Graph = graph;
-            GraphWidth = graph.Width;
-            CommitListPadding = new Thickness(graph.Width + 6, 0, 0, 0);
+            RebuildAuthorFilters();
+            RebuildBranchFilters();
+
+            // A fresh load always starts in git's order so the lane graph lines up.
+            SortColumn = HistorySortColumn.Graph;
+            SortDescending = false;
+
+            // ApplyView builds the lane graph for the (possibly filtered) subset it shows.
+            ApplyView();
+            HasCommits = Commits.Count > 0;
 
             SelectedCommit = null;
             ClearDiff();
@@ -192,6 +333,249 @@ public partial class WorkspaceViewModel : ViewModelBase
         {
             HistoryLoad = LoadHistoryAsync();
         }
+    }
+
+    /// <summary>
+    /// Header click: <see cref="HistorySortColumn.Graph"/> restores git's order; Author/Date sort
+    /// by that column, toggling ascending/descending when it is already the active column.
+    /// </summary>
+    [RelayCommand]
+    private void SortBy(HistorySortColumn column)
+    {
+        if (column == HistorySortColumn.Graph)
+        {
+            SortColumn = HistorySortColumn.Graph;
+            SortDescending = false;
+        }
+        else if (SortColumn == column)
+        {
+            SortDescending = !SortDescending;
+        }
+        else
+        {
+            SortColumn = column;
+            SortDescending = false;
+        }
+
+        ApplyView();
+    }
+
+    /// <summary>Drops the column sort AND both filters, returning to git's order (graph shown again).</summary>
+    [RelayCommand]
+    private void ResetSort()
+    {
+        _suppressFilterApply = true;
+        foreach (var item in AuthorFilters)
+        {
+            item.IsSelected = false;
+        }
+        foreach (var item in BranchFilters)
+        {
+            item.IsSelected = false;
+        }
+        _suppressFilterApply = false;
+
+        SortColumn = HistorySortColumn.Graph;
+        SortDescending = false;
+        ApplyView();
+        OnPropertyChanged(nameof(AuthorFilterLabel));
+        OnPropertyChanged(nameof(BranchFilterLabel));
+    }
+
+    /// <summary>Clears every author tick in one shot, re-filtering once.</summary>
+    [RelayCommand]
+    private void ClearAuthorFilter() => ClearFilter(AuthorFilters, nameof(AuthorFilterLabel));
+
+    /// <summary>Clears every branch tick in one shot, re-filtering once.</summary>
+    [RelayCommand]
+    private void ClearBranchFilter() => ClearFilter(BranchFilters, nameof(BranchFilterLabel));
+
+    private void ClearFilter(ObservableCollection<FilterOption> options, string labelProperty)
+    {
+        _suppressFilterApply = true;
+        foreach (var item in options)
+        {
+            item.IsSelected = false;
+        }
+        _suppressFilterApply = false;
+
+        ApplyView();
+        OnPropertyChanged(labelProperty);
+    }
+
+    /// <summary>Applies the branch filter, then the author filter, then the sort; repositions the gutter.</summary>
+    private void ApplyView()
+    {
+        var authors = AuthorFilters.Where(a => a.IsSelected).Select(a => a.Name).ToHashSet(StringComparer.Ordinal);
+        var branches = BranchFilters.Where(b => b.IsSelected).Select(b => b.Name).ToHashSet(StringComparer.Ordinal);
+        HasAuthorFilter = authors.Count > 0;
+        HasBranchFilter = branches.Count > 0;
+
+        // Filter in git's order first. A branch filter keeps every ancestor of the tips, so the
+        // result is still a parent-closed sub-DAG the graph can be drawn against.
+        IEnumerable<CommitInfo> filtered = _graphOrder;
+
+        if (HasBranchFilter)
+        {
+            var reachable = ReachableFrom(branches);
+            filtered = filtered.Where(c => reachable.Contains(c.Sha));
+        }
+
+        if (HasAuthorFilter)
+        {
+            filtered = filtered.Where(c => authors.Contains(c.Author));
+        }
+
+        var gitOrder = filtered.ToList();
+
+        // Rebuild the lane graph for the current subset when it will actually be shown — i.e. in
+        // git's order with no author filter (an author subset isn't parent-closed, so its lanes
+        // would dangle). This is what lets the graph survive a branch filter.
+        if (ShowGraph)
+        {
+            var graph = CommitGraphBuilder.Build(gitOrder, FirstParentOnly);
+            Graph = graph;
+            GraphWidth = graph.Width;
+        }
+
+        IEnumerable<CommitInfo> view = SortColumn switch
+        {
+            HistorySortColumn.Author => Order(gitOrder, c => c.Author, StringComparer.CurrentCultureIgnoreCase),
+            HistorySortColumn.Date => Order(gitOrder, c => c.When, Comparer<DateTimeOffset>.Default),
+            _ => gitOrder,   // Graph: keep git's order
+        };
+
+        // Keep the selection across the reshuffle without re-triggering the diff load.
+        var keep = SelectedCommit;
+        _reorderingCommits = true;
+        Replace(Commits, view);
+        SelectedCommit = keep is not null && Commits.Contains(keep) ? keep : null;
+        _reorderingCommits = false;
+
+        // The graph aligns only with git's order, so drop its gutter when it's hidden.
+        CommitListPadding = ShowGraph ? new Thickness(GraphWidth + 6, 0, 0, 0) : new Thickness(0);
+        HistoryHeaderMargin = new Thickness(ShowGraph ? GraphWidth + 10 : 4, 0, HistoryRightInset, 0);
+    }
+
+    // OrderBy/OrderByDescending are stable, so equal keys keep their git order within the group.
+    private IEnumerable<CommitInfo> Order<TKey>(IEnumerable<CommitInfo> source, Func<CommitInfo, TKey> key, IComparer<TKey> comparer) =>
+        SortDescending
+            ? source.OrderByDescending(key, comparer)
+            : source.OrderBy(key, comparer);
+
+    /// <summary>SHAs reachable from the tips that carry any of the given branch names — an in-memory
+    /// ancestor walk over the loaded history (no extra git call, so it composes with the other filters).</summary>
+    private HashSet<string> ReachableFrom(HashSet<string> branchNames)
+    {
+        var bySha = new Dictionary<string, CommitInfo>(StringComparer.Ordinal);
+        foreach (var commit in _graphOrder)
+        {
+            bySha[commit.Sha] = commit;
+        }
+
+        var reachable = new HashSet<string>(StringComparer.Ordinal);
+        var stack = new Stack<string>();
+
+        foreach (var commit in _graphOrder)
+        {
+            if (commit.Refs.Any(r => branchNames.Contains(r.Name)))
+            {
+                stack.Push(commit.Sha);
+            }
+        }
+
+        while (stack.Count > 0)
+        {
+            var sha = stack.Pop();
+            if (!reachable.Add(sha))
+            {
+                continue;
+            }
+
+            if (bySha.TryGetValue(sha, out var commit))
+            {
+                foreach (var parent in commit.Parents)
+                {
+                    stack.Push(parent);
+                }
+            }
+        }
+
+        return reachable;
+    }
+
+    private void RebuildAuthorFilters()
+    {
+        RebuildFilterOptions(
+            AuthorFilters,
+            _graphOrder.Select(c => c.Author).Distinct().OrderBy(n => n, StringComparer.CurrentCultureIgnoreCase),
+            OnAuthorFilterItemChanged);
+        Narrow(AuthorFilters, FilteredAuthorFilters, AuthorFilterSearch);
+    }
+
+    private void RebuildBranchFilters()
+    {
+        RebuildFilterOptions(
+            BranchFilters,
+            _graphOrder.SelectMany(c => c.Refs).Where(r => r.Kind != GitRefKind.Tag).Select(r => r.Name)
+                .Distinct().OrderBy(n => n, StringComparer.CurrentCultureIgnoreCase),
+            OnBranchFilterItemChanged);
+        Narrow(BranchFilters, FilteredBranchFilters, BranchFilterSearch);
+    }
+
+    /// <summary>Rebuilds a checklist from the loaded history, preserving prior ticks by name.</summary>
+    private static void RebuildFilterOptions(
+        ObservableCollection<FilterOption> options, IEnumerable<string> names, PropertyChangedEventHandler onChanged)
+    {
+        var wasChosen = options.Where(o => o.IsSelected).Select(o => o.Name).ToHashSet(StringComparer.Ordinal);
+
+        foreach (var item in options)
+        {
+            item.PropertyChanged -= onChanged;
+        }
+
+        options.Clear();
+
+        foreach (var name in names)
+        {
+            // Tick before subscribing so restoring a selection doesn't re-enter ApplyView mid-build.
+            var item = new FilterOption(name) { IsSelected = wasChosen.Contains(name) };
+            item.PropertyChanged += onChanged;
+            options.Add(item);
+        }
+    }
+
+    /// <summary>Copies into <paramref name="shown"/> the options whose name fuzzy-matches the query.</summary>
+    private static void Narrow(
+        ObservableCollection<FilterOption> all, ObservableCollection<FilterOption> shown, string query)
+    {
+        query = query.Trim();
+        shown.Clear();
+
+        foreach (var option in all)
+        {
+            if (query.Length == 0 || FuzzyMatcher.TryMatch(option.Name, query, out _))
+            {
+                shown.Add(option);
+            }
+        }
+    }
+
+    private void OnAuthorFilterItemChanged(object? sender, PropertyChangedEventArgs e) =>
+        OnFilterItemChanged(e, nameof(AuthorFilterLabel));
+
+    private void OnBranchFilterItemChanged(object? sender, PropertyChangedEventArgs e) =>
+        OnFilterItemChanged(e, nameof(BranchFilterLabel));
+
+    private void OnFilterItemChanged(PropertyChangedEventArgs e, string labelProperty)
+    {
+        if (_suppressFilterApply || e.PropertyName != nameof(FilterOption.IsSelected))
+        {
+            return;
+        }
+
+        ApplyView();
+        OnPropertyChanged(labelProperty);   // the "(N)" count moved
     }
 
     [RelayCommand]
@@ -226,22 +610,67 @@ public partial class WorkspaceViewModel : ViewModelBase
 
     partial void OnSelectedCommitChanged(CommitInfo? value)
     {
-        if (value is null)
+        if (_reorderingCommits || value is null)
         {
             return;
         }
 
-        DiffLoad = ShowCommitDiffAsync(value);
+        DiffLoad = LoadCommitFilesAsync(value);
     }
 
-    private async Task ShowCommitDiffAsync(CommitInfo commit)
+    /// <summary>Loads the selected commit's changed files, then shows the first file's diff.</summary>
+    private async Task LoadCommitFilesAsync(CommitInfo commit)
     {
-        DiffPath = $"{commit.ShortSha}  {commit.Subject}";
+        _selectedCommitSha = commit.Sha;
+        SelectedCommitFile = null;   // null-guarded, so this doesn't fire a diff load
+        CommitFiles.Clear();
+        HasCommitFiles = false;
+        DiffPath = string.Empty;
         DiffText = "Loading…";
 
         try
         {
-            var diff = await _git.GetCommitDiffAsync(Repository.Path, commit.Sha);
+            var files = await _git.GetCommitFilesAsync(Repository.Path, commit.Sha);
+
+            // The selection may have moved on while we were awaiting — ignore a stale result.
+            if (_selectedCommitSha != commit.Sha)
+            {
+                return;
+            }
+
+            Replace(CommitFiles, files);
+            HasCommitFiles = CommitFiles.Count > 0;
+
+            SelectedCommitFile = CommitFiles.FirstOrDefault();   // fires the file diff load
+            if (SelectedCommitFile is null)
+            {
+                DiffText = "(no textual changes)";
+            }
+        }
+        catch (GitException ex)
+        {
+            DiffText = ex.Message;
+        }
+    }
+
+    partial void OnSelectedCommitFileChanged(CommitFileEntry? value)
+    {
+        if (value is null || _selectedCommitSha is null)
+        {
+            return;
+        }
+
+        DiffLoad = ShowCommitFileDiffAsync(_selectedCommitSha, value);
+    }
+
+    private async Task ShowCommitFileDiffAsync(string sha, CommitFileEntry file)
+    {
+        DiffPath = file.Path;
+        DiffText = "Loading…";
+
+        try
+        {
+            var diff = await _git.GetCommitFileDiffAsync(Repository.Path, sha, file.Path);
 
             DiffText = diff.Trim().Length == 0
                 ? "(no textual changes)"
@@ -311,6 +740,39 @@ public partial class WorkspaceViewModel : ViewModelBase
         return entry is null
             ? Task.CompletedTask
             : RunAsync(() => _git.UnstageAsync(Repository.Path, entry.Path), $"Unstaged {entry.Path}");
+    }
+
+    /// <summary>Stages every file in one batch — the multi-select action from the Unstaged list.</summary>
+    public Task StageFiles(IReadOnlyList<GitStatusEntry> files) =>
+        files.Count == 0
+            ? Task.CompletedTask
+            : RunAsync(() => StageOrUnstageAllAsync(files, stage: true),
+                files.Count == 1 ? $"Staged {files[0].Path}" : $"Staged {files.Count} files");
+
+    /// <summary>Unstages every file in one batch — the multi-select action from the Staged list.</summary>
+    public Task UnstageFiles(IReadOnlyList<GitStatusEntry> files) =>
+        files.Count == 0
+            ? Task.CompletedTask
+            : RunAsync(() => StageOrUnstageAllAsync(files, stage: false),
+                files.Count == 1 ? $"Unstaged {files[0].Path}" : $"Unstaged {files.Count} files");
+
+    private async Task<GitCommandResult> StageOrUnstageAllAsync(IReadOnlyList<GitStatusEntry> files, bool stage)
+    {
+        var result = new GitCommandResult(0, string.Empty, string.Empty);
+
+        foreach (var file in files)
+        {
+            result = stage
+                ? await _git.StageAsync(Repository.Path, file.Path)
+                : await _git.UnstageAsync(Repository.Path, file.Path);
+
+            if (!result.Succeeded)
+            {
+                break;   // stop on the first failure; RunAsync surfaces its message
+            }
+        }
+
+        return result;
     }
 
     [RelayCommand]
@@ -459,6 +921,10 @@ public partial class WorkspaceViewModel : ViewModelBase
     {
         DiffPath = string.Empty;
         DiffText = string.Empty;
+        _selectedCommitSha = null;
+        SelectedCommitFile = null;
+        CommitFiles.Clear();
+        HasCommitFiles = false;
     }
 
     private IProgress<string> Progress() => new Progress<string>(line => StatusText = line);

@@ -9,6 +9,11 @@
         <SolidColorBrush x:Key="AccentBrush" Color="#F05133" />
         <SolidColorBrush x:Key="AccentHoverBrush" Color="#FF6A4D" />
         <SolidColorBrush x:Key="AccentPressedBrush" Color="#D84826" />
+
+        <!-- Blue variant, reusing the remote-branch badge colour. -->
+        <SolidColorBrush x:Key="BlueBrush" Color="#588CF0" />
+        <SolidColorBrush x:Key="BlueHoverBrush" Color="#6E9DF4" />
+        <SolidColorBrush x:Key="BluePressedBrush" Color="#3F6FD1" />
     </Application.Resources>
 
     <Application.Styles>
@@ -65,6 +70,51 @@
         <Style Selector="Button.primary:disabled /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="#55F05133" />
             <Setter Property="Foreground" Value="#88FFFFFF" />
+        </Style>
+
+        <!-- Blue variant of the primary button (the palette's Open action). Same solid treatment
+             as .primary, forced on the ContentPresenter in every state so Fluent can't win. -->
+        <Style Selector="Button.blue">
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <Style Selector="Button.blue /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource BlueBrush}" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="Button.blue:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource BlueHoverBrush}" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="Button.blue:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource BluePressedBrush}" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="Button.blue:disabled /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#55588CF0" />
+            <Setter Property="Foreground" Value="#88FFFFFF" />
+        </Style>
+
+        <!-- Column-header buttons in the History table: flat, quiet, with a faint hover so it
+             reads as clickable-to-sort without competing with the chip buttons. -->
+        <Style Selector="Button.header">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#B0FFFFFF" />
+            <Setter Property="Padding" Value="4,2" />
+            <Setter Property="CornerRadius" Value="3" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+        </Style>
+        <Style Selector="Button.header /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <Style Selector="Button.header:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#1AFFFFFF" />
+        </Style>
+        <Style Selector="Button.header:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#2EFFFFFF" />
         </Style>
     </Application.Styles>
 </Application>

@@ -312,6 +312,241 @@ public class WorkspaceViewModelTests
         Assert.Contains(vm.Commits, c => c.Subject == "second" && c.Refs.Any(r => r.Name == "main"));
     }
 
+    private static void CommitAs(TestRepo repo, string file, string author, string message, string date)
+    {
+        repo.WriteFile(file, message);
+        repo.Git("add", "-A");
+        repo.Git("commit", "--author=" + author + " <" + author + "@example.com>", "--date=" + date, "-m", message);
+    }
+
+    [Fact]
+    public async Task History_defaults_to_graph_order_with_the_graph_showing()
+    {
+        using var repo = new TestRepo();
+        CommitAs(repo, "a.txt", "Charlie", "banana", "2020-01-01T00:00:00");
+        CommitAs(repo, "b.txt", "Alice", "cherry", "2022-01-01T00:00:00");
+
+        var vm = ForRepo(repo);
+        await vm.ShowHistoryCommand.ExecuteAsync(null);
+
+        Assert.Equal(HistorySortColumn.Graph, vm.SortColumn);
+        Assert.True(vm.ShowGraph);
+    }
+
+    [Fact]
+    public async Task Sorting_by_author_reorders_and_hides_the_graph()
+    {
+        using var repo = new TestRepo();
+        CommitAs(repo, "a.txt", "Charlie", "banana", "2020-01-01T00:00:00");
+        CommitAs(repo, "b.txt", "Alice", "cherry", "2022-01-01T00:00:00");
+        CommitAs(repo, "c.txt", "Bob", "apple", "2021-01-01T00:00:00");
+
+        var vm = ForRepo(repo);
+        await vm.ShowHistoryCommand.ExecuteAsync(null);
+
+        vm.SortByCommand.Execute(HistorySortColumn.Author);
+
+        Assert.False(vm.ShowGraph);   // the lane graph can't align with a name sort
+        Assert.Equal(new[] { "Alice", "Bob", "Charlie" }, vm.Commits.Select(c => c.Author));
+    }
+
+    [Fact]
+    public async Task Clicking_a_sorted_column_again_toggles_direction()
+    {
+        using var repo = new TestRepo();
+        CommitAs(repo, "a.txt", "Charlie", "banana", "2020-01-01T00:00:00");   // oldest
+        CommitAs(repo, "b.txt", "Alice", "cherry", "2022-01-01T00:00:00");     // newest
+        CommitAs(repo, "c.txt", "Bob", "apple", "2021-01-01T00:00:00");
+
+        var vm = ForRepo(repo);
+        await vm.ShowHistoryCommand.ExecuteAsync(null);
+
+        vm.SortByCommand.Execute(HistorySortColumn.Date);   // ascending: oldest first
+        Assert.Equal(new[] { "banana", "apple", "cherry" }, vm.Commits.Select(c => c.Subject));
+        Assert.False(vm.SortDescending);
+
+        vm.SortByCommand.Execute(HistorySortColumn.Date);   // descending: newest first
+        Assert.Equal(new[] { "cherry", "apple", "banana" }, vm.Commits.Select(c => c.Subject));
+        Assert.True(vm.SortDescending);
+    }
+
+    [Fact]
+    public async Task Resetting_the_sort_restores_git_order_and_the_graph()
+    {
+        using var repo = new TestRepo();
+        CommitAs(repo, "a.txt", "Charlie", "banana", "2020-01-01T00:00:00");
+        CommitAs(repo, "b.txt", "Alice", "cherry", "2022-01-01T00:00:00");
+
+        var vm = ForRepo(repo);
+        await vm.ShowHistoryCommand.ExecuteAsync(null);
+        var graphOrder = vm.Commits.Select(c => c.Sha).ToArray();
+
+        vm.SortByCommand.Execute(HistorySortColumn.Author);
+        Assert.False(vm.ShowGraph);
+
+        vm.ResetSortCommand.Execute(null);
+
+        Assert.True(vm.ShowGraph);
+        Assert.Equal(graphOrder, vm.Commits.Select(c => c.Sha));
+    }
+
+    [Fact]
+    public async Task Author_filter_narrows_to_the_ticked_authors_and_hides_the_graph()
+    {
+        using var repo = new TestRepo();
+        CommitAs(repo, "a.txt", "Alice", "a1", "2020-01-01T00:00:00");
+        CommitAs(repo, "b.txt", "Bob", "b1", "2021-01-01T00:00:00");
+        CommitAs(repo, "c.txt", "Charlie", "c1", "2022-01-01T00:00:00");
+        CommitAs(repo, "d.txt", "Alice", "a2", "2023-01-01T00:00:00");
+
+        var vm = ForRepo(repo);
+        await vm.ShowHistoryCommand.ExecuteAsync(null);
+
+        Assert.Equal(3, vm.AuthorFilters.Count);   // Alice, Bob, Charlie — distinct
+        Assert.True(vm.ShowGraph);
+
+        vm.AuthorFilters.Single(a => a.Name == "Alice").IsSelected = true;
+
+        Assert.True(vm.HasAuthorFilter);
+        Assert.False(vm.ShowGraph);               // a filtered subset can't carry the graph
+        Assert.Equal(2, vm.Commits.Count);
+        Assert.All(vm.Commits, c => Assert.Equal("Alice", c.Author));
+    }
+
+    [Fact]
+    public async Task Author_filter_is_multi_select()
+    {
+        using var repo = new TestRepo();
+        CommitAs(repo, "a.txt", "Alice", "a1", "2020-01-01T00:00:00");
+        CommitAs(repo, "b.txt", "Bob", "b1", "2021-01-01T00:00:00");
+        CommitAs(repo, "c.txt", "Charlie", "c1", "2022-01-01T00:00:00");
+
+        var vm = ForRepo(repo);
+        await vm.ShowHistoryCommand.ExecuteAsync(null);
+
+        vm.AuthorFilters.Single(a => a.Name == "Alice").IsSelected = true;
+        vm.AuthorFilters.Single(a => a.Name == "Charlie").IsSelected = true;
+
+        Assert.Equal(2, vm.Commits.Count);
+        Assert.Contains(vm.Commits, c => c.Author == "Alice");
+        Assert.Contains(vm.Commits, c => c.Author == "Charlie");
+        Assert.DoesNotContain(vm.Commits, c => c.Author == "Bob");
+    }
+
+    [Fact]
+    public async Task Clearing_the_author_filter_restores_the_full_list_and_graph()
+    {
+        using var repo = new TestRepo();
+        CommitAs(repo, "a.txt", "Alice", "a1", "2020-01-01T00:00:00");
+        CommitAs(repo, "b.txt", "Bob", "b1", "2021-01-01T00:00:00");
+
+        var vm = ForRepo(repo);
+        await vm.ShowHistoryCommand.ExecuteAsync(null);
+        vm.AuthorFilters.Single(a => a.Name == "Alice").IsSelected = true;
+        Assert.Single(vm.Commits);
+
+        vm.ClearAuthorFilterCommand.Execute(null);
+
+        Assert.False(vm.HasAuthorFilter);
+        Assert.True(vm.ShowGraph);
+        Assert.Equal(2, vm.Commits.Count);
+    }
+
+    [Fact]
+    public async Task StageFiles_and_UnstageFiles_move_a_whole_selection_at_once()
+    {
+        using var repo = new TestRepo();
+        repo.WriteFile("a.txt", "1");
+        repo.WriteFile("b.txt", "2");
+        repo.WriteFile("c.txt", "3");
+
+        var vm = ForRepo(repo);
+        await vm.RefreshAsync();
+        Assert.Equal(3, vm.UnstagedFiles.Count);
+
+        await vm.StageFiles(vm.UnstagedFiles.Take(2).ToList());
+        Assert.Equal(2, vm.StagedFiles.Count);
+        Assert.Single(vm.UnstagedFiles);
+
+        await vm.UnstageFiles(vm.StagedFiles.ToList());
+        Assert.Empty(vm.StagedFiles);
+        Assert.Equal(3, vm.UnstagedFiles.Count);
+    }
+
+    [Fact]
+    public async Task Selecting_a_commit_lists_its_files_and_shows_the_first_file_diff()
+    {
+        using var repo = new TestRepo();
+        repo.WriteFile("a.txt", "one\n");
+        repo.WriteFile("b.txt", "two\n");
+        repo.Git("add", "-A");
+        repo.Git("commit", "-m", "two files");
+
+        var vm = ForRepo(repo);
+        await vm.ShowHistoryCommand.ExecuteAsync(null);
+
+        vm.SelectedCommit = vm.Commits.Single();
+        await vm.DiffLoad;                     // file list load
+        Assert.Equal(2, vm.CommitFiles.Count);
+        Assert.True(vm.HasCommitFiles);
+        Assert.NotNull(vm.SelectedCommitFile);
+
+        await vm.DiffLoad;                     // first file's diff
+        Assert.True(vm.HasDiff);
+        Assert.Equal(vm.SelectedCommitFile!.Path, vm.DiffPath);
+    }
+
+    [Fact]
+    public async Task Branch_filter_narrows_to_commits_reachable_from_the_branch()
+    {
+        using var repo = new TestRepo();
+        repo.WriteFile("base.txt", "b");
+        repo.Git("add", "-A");
+        repo.Git("commit", "-m", "base");
+        repo.Git("checkout", "-b", "feature");
+        repo.WriteFile("f.txt", "f");
+        repo.Git("add", "-A");
+        repo.Git("commit", "-m", "feature work");
+        repo.Git("checkout", "main");
+        repo.WriteFile("m.txt", "m");
+        repo.Git("add", "-A");
+        repo.Git("commit", "-m", "main work");
+
+        var vm = ForRepo(repo);
+        await vm.ShowHistoryCommand.ExecuteAsync(null);
+        Assert.Equal(3, vm.Commits.Count);     // all branches shown by default
+
+        vm.BranchFilters.Single(b => b.Name == "feature").IsSelected = true;
+
+        Assert.True(vm.HasBranchFilter);
+        Assert.True(vm.ShowGraph);   // reachable subset is a valid sub-DAG, so the graph stays
+        Assert.Equal(vm.Commits.Count, vm.Graph!.Dots.Count);   // graph rebuilt for the subset
+        Assert.Contains(vm.Commits, c => c.Subject == "feature work");
+        Assert.Contains(vm.Commits, c => c.Subject == "base");
+        Assert.DoesNotContain(vm.Commits, c => c.Subject == "main work");
+    }
+
+    [Fact]
+    public async Task Author_search_fuzzy_narrows_the_checklist()
+    {
+        using var repo = new TestRepo();
+        CommitAs(repo, "a.txt", "Alice", "a", "2020-01-01T00:00:00");
+        CommitAs(repo, "b.txt", "Bob", "b", "2021-01-01T00:00:00");
+        CommitAs(repo, "c.txt", "Charlie", "c", "2022-01-01T00:00:00");
+
+        var vm = ForRepo(repo);
+        await vm.ShowHistoryCommand.ExecuteAsync(null);
+        Assert.Equal(3, vm.FilteredAuthorFilters.Count);
+
+        // "alic" is a subsequence of "Alice" only (Charlie has a…l…i but no trailing c).
+        vm.AuthorFilterSearch = "alic";
+        Assert.Single(vm.FilteredAuthorFilters);
+        Assert.Equal("Alice", vm.FilteredAuthorFilters[0].Name);
+
+        vm.AuthorFilterSearch = "";
+        Assert.Equal(3, vm.FilteredAuthorFilters.Count);
+    }
+
     [Fact]
     public async Task A_failed_operation_surfaces_gits_error_without_throwing()
     {

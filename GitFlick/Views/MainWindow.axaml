@@ -59,15 +59,32 @@
             <TextBlock Text="{Binding GitWarning}" TextWrapping="Wrap" />
         </Border>
 
-        <!-- Palette -->
-        <Grid IsVisible="{Binding IsPaletteVisible}" RowDefinitions="Auto,Auto,*,Auto">
+        <!-- Palette and workspace share the fill area; they're mutually exclusive via IsVisible.
+             This wrapper fills as the DockPanel's last child so the palette can be centred within it. -->
+        <Panel>
 
-            <TextBox Grid.Row="0"
-                     x:Name="SearchBox"
-                     PlaceholderText="Search pinned repositories…"
-                     FontSize="16"
-                     Padding="10,8"
-                     Text="{Binding SearchText}" />
+        <!-- Palette — centred command-palette card. -->
+        <Grid IsVisible="{Binding IsPaletteVisible}"
+              RowDefinitions="Auto,Auto,*,Auto"
+              HorizontalAlignment="Center"
+              MaxWidth="600">
+
+            <Grid Grid.Row="0" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <TextBox Grid.Column="0"
+                         x:Name="SearchBox"
+                         PlaceholderText="Search pinned repositories…"
+                         FontSize="16"
+                         Padding="10,8"
+                         Text="{Binding SearchText}" />
+                <Button Grid.Column="1"
+                        Classes="blue"
+                        Content="Open…"
+                        FontSize="14"
+                        Padding="16,8"
+                        VerticalAlignment="Stretch"
+                        Click="OnOpenRepositoryClick"
+                        ToolTip.Tip="Open a Git repository in a new workspace" />
+            </Grid>
 
             <TextBlock Grid.Row="1"
                        IsVisible="{Binding HasStatusMessage}"
@@ -257,8 +274,14 @@
                             <Panel>
                                 <ListBox x:Name="UnstagedList"
                                          Background="Transparent"
+                                         SelectionMode="Multiple"
                                          ItemsSource="{Binding UnstagedFiles}"
                                          SelectedItem="{Binding SelectedUnstagedFile}">
+                                    <ListBox.ContextFlyout>
+                                        <MenuFlyout>
+                                            <MenuItem Header="Stage selected" Click="OnStageSelectedClick" />
+                                        </MenuFlyout>
+                                    </ListBox.ContextFlyout>
                                     <ListBox.ItemTemplate>
                                         <DataTemplate x:DataType="models:GitStatusEntry">
                                             <TextBlock Text="{Binding Path}" TextTrimming="CharacterEllipsis" />
@@ -283,8 +306,14 @@
                             <Panel>
                                 <ListBox x:Name="StagedList"
                                          Background="Transparent"
+                                         SelectionMode="Multiple"
                                          ItemsSource="{Binding StagedFiles}"
                                          SelectedItem="{Binding SelectedStagedFile}">
+                                    <ListBox.ContextFlyout>
+                                        <MenuFlyout>
+                                            <MenuItem Header="Unstage selected" Click="OnUnstageSelectedClick" />
+                                        </MenuFlyout>
+                                    </ListBox.ContextFlyout>
                                     <ListBox.ItemTemplate>
                                         <DataTemplate x:DataType="models:GitStatusEntry">
                                             <TextBlock Text="{Binding Path}" TextTrimming="CharacterEllipsis" />
@@ -302,17 +331,131 @@
 
                 <!-- History: commit list with the lane graph drawn over its left gutter. -->
                 <DockPanel Grid.Column="0" IsVisible="{Binding IsHistoryMode}">
-                    <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,4">
+                    <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,4">
                         <TextBlock Grid.Column="0" Text="History" FontWeight="SemiBold" VerticalAlignment="Center" />
-                        <CheckBox Grid.Column="1"
-                                  Content="First-parent only"
-                                  FontSize="11"
-                                  IsChecked="{Binding FirstParentOnly}"
-                                  ToolTip.Tip="Collapse each merged branch to a single row — what actually landed on this branch." />
+                        <TextBlock Grid.Column="1" Text="{Binding StatusText}"
+                                   Margin="12,0" VerticalAlignment="Center"
+                                   Opacity="0.7" FontSize="11" TextTrimming="CharacterEllipsis" />
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                            <Button Classes="header" FontWeight="Normal"
+                                    Content="{Binding AuthorFilterLabel}"
+                                    ToolTip.Tip="Show only commits by the ticked authors (multi-select).">
+                                <Button.Flyout>
+                                    <Flyout Placement="BottomEdgeAlignedRight">
+                                        <StackPanel Width="250" Spacing="6" x:DataType="vm:WorkspaceViewModel">
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <TextBlock Grid.Column="0" Text="SHOW ONLY THESE AUTHORS"
+                                                           FontSize="10" Opacity="0.5" VerticalAlignment="Center" />
+                                                <Button Grid.Column="1" Content="Clear" FontSize="11" Padding="8,2"
+                                                        IsEnabled="{Binding HasAuthorFilter}"
+                                                        Command="{Binding ClearAuthorFilterCommand}" />
+                                            </Grid>
+                                            <TextBox Text="{Binding AuthorFilterSearch}" PlaceholderText="Search authors…"
+                                                     FontSize="12" Padding="6,3" />
+                                            <ScrollViewer MaxHeight="280">
+                                                <ItemsControl ItemsSource="{Binding FilteredAuthorFilters}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate x:DataType="vm:FilterOption">
+                                                            <CheckBox Content="{Binding Name}"
+                                                                      IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                                                      Margin="0,1" />
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </ScrollViewer>
+                                        </StackPanel>
+                                    </Flyout>
+                                </Button.Flyout>
+                            </Button>
+                            <Button Classes="header" FontWeight="Normal"
+                                    Content="{Binding BranchFilterLabel}"
+                                    ToolTip.Tip="Show only commits reachable from the ticked branches (multi-select).">
+                                <Button.Flyout>
+                                    <Flyout Placement="BottomEdgeAlignedRight">
+                                        <StackPanel Width="270" Spacing="6" x:DataType="vm:WorkspaceViewModel">
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <TextBlock Grid.Column="0" Text="SHOW ONLY THESE BRANCHES"
+                                                           FontSize="10" Opacity="0.5" VerticalAlignment="Center" />
+                                                <Button Grid.Column="1" Content="Clear" FontSize="11" Padding="8,2"
+                                                        IsEnabled="{Binding HasBranchFilter}"
+                                                        Command="{Binding ClearBranchFilterCommand}" />
+                                            </Grid>
+                                            <TextBox Text="{Binding BranchFilterSearch}" PlaceholderText="Search branches…"
+                                                     FontSize="12" Padding="6,3" />
+                                            <ScrollViewer MaxHeight="280">
+                                                <ItemsControl ItemsSource="{Binding FilteredBranchFilters}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate x:DataType="vm:FilterOption">
+                                                            <CheckBox Content="{Binding Name}"
+                                                                      IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                                                      Margin="0,1" />
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </ScrollViewer>
+                                        </StackPanel>
+                                    </Flyout>
+                                </Button.Flyout>
+                            </Button>
+                            <Button Classes="header"
+                                    Content="↕ Graph order"
+                                    IsVisible="{Binding !ShowGraph}"
+                                    Command="{Binding ResetSortCommand}"
+                                    ToolTip.Tip="Drop the sort/filter and return to git's order (which shows the lane graph)." />
+                            <CheckBox Content="First-parent only"
+                                      FontSize="11"
+                                      IsChecked="{Binding FirstParentOnly}"
+                                      ToolTip.Tip="Collapse each merged branch to a single row — what actually landed on this branch." />
+                        </StackPanel>
                     </Grid>
 
                     <Border BorderBrush="#30808080" BorderThickness="1" CornerRadius="4" ClipToBounds="True">
-                        <Panel>
+                        <DockPanel>
+                            <!-- Column headers — click to sort. HistoryHeaderMargin absorbs the graph
+                                 gutter and the scrollbar so the labels line up with the rows below. -->
+                            <Border DockPanel.Dock="Top" BorderBrush="#22808080" BorderThickness="0,0,0,1">
+                                <Grid Height="24" Margin="{Binding HistoryHeaderMargin}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" MinWidth="80" />
+                                        <ColumnDefinition Width="{Binding AuthorColumnWidth}" />
+                                        <ColumnDefinition Width="{Binding DateColumnWidth}" />
+                                        <ColumnDefinition Width="{Binding CommitColumnWidth}" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Only Author and Date sort; Message and Commit are plain labels. -->
+                                    <TextBlock Grid.Column="0" Text="Message" Margin="4,0" VerticalAlignment="Center"
+                                               FontSize="11" FontWeight="SemiBold" Foreground="#B0FFFFFF" />
+                                    <Button Grid.Column="1" Classes="header"
+                                            Content="{Binding AuthorSortGlyph, StringFormat='Author{0}'}"
+                                            Command="{Binding SortByCommand}"
+                                            CommandParameter="{x:Static vm:HistorySortColumn.Author}" />
+                                    <Button Grid.Column="2" Classes="header"
+                                            Content="{Binding DateSortGlyph, StringFormat='Date{0}'}"
+                                            Command="{Binding SortByCommand}"
+                                            CommandParameter="{x:Static vm:HistorySortColumn.Date}" />
+                                    <TextBlock Grid.Column="3" Text="Commit" Margin="4,0" VerticalAlignment="Center"
+                                               FontSize="11" FontWeight="SemiBold" Foreground="#B0FFFFFF" />
+
+                                    <!-- Drag a boundary to resize the two columns it separates; the
+                                         header and every row share these widths. The Message|Author
+                                         grip borrows from Message (the flexible column), so every
+                                         column — Message and Commit included — is resizable. -->
+                                    <Border Grid.Column="1" Tag="MsgAuthor" Width="8" HorizontalAlignment="Left"
+                                            Background="Transparent" Cursor="SizeWestEast"
+                                            PointerPressed="OnColumnGripPressed" PointerMoved="OnColumnGripMoved"
+                                            PointerReleased="OnColumnGripReleased" />
+                                    <Border Grid.Column="2" Tag="AuthorDate" Width="8" HorizontalAlignment="Left"
+                                            Background="Transparent" Cursor="SizeWestEast"
+                                            PointerPressed="OnColumnGripPressed" PointerMoved="OnColumnGripMoved"
+                                            PointerReleased="OnColumnGripReleased" />
+                                    <Border Grid.Column="3" Tag="DateCommit" Width="8" HorizontalAlignment="Left"
+                                            Background="Transparent" Cursor="SizeWestEast"
+                                            PointerPressed="OnColumnGripPressed" PointerMoved="OnColumnGripMoved"
+                                            PointerReleased="OnColumnGripReleased" />
+                                </Grid>
+                            </Border>
+
+                            <Panel>
                             <ListBox x:Name="CommitList"
                                      Background="Transparent"
                                      Padding="{Binding CommitListPadding}"
@@ -327,7 +470,7 @@
                                                   Command="{Binding CherryPickCommand}"
                                                   ToolTip.Tip="Replay this commit on top of the current branch." />
                                         <Separator />
-                                        <MenuItem Header="Copy SHA" Click="OnCopyShaClick" />
+                                        <MenuItem Header="Copy full SHA" Click="OnCopyShaClick" />
                                     </MenuFlyout>
                                 </ListBox.ContextFlyout>
                                 <ListBox.Styles>
@@ -341,36 +484,58 @@
                                 </ListBox.Styles>
                                 <ListBox.ItemTemplate>
                                     <DataTemplate x:DataType="models:CommitInfo">
-                                        <Grid ColumnDefinitions="Auto,*,Auto,Auto" VerticalAlignment="Center">
-                                            <ItemsControl Grid.Column="0" ItemsSource="{Binding Refs}" Margin="0,0,6,0">
-                                                <ItemsControl.ItemsPanel>
-                                                    <ItemsPanelTemplate>
-                                                        <StackPanel Orientation="Horizontal" Spacing="3" />
-                                                    </ItemsPanelTemplate>
-                                                </ItemsControl.ItemsPanel>
-                                                <ItemsControl.ItemTemplate>
-                                                    <DataTemplate x:DataType="models:GitRef">
-                                                        <Border Classes.tag="{Binding IsTag}"
-                                                                Classes.remote="{Binding IsRemoteBranch}"
-                                                                CornerRadius="3" Padding="4,1"
-                                                                VerticalAlignment="Center">
-                                                            <TextBlock Text="{Binding Name}" FontSize="10" />
-                                                        </Border>
-                                                    </DataTemplate>
-                                                </ItemsControl.ItemTemplate>
-                                            </ItemsControl>
+                                        <Grid VerticalAlignment="Center">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="{Binding $parent[ListBox].((vm:WorkspaceViewModel)DataContext).AuthorColumnWidth}" />
+                                                <ColumnDefinition Width="{Binding $parent[ListBox].((vm:WorkspaceViewModel)DataContext).DateColumnWidth}" />
+                                                <ColumnDefinition Width="{Binding $parent[ListBox].((vm:WorkspaceViewModel)DataContext).CommitColumnWidth}" />
+                                            </Grid.ColumnDefinitions>
+                                            <!-- Message column: ref badges then the subject. ClipToBounds keeps
+                                                 long branch decorations from spilling into the Author column, and
+                                                 the badge strip is capped so the subject always keeps some room. -->
+                                            <Grid Grid.Column="0" ColumnDefinitions="Auto,*" ClipToBounds="True">
+                                                <ItemsControl Grid.Column="0" ItemsSource="{Binding Refs}" Margin="0,0,6,0"
+                                                              MaxWidth="240" ClipToBounds="True">
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate>
+                                                            <StackPanel Orientation="Horizontal" Spacing="3" />
+                                                        </ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate x:DataType="models:GitRef">
+                                                            <Border Classes.tag="{Binding IsTag}"
+                                                                    Classes.remote="{Binding IsRemoteBranch}"
+                                                                    CornerRadius="3" Padding="4,1"
+                                                                    MaxWidth="150" VerticalAlignment="Center"
+                                                                    ToolTip.Tip="{Binding Name}">
+                                                                <TextBlock Text="{Binding Name}" FontSize="10"
+                                                                           TextTrimming="CharacterEllipsis" />
+                                                            </Border>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
 
-                                            <TextBlock Grid.Column="1" Text="{Binding Subject}"
+                                                <TextBlock Grid.Column="1" Text="{Binding Subject}"
+                                                           TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                            </Grid>
+
+                                            <TextBlock Grid.Column="1" Text="{Binding Author}"
+                                                       Opacity="0.5" FontSize="11" Margin="0,0,8,0"
                                                        TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
 
-                                            <TextBlock Grid.Column="2" Text="{Binding Author}"
-                                                       Opacity="0.5" FontSize="11" Margin="8,0"
+                                            <TextBlock Grid.Column="2" Text="{Binding WhenDisplay}"
+                                                       Opacity="0.5" FontSize="11"
                                                        VerticalAlignment="Center" />
 
-                                            <TextBlock Grid.Column="3" Text="{Binding ShortSha}"
-                                                       Opacity="0.4" FontSize="11"
-                                                       FontFamily="Cascadia Mono,Consolas,monospace"
-                                                       VerticalAlignment="Center" />
+                                            <!-- Click-to-copy: copies the full SHA (the row still opens via the other columns). -->
+                                            <Button Grid.Column="3" Classes="header"
+                                                    Content="{Binding ShortSha}"
+                                                    FontFamily="Cascadia Mono,Consolas,monospace"
+                                                    FontWeight="Normal" Foreground="#8CFFFFFF"
+                                                    VerticalAlignment="Center"
+                                                    Click="OnCopyShaCellClick"
+                                                    ToolTip.Tip="Click to copy the full SHA" />
                                         </Grid>
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
@@ -379,6 +544,7 @@
                             <views:CommitGraphView x:Name="GraphView"
                                                    Graph="{Binding Graph}"
                                                    Width="{Binding GraphWidth}"
+                                                   IsVisible="{Binding ShowGraph}"
                                                    RowHeight="26"
                                                    HorizontalAlignment="Left"
                                                    VerticalAlignment="Stretch"
@@ -388,12 +554,40 @@
                                        IsVisible="{Binding !HasCommits}"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"
                                        Opacity="0.35" IsHitTestVisible="False" />
-                        </Panel>
+                            </Panel>
+                        </DockPanel>
                     </Border>
                 </DockPanel>
 
                 <!-- Diff viewer -->
                 <DockPanel Grid.Column="2">
+                    <!-- History: the selected commit's files, split out so the diff is one file at a
+                         time instead of one long blob. Picking a file loads just its patch. -->
+                    <Border DockPanel.Dock="Top" IsVisible="{Binding IsHistoryMode}"
+                            BorderBrush="#30808080" BorderThickness="1" CornerRadius="4"
+                            Height="150" Margin="0,0,0,8" ClipToBounds="True">
+                        <Panel>
+                            <ListBox x:Name="CommitFilesList"
+                                     Background="Transparent"
+                                     ItemsSource="{Binding CommitFiles}"
+                                     SelectedItem="{Binding SelectedCommitFile}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="models:CommitFileEntry">
+                                        <Grid ColumnDefinitions="Auto,*">
+                                            <TextBlock Grid.Column="0" Text="{Binding Badge}" Width="18"
+                                                       Opacity="0.55" FontFamily="Cascadia Mono,Consolas,monospace" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Path}" TextTrimming="CharacterEllipsis" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <TextBlock Text="No files changed"
+                                       IsVisible="{Binding !HasCommitFiles}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       Opacity="0.35" IsHitTestVisible="False" />
+                        </Panel>
+                    </Border>
+
                     <TextBlock DockPanel.Dock="Top"
                                Margin="0,0,0,4"
                                FontWeight="SemiBold"
@@ -462,6 +656,8 @@
                        FontSize="11"
                        Text="{Binding FooterHint}" />
         </Grid>
+        </Panel>
+
         </Panel>
 
     </DockPanel>
