@@ -68,6 +68,14 @@ public partial class MainWindow : Window
         if (e.Source is ScrollViewer scroller)
         {
             GraphView.ScrollOffset = scroller.Offset.Y;
+
+            // Match the graph's row height to the list's ACTUAL one. A nominal 26 drifts: layout
+            // rounding snaps each row to a whole device pixel (~26.4 at 125% scale), and over a
+            // few hundred commits that lag adds up to a row or two — the bottom dots fall off.
+            if (CommitList.ItemCount > 0 && scroller.Extent.Height > 0)
+            {
+                GraphView.RowHeight = scroller.Extent.Height / CommitList.ItemCount;
+            }
         }
     }
 
@@ -175,6 +183,16 @@ public partial class MainWindow : Window
     }
 
     private WorkspaceViewModel? Workspace => (DataContext as MainViewModel)?.Workspace;
+
+    /// <summary>Double-clicking a branch badge in the graph checks it out, à la Git Graph.</summary>
+    private void OnRefBadgeDoubleTapped(object? sender, TappedEventArgs e)
+    {
+        if (sender is Control { DataContext: GitRef reference } && Workspace is { } ws)
+        {
+            _ = ws.CheckoutRef(reference);
+            e.Handled = true;   // don't let it bubble up to the row
+        }
+    }
 
     private void OnStageSelectedClick(object? sender, RoutedEventArgs e) => StageSelectedFiles();
 

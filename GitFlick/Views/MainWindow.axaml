@@ -508,7 +508,9 @@
                                                                     Classes.remote="{Binding IsRemoteBranch}"
                                                                     CornerRadius="3" Padding="4,1"
                                                                     MaxWidth="150" VerticalAlignment="Center"
-                                                                    ToolTip.Tip="{Binding Name}">
+                                                                    Cursor="Hand"
+                                                                    DoubleTapped="OnRefBadgeDoubleTapped"
+                                                                    ToolTip.Tip="{Binding Name, StringFormat='{}{0}  ·  double-click to check out'}">
                                                                 <TextBlock Text="{Binding Name}" FontSize="10"
                                                                            TextTrimming="CharacterEllipsis" />
                                                             </Border>

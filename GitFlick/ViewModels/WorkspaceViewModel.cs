@@ -595,6 +595,26 @@ public partial class WorkspaceViewModel : ViewModelBase
             $"Checked out {target}");
     }
 
+    /// <summary>
+    /// Checks out a branch badge double-clicked in the graph (like Git Graph). A remote branch
+    /// DWIMs to its local tracking branch (git creates it if needed); a tag is ignored, since
+    /// checking one out would only detach HEAD.
+    /// </summary>
+    public Task CheckoutRef(GitRef reference)
+    {
+        if (reference.Kind == GitRefKind.Tag)
+        {
+            return Task.CompletedTask;
+        }
+
+        // "origin/main" -> "main": git checks out (or creates) the local branch tracking it.
+        var target = reference.Kind == GitRefKind.RemoteBranch
+            ? reference.Name[(reference.Name.IndexOf('/') + 1)..]
+            : reference.Name;
+
+        return RunAsync(() => _git.CheckoutAsync(Repository.Path, target), $"Checked out {target}");
+    }
+
     [RelayCommand]
     private Task CherryPick()
     {

@@ -259,6 +259,40 @@ public class WorkspaceViewModelTests
     }
 
     [Fact]
+    public async Task CheckoutRef_switches_to_a_double_clicked_branch()
+    {
+        using var repo = new TestRepo();
+        repo.WriteFile("a.txt", "1");
+        repo.Git("add", "-A");
+        repo.Git("commit", "-m", "first");
+        repo.Git("branch", "feature");
+
+        var vm = ForRepo(repo);
+        await vm.RefreshAsync();
+
+        await vm.CheckoutRef(new GitRef("feature", GitRefKind.LocalBranch));
+
+        Assert.Equal("feature", repo.Git("rev-parse", "--abbrev-ref", "HEAD").Trim());
+    }
+
+    [Fact]
+    public async Task CheckoutRef_ignores_a_tag()
+    {
+        using var repo = new TestRepo();
+        repo.WriteFile("a.txt", "1");
+        repo.Git("add", "-A");
+        repo.Git("commit", "-m", "first");
+        repo.Git("tag", "v1");
+
+        var vm = ForRepo(repo);
+        await vm.RefreshAsync();
+
+        await vm.CheckoutRef(new GitRef("v1", GitRefKind.Tag));   // would only detach HEAD, so ignored
+
+        Assert.Equal("main", repo.Git("rev-parse", "--abbrev-ref", "HEAD").Trim());
+    }
+
+    [Fact]
     public async Task Cherry_pick_replays_a_commit_onto_the_current_branch()
     {
         using var repo = new TestRepo();
@@ -494,6 +528,24 @@ public class WorkspaceViewModelTests
         await vm.DiffLoad;                     // first file's diff
         Assert.True(vm.HasDiff);
         Assert.Equal(vm.SelectedCommitFile!.Path, vm.DiffPath);
+    }
+
+    [Fact]
+    public async Task Graph_has_a_dot_for_every_commit_including_the_root()
+    {
+        using var repo = new TestRepo();
+        for (var i = 0; i < 12; i++)
+        {
+            repo.WriteFile("f.txt", $"content {i}");
+            repo.Git("add", "-A");
+            repo.Git("commit", "-m", $"commit {i}");
+        }
+
+        var vm = ForRepo(repo);
+        await vm.ShowHistoryCommand.ExecuteAsync(null);
+
+        Assert.Equal(12, vm.Commits.Count);
+        Assert.Equal(12, vm.Graph!.Dots.Count);   // the builder never drops the last commits
     }
 
     [Fact]
