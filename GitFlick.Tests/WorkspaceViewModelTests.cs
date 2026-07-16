@@ -511,6 +511,279 @@ public class WorkspaceViewModelTests
     }
 
     [Fact]
+    public async Task CommitAll_stages_and_commits_every_change()
+    {
+        using var repo = new TestRepo();
+        repo.WriteFile("a.txt", "1");
+        repo.Git("add", "-A");
+        repo.Git("commit", "-m", "base");
+
+        repo.WriteFile("a.txt", "changed");   // tracked modification, unstaged
+        repo.WriteFile("b.txt", "new");        // untracked
+
+        var vm = ForRepo(repo);
+        await vm.RefreshAsync();
+        vm.CommitMessage = "commit all";
+        await vm.CommitAllCommand.ExecuteAsync(null);
+
+        Assert.Equal(string.Empty, repo.Git("status", "--porcelain").Trim());   // nothing left
+        Assert.Equal("commit all", repo.Git("log", "-1", "--pretty=%s").Trim());
+        Assert.Contains("b.txt", repo.Git("ls-tree", "-r", "HEAD", "--name-only"));
+    }
+
+    [Fact]
+    public async Task CommitSignedOff_adds_a_signed_off_by_trailer()
+    {
+        using var repo = new TestRepo();
+        repo.WriteFile("a.txt", "1");
+        repo.Git("add", "-A");
+
+        var vm = ForRepo(repo);
+        await vm.RefreshAsync();
+        vm.CommitMessage = "signed commit";
+        await vm.CommitSignedOffCommand.ExecuteAsync(null);
+
+        Assert.Contains("Signed-off-by:", repo.Git("log", "-1", "--pretty=%B"));
+    }
+
+    [Fact]
+    public async Task CommitAmend_reword_replaces_the_last_commit_message()
+    {
+        using var repo = new TestRepo();
+        repo.WriteFile("a.txt", "1");
+        repo.Git("add", "-A");
+        repo.Git("commit", "-m", "original message");
+
+        var vm = ForRepo(repo);
+        await vm.RefreshAsync();
+        vm.CommitMessage = "reworded message";
+        await vm.CommitAmendCommand.ExecuteAsync(null);
+
+        Assert.Equal("reworded message", repo.Git("log", "-1", "--pretty=%s").Trim());
+        Assert.Single(repo.Git("log", "--pretty=%H").Trim().Split('\n'));   // still one commit
+    }
+
+    [Fact]
+    public async Task CommitAmend_with_empty_message_folds_staged_changes_and_keeps_the_message()
+    {
+        using var repo = new TestRepo();
+        repo.WriteFile("a.txt", "1");
+        repo.Git("add", "-A");
+        repo.Git("commit", "-m", "base");
+
+        repo.WriteFile("b.txt", "2");
+        repo.Git("add", "-A");   // staged, not committed
+
+        var vm = ForRepo(repo);
+        await vm.RefreshAsync();
+        vm.CommitMessage = string.Empty;   // keep the message, just fold in the staged change
+        await vm.CommitAmendCommand.ExecuteAsync(null);
+
+        Assert.Equal("base", repo.Git("log", "-1", "--pretty=%s").Trim());
+        Assert.Contains("b.txt", repo.Git("ls-tree", "-r", "HEAD", "--name-only"));
+        Assert.Single(repo.Git("log", "--pretty=%H").Trim().Split('\n'));
+    }
+
+    [Fact]
+    public async Task UndoLastCommit_drops_the_commit_but_keeps_its_changes_staged()
+    {
+        using var repo = new TestRepo();
+        repo.WriteFile("a.txt", "1");
+        repo.Git("add", "-A");
+        repo.Git("commit", "-m", "first");
+        repo.WriteFile("b.txt", "2");
+        repo.Git("add", "-A");
+        repo.Git("commit", "-m", "second");
+
+        var vm = ForRepo(repo);
+        await vm.RefreshAsync();
+        await vm.UndoLastCommitCommand.ExecuteAsync(null);
+
+        Assert.Equal("first", repo.Git("log", "-1", "--pretty=%s").Trim());              // 'second' undone
+        Assert.Contains("b.txt", repo.Git("diff", "--cached", "--name-only"));           // its change kept, staged
+    }
+
+    [Fact]
+    public async Task DiscardAll_reverts_tracked_changes_but_keeps_untracked_by_default()
+    {
+        using var repo = new TestRepo();
+        repo.WriteFile("a.txt", "original");
+        repo.Git("add", "-A");
+        repo.Git("commit", "-m", "base");
+
+        repo.WriteFile("a.txt", "modified");    // tracked change
+        repo.WriteFile("u.txt", "untracked");   // untracked
+
+        var vm = ForRepo(repo);
+        await vm.RefreshAsync();
+        vm.ConfirmDiscardAll = () => Task.FromResult<bool?>(false);   // discard tracked, keep untracked
+        await vm.DiscardAllCommand.ExecuteAsync(null);
+
+        Assert.Equal("original", File.ReadAllText(Path.Combine(repo.Path, "a.txt")));
+        Assert.True(File.Exists(Path.Combine(repo.Path, "u.txt")));
+    }
+
+    [Fact]
+    public async Task DiscardAll_with_untracked_also_removes_untracked_files()
+    {
+        using var repo = new TestRepo();
+        repo.WriteFile("a.txt", "original");
+        repo.Git("add", "-A");
+        repo.Git("commit", "-m", "base");
+
+        repo.WriteFile("a.txt", "modified");
+        repo.WriteFile("u.txt", "untracked");
+
+        var vm = ForRepo(repo);
+        await vm.RefreshAsync();
+        vm.ConfirmDiscardAll = () => Task.FromResult<bool?>(true);   // also delete untracked
+        await vm.DiscardAllCommand.ExecuteAsync(null);
+
+        Assert.Equal("original", File.ReadAllText(Path.Combine(repo.Path, "a.txt")));
+        Assert.False(File.Exists(Path.Combine(repo.Path, "u.txt")));
+    }
+
+    [Fact]
+    public async Task DiscardAll_cancelled_keeps_the_changes()
+    {
+        using var repo = new TestRepo();
+        repo.WriteFile("a.txt", "original");
+        repo.Git("add", "-A");
+        repo.Git("commit", "-m", "base");
+        repo.WriteFile("a.txt", "modified");
+
+        var vm = ForRepo(repo);
+        await vm.RefreshAsync();
+        vm.ConfirmDiscardAll = () => Task.FromResult<bool?>(null);   // cancel
+        await vm.DiscardAllCommand.ExecuteAsync(null);
+
+        Assert.Equal("modified", File.ReadAllText(Path.Combine(repo.Path, "a.txt")));
+    }
+
+    [Fact]
+    public async Task GitService_records_each_command_in_the_log()
+    {
+        using var repo = new TestRepo();
+        var git = new GitService();
+
+        await git.GetStatusAsync(repo.Path);
+
+        var log = git.CommandLog.Snapshot();
+        Assert.Contains(log, e => e.Command.Contains("status") && e.Succeeded);
+    }
+
+    [Fact]
+    public async Task GitService_command_log_marks_a_failed_command()
+    {
+        using var repo = new TestRepo();
+        repo.WriteFile("a.txt", "1");
+        repo.Git("add", "-A");
+        repo.Git("commit", "-m", "base");
+        var git = new GitService();
+
+        await git.CheckoutAsync(repo.Path, "no-such-branch");   // non-zero exit
+
+        var log = git.CommandLog.Snapshot();
+        Assert.Contains(log, e => e.Command.Contains("checkout") && !e.Succeeded);
+    }
+
+    [Fact]
+    public async Task CommandLog_snapshot_is_most_recent_first()
+    {
+        using var repo = new TestRepo();
+        var git = new GitService();
+
+        await git.GetVersionAsync();          // git --version  (older)
+        await git.GetStatusAsync(repo.Path);  // git status     (newer)
+
+        var log = git.CommandLog.Snapshot().ToList();
+        var statusIndex = log.FindIndex(e => e.Command.Contains("status"));
+        var versionIndex = log.FindIndex(e => e.Command.Contains("--version"));
+        Assert.InRange(statusIndex, 0, versionIndex - 1);   // newest first
+    }
+
+    [Fact]
+    public async Task RefreshCommandLog_snapshots_the_services_log_and_Clear_empties_it()
+    {
+        using var repo = new TestRepo();
+        repo.WriteFile("a.txt", "1");
+        repo.Git("add", "-A");
+        repo.Git("commit", "-m", "base");
+
+        var vm = ForRepo(repo);
+        await vm.RefreshAsync();   // runs several git commands through the service
+
+        vm.RefreshCommandLog();
+        Assert.True(vm.HasCommandLog);
+        Assert.NotEmpty(vm.CommandLog);
+
+        vm.ClearCommandLogCommand.Execute(null);
+        Assert.False(vm.HasCommandLog);
+        Assert.Empty(vm.CommandLog);
+    }
+
+    [Fact]
+    public async Task DiscardFiles_reverts_only_the_selected_tracked_file()
+    {
+        using var repo = new TestRepo();
+        repo.WriteFile("a.txt", "original");
+        repo.WriteFile("b.txt", "original");
+        repo.Git("add", "-A");
+        repo.Git("commit", "-m", "base");
+
+        repo.WriteFile("a.txt", "modified");
+        repo.WriteFile("b.txt", "modified");
+
+        var vm = ForRepo(repo);
+        await vm.RefreshAsync();
+        vm.ConfirmDiscardFiles = _ => Task.FromResult(true);
+
+        var target = vm.UnstagedFiles.Single(f => f.Path == "a.txt");
+        await vm.DiscardFiles(new[] { target });
+
+        Assert.Equal("original", File.ReadAllText(Path.Combine(repo.Path, "a.txt")));   // reverted
+        Assert.Equal("modified", File.ReadAllText(Path.Combine(repo.Path, "b.txt")));   // left alone
+    }
+
+    [Fact]
+    public async Task DiscardFiles_deletes_a_selected_untracked_file()
+    {
+        using var repo = new TestRepo();
+        repo.WriteFile("a.txt", "1");
+        repo.Git("add", "-A");
+        repo.Git("commit", "-m", "base");
+        repo.WriteFile("new.txt", "untracked");
+
+        var vm = ForRepo(repo);
+        await vm.RefreshAsync();
+        vm.ConfirmDiscardFiles = _ => Task.FromResult(true);
+
+        var target = vm.UnstagedFiles.Single(f => f.Path == "new.txt");
+        await vm.DiscardFiles(new[] { target });
+
+        Assert.False(File.Exists(Path.Combine(repo.Path, "new.txt")));
+    }
+
+    [Fact]
+    public async Task DiscardFiles_cancelled_keeps_the_changes()
+    {
+        using var repo = new TestRepo();
+        repo.WriteFile("a.txt", "original");
+        repo.Git("add", "-A");
+        repo.Git("commit", "-m", "base");
+        repo.WriteFile("a.txt", "modified");
+
+        var vm = ForRepo(repo);
+        await vm.RefreshAsync();
+        vm.ConfirmDiscardFiles = _ => Task.FromResult(false);   // cancel
+
+        var target = vm.UnstagedFiles.Single(f => f.Path == "a.txt");
+        await vm.DiscardFiles(new[] { target });
+
+        Assert.Equal("modified", File.ReadAllText(Path.Combine(repo.Path, "a.txt")));
+    }
+
+    [Fact]
     public async Task Checkout_with_uncommitted_changes_asks_first_and_a_cancel_blocks_it()
     {
         using var repo = new TestRepo();

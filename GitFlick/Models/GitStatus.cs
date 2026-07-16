@@ -53,6 +53,40 @@ public sealed record GitStatusEntry
         Kind is GitChangeKind.Untracked or GitChangeKind.Unmerged
         || (Kind is not GitChangeKind.Ignored && IsRealChange(UnstagedState));
 
+    /// <summary>One-letter status for the worktree side (what the Unstaged list shows).</summary>
+    public string UnstagedBadge => BadgeFor(unstaged: true);
+
+    /// <summary>One-letter status for the index side (what the Staged list shows).</summary>
+    public string StagedBadge => BadgeFor(unstaged: false);
+
+    private string BadgeFor(bool unstaged)
+    {
+        if (Kind is GitChangeKind.Untracked)
+        {
+            return "?";
+        }
+
+        if (Kind is GitChangeKind.Unmerged)
+        {
+            return "U";
+        }
+
+        return Letter(unstaged ? UnstagedState : StagedState);
+    }
+
+    private static string Letter(GitFileState state) => state switch
+    {
+        GitFileState.Modified => "M",
+        GitFileState.Added => "A",
+        GitFileState.Deleted => "D",
+        GitFileState.Renamed => "R",
+        GitFileState.Copied => "C",
+        GitFileState.TypeChanged => "T",
+        GitFileState.Unmerged => "U",
+        GitFileState.Untracked => "?",
+        _ => "",
+    };
+
     private static bool IsRealChange(GitFileState state) =>
         state is not (GitFileState.Unmodified or GitFileState.Untracked or GitFileState.Ignored);
 }

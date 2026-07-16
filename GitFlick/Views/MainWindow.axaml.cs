@@ -141,6 +141,31 @@ public partial class MainWindow : Window
         }
     }
 
+    private CommandLogWindow? _commandLogWindow;
+
+    /// <summary>Opens the git command log in its own window (reusing one if it's already open).</summary>
+    private void OnShowCommandLogClick(object? sender, RoutedEventArgs e)
+    {
+        if (Workspace is not { } workspace)
+        {
+            return;
+        }
+
+        workspace.RefreshCommandLog();
+
+        if (_commandLogWindow is null)
+        {
+            _commandLogWindow = new CommandLogWindow { DataContext = workspace };
+            _commandLogWindow.Closed += (_, _) => _commandLogWindow = null;
+            _commandLogWindow.Show(this);
+        }
+        else
+        {
+            _commandLogWindow.DataContext = workspace;
+            _commandLogWindow.Activate();
+        }
+    }
+
     // History column resize: a grip sits on each internal column boundary and trades width between
     // the two columns it separates, so every column (Message included, since it's the flexible one
     // the Message|Author grip borrows from) is resizable. The header and every row bind the shared
@@ -257,6 +282,14 @@ public partial class MainWindow : Window
         }
     }
 
+    private void OnDiscardSelectedClick(object? sender, RoutedEventArgs e)
+    {
+        if (Workspace is { } ws)
+        {
+            _ = ws.DiscardFiles(SelectedEntries(UnstagedList));
+        }
+    }
+
     private static IReadOnlyList<GitStatusEntry> SelectedEntries(ListBox list) =>
         list.SelectedItems?.Cast<GitStatusEntry>().ToList() ?? [];
 
@@ -314,11 +347,32 @@ public partial class MainWindow : Window
             _observedWorkspace.PropertyChanged += OnWorkspacePropertyChanged;
             _observedWorkspace.ConfirmDirtyCheckout = ConfirmDirtyCheckoutAsync;
             _observedWorkspace.ConfirmDeleteBranch = ConfirmDeleteBranchAsync;
+            _observedWorkspace.ConfirmDiscardAll = ConfirmDiscardAllAsync;
+            _observedWorkspace.ConfirmDiscardFiles = ConfirmDiscardFilesAsync;
             _observedWorkspace.PromptPullSource = PromptPullSourceAsync;
             _observedWorkspace.PromptPushTarget = PromptPushTargetAsync;
         }
 
+        UpdateTitle();
         UpdateDiffEditor();
+    }
+
+    /// <summary>
+    /// Carries the open repo and its current branch in the OS title bar, so the toolbar row no
+    /// longer has to. The palette (no repo open) shows just the app name.
+    /// </summary>
+    private void UpdateTitle()
+    {
+        if (Workspace is not { } workspace)
+        {
+            Title = "GitFlick";
+            return;
+        }
+
+        var branch = string.IsNullOrEmpty(workspace.BranchName)
+            ? string.Empty
+            : $"  ·  {workspace.BranchName}";
+        Title = $"{workspace.Repository.Name}{branch}  —  GitFlick";
     }
 
     /// <summary>
@@ -330,7 +384,7 @@ public partial class MainWindow : Window
         var force = new CheckBox { Content = "Force delete (even if not fully merged)" };
         var cancel = new Button { Content = "Cancel", MinWidth = 92, HorizontalContentAlignment = HorizontalAlignment.Center };
         var delete = new Button { Content = "Delete", MinWidth = 92, HorizontalContentAlignment = HorizontalAlignment.Center };
-        delete.Classes.Add("primary");
+        delete.Classes.Add("danger");
 
         var dialog = new Window
         {
@@ -371,6 +425,110 @@ public partial class MainWindow : Window
         delete.Click += (_, _) => dialog.Close((bool?)(force.IsChecked == true));
 
         return await dialog.ShowDialog<bool?>(this);
+    }
+
+    /// <summary>
+    /// Confirms discarding every change. Returns null to cancel, otherwise whether to also delete
+    /// untracked files (the checkbox). Destructive, so the affirmative is a red Discard button.
+    /// </summary>
+    private async Task<bool?> ConfirmDiscardAllAsync()
+    {
+        var untracked = new CheckBox { Content = "Also delete untracked files" };
+        var cancel = new Button { Content = "Cancel", MinWidth = 92, HorizontalContentAlignment = HorizontalAlignment.Center };
+        var discard = new Button { Content = "Discard", MinWidth = 92, HorizontalContentAlignment = HorizontalAlignment.Center };
+        discard.Classes.Add("danger");
+
+        var dialog = new Window
+        {
+            Title = "Discard all changes",
+            SizeToContent = SizeToContent.WidthAndHeight,
+            CanResize = false,
+            ShowInTaskbar = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Content = new Border
+            {
+                Padding = new Thickness(22),
+                Child = new StackPanel
+                {
+                    Spacing = 16,
+                    MaxWidth = 380,
+                    Children =
+                    {
+                        new TextBlock
+                        {
+                            TextWrapping = TextWrapping.Wrap,
+                            Text = "Discard every uncommitted change? This resets all tracked files to the last " +
+                                   "commit and cannot be undone.",
+                        },
+                        untracked,
+                        new StackPanel
+                        {
+                            Orientation = Orientation.Horizontal,
+                            Spacing = 8,
+                            HorizontalAlignment = HorizontalAlignment.Right,
+                            Children = { cancel, discard },
+                        },
+                    },
+                },
+            },
+        };
+
+        cancel.Click += (_, _) => dialog.Close(null);
+        discard.Click += (_, _) => dialog.Close((bool?)(untracked.IsChecked == true));
+
+        return await dialog.ShowDialog<bool?>(this);
+    }
+
+    /// <summary>
+    /// Confirms discarding specific files' changes (destructive → red Discard). Returns whether to
+    /// proceed.
+    /// </summary>
+    private async Task<bool> ConfirmDiscardFilesAsync(IReadOnlyList<string> paths)
+    {
+        var cancel = new Button { Content = "Cancel", MinWidth = 92, HorizontalContentAlignment = HorizontalAlignment.Center };
+        var discard = new Button { Content = "Discard", MinWidth = 92, HorizontalContentAlignment = HorizontalAlignment.Center };
+        discard.Classes.Add("danger");
+
+        var target = paths.Count == 1 ? $"“{paths[0]}”" : $"these {paths.Count} files";
+
+        var dialog = new Window
+        {
+            Title = "Discard changes",
+            SizeToContent = SizeToContent.WidthAndHeight,
+            CanResize = false,
+            ShowInTaskbar = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Content = new Border
+            {
+                Padding = new Thickness(22),
+                Child = new StackPanel
+                {
+                    Spacing = 16,
+                    MaxWidth = 380,
+                    Children =
+                    {
+                        new TextBlock
+                        {
+                            TextWrapping = TextWrapping.Wrap,
+                            Text = $"Discard the changes to {target}? This reverts them to the last commit " +
+                                   "(untracked files are deleted) and cannot be undone.",
+                        },
+                        new StackPanel
+                        {
+                            Orientation = Orientation.Horizontal,
+                            Spacing = 8,
+                            HorizontalAlignment = HorizontalAlignment.Right,
+                            Children = { cancel, discard },
+                        },
+                    },
+                },
+            },
+        };
+
+        cancel.Click += (_, _) => dialog.Close(false);
+        discard.Click += (_, _) => dialog.Close(true);
+
+        return await dialog.ShowDialog<bool>(this);
     }
 
     /// <summary>
@@ -558,6 +716,10 @@ public partial class MainWindow : Window
         if (e.PropertyName == nameof(WorkspaceViewModel.DiffText))
         {
             UpdateDiffEditor();
+        }
+        else if (e.PropertyName == nameof(WorkspaceViewModel.BranchName))
+        {
+            UpdateTitle();   // e.g. after a checkout
         }
     }
 

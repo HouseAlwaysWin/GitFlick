@@ -62,6 +62,25 @@ public partial class WorkspaceViewModel : ViewModelBase
 
     public ObservableCollection<StashEntry> Stashes { get; } = [];
 
+    /// <summary>Snapshot of the git command log, filled when the log flyout opens.</summary>
+    public ObservableCollection<GitCommandLogEntry> CommandLog { get; } = [];
+
+    public bool HasCommandLog => CommandLog.Count > 0;
+
+    /// <summary>Pull the newest most-recent-first snapshot of the git command log into the view.</summary>
+    public void RefreshCommandLog()
+    {
+        Replace(CommandLog, _git.CommandLog.Snapshot());
+        OnPropertyChanged(nameof(HasCommandLog));
+    }
+
+    [RelayCommand]
+    private void ClearCommandLog()
+    {
+        _git.CommandLog.Clear();
+        RefreshCommandLog();
+    }
+
     [ObservableProperty]
     public partial string BranchName { get; set; } = string.Empty;
 
@@ -911,6 +930,165 @@ public partial class WorkspaceViewModel : ViewModelBase
         {
             CommitMessage = string.Empty;
         }
+    }
+
+    /// <summary>Stage everything, then commit it in one step (VS Code's "Commit All").</summary>
+    [RelayCommand]
+    private async Task CommitAll()
+    {
+        if (string.IsNullOrWhiteSpace(CommitMessage))
+        {
+            StatusText = "Enter a commit message first.";
+            return;
+        }
+
+        var message = CommitMessage;
+        await RunAsync(
+            async () =>
+            {
+                var staged = await _git.StageAllAsync(Repository.Path);
+                return staged.Succeeded ? await _git.CommitAsync(Repository.Path, message) : staged;
+            },
+            "Committed all changes");
+
+        if (StatusText == "Committed all changes")
+        {
+            CommitMessage = string.Empty;
+        }
+    }
+
+    /// <summary>Commit the staged changes with a Signed-off-by trailer.</summary>
+    [RelayCommand]
+    private async Task CommitSignedOff()
+    {
+        if (!CanCommit)
+        {
+            return;
+        }
+
+        var message = CommitMessage;
+        await RunAsync(() => _git.CommitAsync(Repository.Path, message, signOff: true), "Committed (signed off)");
+
+        if (StatusText == "Committed (signed off)")
+        {
+            CommitMessage = string.Empty;
+        }
+    }
+
+    /// <summary>Amend the last commit with the staged changes; an empty box keeps its message.</summary>
+    [RelayCommand]
+    private async Task CommitAmend()
+    {
+        var message = CommitMessage;
+        var reworded = !string.IsNullOrWhiteSpace(message);
+        await RunAsync(() => _git.CommitAmendAsync(Repository.Path, reworded ? message : null), "Amended last commit");
+
+        if (reworded && StatusText == "Amended last commit")
+        {
+            CommitMessage = string.Empty;
+        }
+    }
+
+    /// <summary>Stage everything, then amend the last commit with it.</summary>
+    [RelayCommand]
+    private async Task CommitAllAmend()
+    {
+        var message = CommitMessage;
+        var reworded = !string.IsNullOrWhiteSpace(message);
+        await RunAsync(
+            async () =>
+            {
+                var staged = await _git.StageAllAsync(Repository.Path);
+                return staged.Succeeded
+                    ? await _git.CommitAmendAsync(Repository.Path, reworded ? message : null)
+                    : staged;
+            },
+            "Amended last commit");
+
+        if (reworded && StatusText == "Amended last commit")
+        {
+            CommitMessage = string.Empty;
+        }
+    }
+
+    /// <summary>Undo the last commit, keeping its changes staged so nothing is lost.</summary>
+    [RelayCommand]
+    private Task UndoLastCommit() =>
+        RunAsync(() => _git.UndoLastCommitAsync(Repository.Path), "Undid last commit");
+
+    /// <summary>
+    /// Set by the View: confirms discarding every change. Returns null to cancel, else whether to
+    /// also delete untracked files. Null delegate (e.g. tests) means "discard tracked, keep untracked".
+    /// </summary>
+    public Func<Task<bool?>>? ConfirmDiscardAll { get; set; }
+
+    /// <summary>Throw away all working-tree changes (with a confirm) — the destructive reset.</summary>
+    [RelayCommand]
+    private async Task DiscardAll()
+    {
+        if (IsCleanTree)
+        {
+            StatusText = "Nothing to discard.";
+            return;
+        }
+
+        var includeUntracked = false;
+        if (ConfirmDiscardAll is not null)
+        {
+            var choice = await ConfirmDiscardAll();
+            if (choice is null)
+            {
+                return;   // cancelled
+            }
+
+            includeUntracked = choice.Value;
+        }
+
+        await RunAsync(() => _git.DiscardAllAsync(Repository.Path, includeUntracked), "Discarded all changes");
+    }
+
+    /// <summary>
+    /// Set by the View: confirms discarding the given paths (destructive). Returns whether to
+    /// proceed. Null delegate (e.g. tests) means "proceed without prompting".
+    /// </summary>
+    public Func<IReadOnlyList<string>, Task<bool>>? ConfirmDiscardFiles { get; set; }
+
+    /// <summary>Discard just the selected files' changes — the Unstaged list's right-click action.</summary>
+    public async Task DiscardFiles(IReadOnlyList<GitStatusEntry> files)
+    {
+        if (files.Count == 0)
+        {
+            return;
+        }
+
+        if (ConfirmDiscardFiles is not null)
+        {
+            var proceed = await ConfirmDiscardFiles(files.Select(f => f.Path).ToList());
+            if (!proceed)
+            {
+                return;
+            }
+        }
+
+        var label = files.Count == 1 ? $"Discarded {files[0].Path}" : $"Discarded {files.Count} files";
+        await RunAsync(() => DiscardEachAsync(files), label);
+    }
+
+    private async Task<GitCommandResult> DiscardEachAsync(IReadOnlyList<GitStatusEntry> files)
+    {
+        var result = new GitCommandResult(0, string.Empty, string.Empty);
+
+        foreach (var file in files)
+        {
+            var untracked = file.Kind == GitChangeKind.Untracked;
+            result = await _git.DiscardPathAsync(Repository.Path, file.Path, untracked);
+            if (!result.Succeeded)
+            {
+                break;   // stop on the first failure; RunAsync surfaces its message
+            }
+        }
+
+        return result;
     }
 
     [RelayCommand]

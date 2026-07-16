@@ -15,6 +15,8 @@ public sealed class GitService : IGitService
 {
     private readonly string _gitPath;
 
+    public GitCommandLog CommandLog { get; } = new();
+
     /// <param name="gitExecutablePath">
     /// An explicit path from settings, or null/empty to resolve "git" on PATH.
     /// </param>
@@ -104,8 +106,57 @@ public sealed class GitService : IGitService
     public Task<GitCommandResult> UnstageAllAsync(string repoPath, CancellationToken cancellationToken = default)
         => RunAsync(repoPath, ["reset", "--quiet"], null, cancellationToken);
 
-    public Task<GitCommandResult> CommitAsync(string repoPath, string message, CancellationToken cancellationToken = default)
-        => RunAsync(repoPath, ["commit", "-m", message], null, cancellationToken);
+    public Task<GitCommandResult> CommitAsync(string repoPath, string message, bool signOff = false, CancellationToken cancellationToken = default)
+        => RunAsync(
+            repoPath,
+            signOff ? new[] { "commit", "-s", "-m", message } : new[] { "commit", "-m", message },
+            null,
+            cancellationToken);
+
+    public Task<GitCommandResult> CommitAmendAsync(string repoPath, string? message, bool signOff = false, CancellationToken cancellationToken = default)
+    {
+        var args = new List<string> { "commit", "--amend" };
+        if (signOff)
+        {
+            args.Add("-s");
+        }
+
+        // No message keeps the previous one (just folds in whatever is staged); a message rewords it.
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            args.Add("--no-edit");
+        }
+        else
+        {
+            args.Add("-m");
+            args.Add(message);
+        }
+
+        return RunAsync(repoPath, args, null, cancellationToken);
+    }
+
+    public Task<GitCommandResult> UndoLastCommitAsync(string repoPath, CancellationToken cancellationToken = default)
+        => RunAsync(repoPath, ["reset", "--soft", "HEAD~1"], null, cancellationToken);
+
+    public Task<GitCommandResult> DiscardPathAsync(string repoPath, string path, bool untracked, CancellationToken cancellationToken = default)
+        => untracked
+            // Untracked: the file (or directory) is new, so discarding means removing it.
+            ? RunAsync(repoPath, ["clean", "-fd", "--", path], null, cancellationToken)
+            // Tracked: revert the worktree change back to what's staged/committed.
+            : RunAsync(repoPath, ["checkout", "--", path], null, cancellationToken);
+
+    public async Task<GitCommandResult> DiscardAllAsync(string repoPath, bool includeUntracked, CancellationToken cancellationToken = default)
+    {
+        // Reset tracked files (staged and unstaged) back to HEAD.
+        var reset = await RunAsync(repoPath, ["reset", "--hard", "HEAD"], null, cancellationToken).ConfigureAwait(false);
+        if (!reset.Succeeded || !includeUntracked)
+        {
+            return reset;
+        }
+
+        // Optionally also remove untracked files and directories.
+        return await RunAsync(repoPath, ["clean", "-fd"], null, cancellationToken).ConfigureAwait(false);
+    }
 
     public Task<GitCommandResult> FetchAsync(string repoPath, IProgress<string>? progress = null, CancellationToken cancellationToken = default)
         => RunAsync(repoPath, ["fetch", "--progress"], progress, cancellationToken);
@@ -381,60 +432,97 @@ public sealed class GitService : IGitService
         IProgress<string>? progress,
         CancellationToken cancellationToken)
     {
-        var startInfo = new ProcessStartInfo
-        {
-            FileName = _gitPath,
-            WorkingDirectory = workingDirectory ?? Environment.CurrentDirectory,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            StandardOutputEncoding = Encoding.UTF8,
-            StandardErrorEncoding = Encoding.UTF8,
-        };
+        // Log exactly what we ran (minus the encoding -c overrides, which are just noise). The
+        // finally records every outcome — success, non-zero exit, cancellation, or a start failure.
+        var command = FormatCommand(args);
+        var stopwatch = Stopwatch.StartNew();
+        var succeeded = false;
 
-        // §4.1: never octal-escape non-ASCII paths. §4.2: force UTF-8 for log/message output.
-        startInfo.ArgumentList.Add("-c");
-        startInfo.ArgumentList.Add("core.quotepath=false");
-        startInfo.ArgumentList.Add("-c");
-        startInfo.ArgumentList.Add("i18n.logOutputEncoding=UTF-8");
+        try
+        {
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = _gitPath,
+                WorkingDirectory = workingDirectory ?? Environment.CurrentDirectory,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                StandardOutputEncoding = Encoding.UTF8,
+                StandardErrorEncoding = Encoding.UTF8,
+            };
+
+            // §4.1: never octal-escape non-ASCII paths. §4.2: force UTF-8 for log/message output.
+            startInfo.ArgumentList.Add("-c");
+            startInfo.ArgumentList.Add("core.quotepath=false");
+            startInfo.ArgumentList.Add("-c");
+            startInfo.ArgumentList.Add("i18n.logOutputEncoding=UTF-8");
+
+            foreach (var arg in args)
+            {
+                startInfo.ArgumentList.Add(arg);
+            }
+
+            using var process = new Process { StartInfo = startInfo };
+
+            try
+            {
+                process.Start();
+            }
+            catch (Exception ex) when (ex is Win32Exception or FileNotFoundException)
+            {
+                throw new GitException(
+                    $"Could not start git ('{_gitPath}'). Is Git installed and on PATH?", ex);
+            }
+
+            // Read both streams concurrently to avoid the classic pipe-buffer deadlock, and drain
+            // them fully before reading exit code.
+            var stdoutTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
+            var stderrTask = ReadStderrAsync(process.StandardError, progress, cancellationToken);
+
+            try
+            {
+                await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                TryKill(process);
+                throw;
+            }
+
+            var stdout = await stdoutTask.ConfigureAwait(false);
+            var stderr = await stderrTask.ConfigureAwait(false);
+
+            var result = new GitCommandResult(process.ExitCode, stdout, stderr);
+            succeeded = result.Succeeded;
+            return result;
+        }
+        finally
+        {
+            stopwatch.Stop();
+            CommandLog.Record(new GitCommandLogEntry(command, succeeded, stopwatch.ElapsedMilliseconds, DateTime.Now));
+        }
+    }
+
+    /// <summary>Renders the invocation as a copy-pasteable command line, quoting args with spaces.</summary>
+    private static string FormatCommand(IReadOnlyList<string> args)
+    {
+        var builder = new StringBuilder("git");
 
         foreach (var arg in args)
         {
-            startInfo.ArgumentList.Add(arg);
+            builder.Append(' ');
+            if (arg.Length == 0 || arg.Contains(' '))
+            {
+                builder.Append('"').Append(arg).Append('"');
+            }
+            else
+            {
+                builder.Append(arg);
+            }
         }
 
-        using var process = new Process { StartInfo = startInfo };
-
-        try
-        {
-            process.Start();
-        }
-        catch (Exception ex) when (ex is Win32Exception or FileNotFoundException)
-        {
-            throw new GitException(
-                $"Could not start git ('{_gitPath}'). Is Git installed and on PATH?", ex);
-        }
-
-        // Read both streams concurrently to avoid the classic pipe-buffer deadlock, and drain
-        // them fully before reading exit code.
-        var stdoutTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
-        var stderrTask = ReadStderrAsync(process.StandardError, progress, cancellationToken);
-
-        try
-        {
-            await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
-            TryKill(process);
-            throw;
-        }
-
-        var stdout = await stdoutTask.ConfigureAwait(false);
-        var stderr = await stderrTask.ConfigureAwait(false);
-
-        return new GitCommandResult(process.ExitCode, stdout, stderr);
+        return builder.ToString();
     }
 
     private static async Task<string> ReadStderrAsync(

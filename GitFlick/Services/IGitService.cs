@@ -13,6 +13,9 @@ namespace GitFlick.Services;
 /// </summary>
 public interface IGitService
 {
+    /// <summary>The running log of git commands this service has executed.</summary>
+    GitCommandLog CommandLog { get; }
+
     /// <summary>The <c>git --version</c> string, or null if git could not be started.</summary>
     Task<string?> GetVersionAsync(CancellationToken cancellationToken = default);
 
@@ -40,7 +43,29 @@ public interface IGitService
 
     Task<GitCommandResult> UnstageAllAsync(string repoPath, CancellationToken cancellationToken = default);
 
-    Task<GitCommandResult> CommitAsync(string repoPath, string message, CancellationToken cancellationToken = default);
+    /// <summary>Commit the staged changes. <paramref name="signOff"/> adds a Signed-off-by trailer.</summary>
+    Task<GitCommandResult> CommitAsync(string repoPath, string message, bool signOff = false, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Replace the last commit, folding in the staged changes. A null/blank <paramref name="message"/>
+    /// keeps the previous message (<c>--no-edit</c>); otherwise it rewords it.
+    /// </summary>
+    Task<GitCommandResult> CommitAmendAsync(string repoPath, string? message, bool signOff = false, CancellationToken cancellationToken = default);
+
+    /// <summary>Undo the last commit but keep its changes staged (<c>reset --soft HEAD~1</c>).</summary>
+    Task<GitCommandResult> UndoLastCommitAsync(string repoPath, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Discard one path's changes. A tracked file is reverted (<c>checkout -- path</c>); an
+    /// <paramref name="untracked"/> file/directory is removed (<c>clean -fd -- path</c>).
+    /// </summary>
+    Task<GitCommandResult> DiscardPathAsync(string repoPath, string path, bool untracked, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Throw away every change to tracked files (<c>reset --hard</c>). When
+    /// <paramref name="includeUntracked"/> is set, also delete untracked files (<c>clean -fd</c>).
+    /// </summary>
+    Task<GitCommandResult> DiscardAllAsync(string repoPath, bool includeUntracked, CancellationToken cancellationToken = default);
 
     Task<GitCommandResult> FetchAsync(string repoPath, IProgress<string>? progress = null, CancellationToken cancellationToken = default);
 

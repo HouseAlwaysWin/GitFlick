@@ -1,19 +1,31 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:converters="using:GitFlick.Converters"
              x:Class="GitFlick.App"
              RequestedThemeVariant="Default">
              <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
 
     <Application.Resources>
-        <!-- GitFlick accent = git orange, from the icon. -->
+        <!-- GitFlick brand orange (from the icon). Kept for badges/banners; buttons are blue now. -->
         <SolidColorBrush x:Key="AccentBrush" Color="#F05133" />
-        <SolidColorBrush x:Key="AccentHoverBrush" Color="#FF6A4D" />
-        <SolidColorBrush x:Key="AccentPressedBrush" Color="#D84826" />
 
-        <!-- Blue variant, reusing the remote-branch badge colour. -->
+        <!-- Blue is the default action colour. -->
         <SolidColorBrush x:Key="BlueBrush" Color="#588CF0" />
         <SolidColorBrush x:Key="BlueHoverBrush" Color="#6E9DF4" />
         <SolidColorBrush x:Key="BluePressedBrush" Color="#3F6FD1" />
+
+        <!-- Green = constructive/positive (Commit). -->
+        <SolidColorBrush x:Key="GreenBrush" Color="#3FB950" />
+        <SolidColorBrush x:Key="GreenHoverBrush" Color="#56C766" />
+        <SolidColorBrush x:Key="GreenPressedBrush" Color="#359443" />
+
+        <!-- Red = destructive only (Delete). -->
+        <SolidColorBrush x:Key="RedBrush" Color="#E5534B" />
+        <SolidColorBrush x:Key="RedHoverBrush" Color="#F2665E" />
+        <SolidColorBrush x:Key="RedPressedBrush" Color="#C6413A" />
+
+        <converters:FileStatusBrushConverter x:Key="FileStatusBrush" />
+        <converters:SuccessBrushConverter x:Key="SuccessBrush" />
     </Application.Resources>
 
     <Application.Styles>
@@ -23,75 +35,96 @@
              template and renders as an empty box, even with a document loaded. -->
         <StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />
 
-        <!-- Secondary buttons: soft orange-tinted chips (not flat grey). The background is set
-             on the ContentPresenter in every state so the Fluent theme's default can't win.
+        <!-- Secondary buttons: soft blue-tinted chips (the neutral default). Background is set on
+             the ContentPresenter in every state so the Fluent theme's default can't win.
              Exact-type selector, so ComboBox/scrollbar buttons are untouched. -->
         <Style Selector="Button">
-            <Setter Property="Foreground" Value="#FFE7DF" />
+            <Setter Property="Foreground" Value="#E6EEFB" />
             <Setter Property="CornerRadius" Value="5" />
         </Style>
         <Style Selector="Button /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#2EF05133" />
-            <Setter Property="BorderBrush" Value="#73F05133" />
+            <Setter Property="Background" Value="#2E588CF0" />
+            <Setter Property="BorderBrush" Value="#73588CF0" />
             <Setter Property="BorderThickness" Value="1" />
         </Style>
         <Style Selector="Button:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#4DF05133" />
-            <Setter Property="BorderBrush" Value="#F05133" />
+            <Setter Property="Background" Value="#4D588CF0" />
+            <Setter Property="BorderBrush" Value="#588CF0" />
         </Style>
         <Style Selector="Button:pressed /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#66F05133" />
-            <Setter Property="BorderBrush" Value="#F05133" />
+            <Setter Property="Background" Value="#66588CF0" />
+            <Setter Property="BorderBrush" Value="#588CF0" />
         </Style>
         <Style Selector="Button:disabled /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="#14808080" />
             <Setter Property="BorderBrush" Value="#2E808080" />
         </Style>
 
-        <!-- Primary buttons (Commit): solid git-orange. The background is forced on the
-             ContentPresenter in every state so the Fluent theme's default (blue) can't win.
-             Class name is "primary" to avoid colliding with any built-in "accent" class. -->
+        <!-- Primary buttons: solid blue. The main affirmative in a context (Commit's sibling
+             actions, the active view toggle, dialog OK, palette Open). Background forced on the
+             ContentPresenter in every state so the Fluent theme's default can't win. -->
         <Style Selector="Button.primary">
             <Setter Property="Foreground" Value="White" />
             <Setter Property="BorderThickness" Value="0" />
         </Style>
         <Style Selector="Button.primary /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="{StaticResource AccentBrush}" />
-            <Setter Property="Foreground" Value="White" />
-        </Style>
-        <Style Selector="Button.primary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="{StaticResource AccentHoverBrush}" />
-            <Setter Property="Foreground" Value="White" />
-        </Style>
-        <Style Selector="Button.primary:pressed /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="{StaticResource AccentPressedBrush}" />
-            <Setter Property="Foreground" Value="White" />
-        </Style>
-        <Style Selector="Button.primary:disabled /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#55F05133" />
-            <Setter Property="Foreground" Value="#88FFFFFF" />
-        </Style>
-
-        <!-- Blue variant of the primary button (the palette's Open action). Same solid treatment
-             as .primary, forced on the ContentPresenter in every state so Fluent can't win. -->
-        <Style Selector="Button.blue">
-            <Setter Property="Foreground" Value="White" />
-            <Setter Property="BorderThickness" Value="0" />
-        </Style>
-        <Style Selector="Button.blue /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="{StaticResource BlueBrush}" />
             <Setter Property="Foreground" Value="White" />
         </Style>
-        <Style Selector="Button.blue:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Style Selector="Button.primary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="{StaticResource BlueHoverBrush}" />
             <Setter Property="Foreground" Value="White" />
         </Style>
-        <Style Selector="Button.blue:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Style Selector="Button.primary:pressed /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="{StaticResource BluePressedBrush}" />
             <Setter Property="Foreground" Value="White" />
         </Style>
-        <Style Selector="Button.blue:disabled /template/ ContentPresenter#PART_ContentPresenter">
+        <Style Selector="Button.primary:disabled /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="#55588CF0" />
+            <Setter Property="Foreground" Value="#88FFFFFF" />
+        </Style>
+
+        <!-- Success buttons: solid green. Constructive/positive actions (Commit). -->
+        <Style Selector="Button.success">
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <Style Selector="Button.success /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource GreenBrush}" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="Button.success:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource GreenHoverBrush}" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="Button.success:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource GreenPressedBrush}" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="Button.success:disabled /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#553FB950" />
+            <Setter Property="Foreground" Value="#88FFFFFF" />
+        </Style>
+
+        <!-- Danger buttons: solid red. Reserved for destructive actions only (Delete). -->
+        <Style Selector="Button.danger">
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <Style Selector="Button.danger /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource RedBrush}" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="Button.danger:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource RedHoverBrush}" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="Button.danger:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource RedPressedBrush}" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="Button.danger:disabled /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#55E5534B" />
             <Setter Property="Foreground" Value="#88FFFFFF" />
         </Style>
 

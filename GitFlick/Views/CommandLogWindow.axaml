@@ -1,0 +1,54 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:GitFlick.ViewModels"
+        xmlns:services="using:GitFlick.Services"
+        xmlns:conv="using:GitFlick.Converters"
+        x:Class="GitFlick.Views.CommandLogWindow"
+        x:DataType="vm:WorkspaceViewModel"
+        Title="Git command log"
+        Icon="/Assets/gitflick.ico"
+        Width="780" Height="500"
+        MinWidth="420" MinHeight="220"
+        WindowStartupLocation="CenterOwner">
+
+    <DockPanel Margin="14">
+        <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto,Auto,Auto" Margin="0,0,0,10">
+            <TextBlock Grid.Column="0" Text="Every git command GitFlick has run"
+                       FontWeight="SemiBold" VerticalAlignment="Center" />
+            <Button Grid.Column="1" Content="Refresh" Click="OnRefreshClick"
+                    ToolTip.Tip="Pull in the latest commands" />
+            <Button Grid.Column="2" Content="Copy" Margin="6,0,0,0" Click="OnCopyClick"
+                    IsEnabled="{Binding HasCommandLog}" />
+            <Button Grid.Column="3" Content="Clear" Margin="6,0,0,0"
+                    Command="{Binding ClearCommandLogCommand}" IsEnabled="{Binding HasCommandLog}" />
+        </Grid>
+
+        <Border BorderBrush="#30808080" BorderThickness="1" CornerRadius="4" ClipToBounds="True">
+            <Panel>
+                <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+                    <ItemsControl ItemsSource="{Binding CommandLog}" Margin="4">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="services:GitCommandLogEntry">
+                                <Grid ColumnDefinitions="Auto,Auto,*,Auto" Margin="4,3">
+                                    <TextBlock Grid.Column="0" Text="{Binding Glyph}" Width="16" FontWeight="SemiBold"
+                                               Foreground="{Binding Succeeded, Converter={StaticResource SuccessBrush}}" />
+                                    <TextBlock Grid.Column="1" Text="{Binding TimeDisplay}" Opacity="0.45" FontSize="11"
+                                               Margin="0,0,10,0" FontFamily="Cascadia Mono,Consolas,monospace"
+                                               VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="2" Text="{Binding Command}"
+                                               FontFamily="Cascadia Mono,Consolas,monospace" FontSize="12"
+                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                                               ToolTip.Tip="{Binding Command}" />
+                                    <TextBlock Grid.Column="3" Text="{Binding DurationDisplay}" Opacity="0.4" FontSize="11"
+                                               Margin="10,0,0,0" VerticalAlignment="Center" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+                <TextBlock Text="No commands run yet." IsVisible="{Binding !HasCommandLog}"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.4" />
+            </Panel>
+        </Border>
+    </DockPanel>
+</Window>

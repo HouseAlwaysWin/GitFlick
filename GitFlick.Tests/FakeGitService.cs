@@ -15,6 +15,8 @@ internal sealed class FakeGitService : IGitService
 {
     private static readonly GitCommandResult Ok = new(0, string.Empty, string.Empty);
 
+    public GitCommandLog CommandLog { get; } = new();
+
     public Task<string?> GetVersionAsync(CancellationToken cancellationToken = default)
         => Task.FromResult<string?>("git version 0.0-fake");
 
@@ -35,7 +37,15 @@ internal sealed class FakeGitService : IGitService
 
     public Task<GitCommandResult> UnstageAllAsync(string repoPath, CancellationToken cancellationToken = default) => Task.FromResult(Ok);
 
-    public Task<GitCommandResult> CommitAsync(string repoPath, string message, CancellationToken cancellationToken = default) => Task.FromResult(Ok);
+    public Task<GitCommandResult> CommitAsync(string repoPath, string message, bool signOff = false, CancellationToken cancellationToken = default) => Task.FromResult(Ok);
+
+    public Task<GitCommandResult> CommitAmendAsync(string repoPath, string? message, bool signOff = false, CancellationToken cancellationToken = default) => Task.FromResult(Ok);
+
+    public Task<GitCommandResult> UndoLastCommitAsync(string repoPath, CancellationToken cancellationToken = default) => Task.FromResult(Ok);
+
+    public Task<GitCommandResult> DiscardPathAsync(string repoPath, string path, bool untracked, CancellationToken cancellationToken = default) => Task.FromResult(Ok);
+
+    public Task<GitCommandResult> DiscardAllAsync(string repoPath, bool includeUntracked, CancellationToken cancellationToken = default) => Task.FromResult(Ok);
 
     public Task<GitCommandResult> FetchAsync(string repoPath, IProgress<string>? progress = null, CancellationToken cancellationToken = default) => Task.FromResult(Ok);
 
