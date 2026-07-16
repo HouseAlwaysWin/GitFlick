@@ -355,6 +355,162 @@ public class WorkspaceViewModelTests
     }
 
     [Fact]
+    public async Task FetchPrune_drops_remote_tracking_branches_deleted_upstream()
+    {
+        using var origin = new TestRepo();
+        origin.WriteFile("a.txt", "1");
+        origin.Git("add", "-A");
+        origin.Git("commit", "-m", "first");
+        origin.Git("branch", "stale");
+
+        using var repo = new TestRepo();
+        repo.Git("remote", "add", "origin", origin.Path);
+        repo.Git("fetch", "origin");
+        Assert.Contains("origin/stale", repo.Git("branch", "-r"));
+
+        origin.Git("branch", "-D", "stale");   // the upstream branch goes away
+
+        var vm = ForRepo(repo);
+        await vm.RefreshAsync();
+        await vm.FetchPruneCommand.ExecuteAsync(null);
+
+        // A plain fetch would keep origin/stale; prune is what removes it.
+        Assert.DoesNotContain("origin/stale", repo.Git("branch", "-r"));
+    }
+
+    [Fact]
+    public async Task FetchAll_fetches_from_every_remote()
+    {
+        using var origin = new TestRepo();
+        origin.WriteFile("a.txt", "1");
+        origin.Git("add", "-A");
+        origin.Git("commit", "-m", "origin commit");
+
+        using var backup = new TestRepo();
+        backup.WriteFile("b.txt", "2");
+        backup.Git("add", "-A");
+        backup.Git("commit", "-m", "backup commit");
+        backup.Git("branch", "backup-branch");
+
+        using var repo = new TestRepo();
+        repo.Git("remote", "add", "origin", origin.Path);
+        repo.Git("remote", "add", "backup", backup.Path);
+
+        var vm = ForRepo(repo);
+        await vm.RefreshAsync();
+        await vm.FetchAllCommand.ExecuteAsync(null);
+
+        // --all reaches both remotes; a bare fetch would only touch origin.
+        var remotes = repo.Git("branch", "-r");
+        Assert.Contains("origin/main", remotes);
+        Assert.Contains("backup/backup-branch", remotes);
+    }
+
+    [Fact]
+    public async Task PullRebase_replays_local_commits_without_a_merge_commit()
+    {
+        using var origin = new TestRepo();
+        origin.WriteFile("a.txt", "base");
+        origin.Git("add", "-A");
+        origin.Git("commit", "-m", "base");
+
+        using var repo = new TestRepo();
+        repo.Git("remote", "add", "origin", origin.Path);
+        repo.Git("fetch", "origin");
+        repo.Git("reset", "--hard", "origin/main");
+        repo.Git("branch", "--set-upstream-to=origin/main", "main");
+
+        // Diverge: one commit upstream, one unrelated commit locally.
+        origin.WriteFile("remote.txt", "r");
+        origin.Git("add", "-A");
+        origin.Git("commit", "-m", "remote work");
+
+        repo.WriteFile("local.txt", "l");
+        repo.Git("add", "-A");
+        repo.Git("commit", "-m", "local work");
+
+        var vm = ForRepo(repo);
+        await vm.RefreshAsync();
+        await vm.PullRebaseCommand.ExecuteAsync(null);
+
+        // Rebase linearises history: local work replays on top of remote work, no merge commit.
+        Assert.Equal(string.Empty, repo.Git("log", "--merges", "--oneline").Trim());
+        Assert.True(File.Exists(Path.Combine(repo.Path, "remote.txt")));
+        Assert.True(File.Exists(Path.Combine(repo.Path, "local.txt")));
+        Assert.StartsWith("local work", repo.Git("log", "-1", "--pretty=%s").Trim());
+    }
+
+    [Fact]
+    public async Task GetRemotes_lists_configured_remotes()
+    {
+        using var origin = new TestRepo();
+        using var backup = new TestRepo();
+        using var repo = new TestRepo();
+        repo.Git("remote", "add", "origin", origin.Path);
+        repo.Git("remote", "add", "backup", backup.Path);
+
+        var remotes = await new GitService().GetRemotesAsync(repo.Path);
+
+        Assert.Equal(new[] { "backup", "origin" }, remotes.OrderBy(r => r).ToArray());
+    }
+
+    [Fact]
+    public async Task PullFrom_merges_the_named_branch_from_the_remote()
+    {
+        using var origin = new TestRepo();
+        origin.WriteFile("a.txt", "1");
+        origin.Git("add", "-A");
+        origin.Git("commit", "-m", "base");
+        origin.Git("checkout", "-b", "topic");
+        origin.WriteFile("t.txt", "topic");
+        origin.Git("add", "-A");
+        origin.Git("commit", "-m", "topic work");
+        origin.Git("checkout", "main");
+
+        using var repo = new TestRepo();
+        repo.Git("remote", "add", "origin", origin.Path);
+        repo.Git("fetch", "origin");
+        repo.Git("reset", "--hard", "origin/main");
+
+        var vm = ForRepo(repo);
+        await vm.RefreshAsync();
+        vm.PromptPullSource = (_, _) => Task.FromResult<WorkspaceViewModel.RemoteBranch?>(
+            new WorkspaceViewModel.RemoteBranch("origin", "topic"));
+
+        await vm.PullFromCommand.ExecuteAsync(null);
+
+        // Pulling origin/topic brings its file into the current branch's working tree.
+        Assert.True(File.Exists(Path.Combine(repo.Path, "t.txt")));
+    }
+
+    [Fact]
+    public async Task PushTo_pushes_the_current_branch_to_the_named_remote()
+    {
+        using var remote = new TestRepo();
+        remote.WriteFile("a.txt", "1");
+        remote.Git("add", "-A");
+        remote.Git("commit", "-m", "base");
+
+        using var repo = new TestRepo();
+        repo.Git("remote", "add", "origin", remote.Path);
+        repo.Git("fetch", "origin");
+        repo.Git("reset", "--hard", "origin/main");
+        repo.Git("checkout", "-b", "feature");
+        repo.WriteFile("f.txt", "x");
+        repo.Git("add", "-A");
+        repo.Git("commit", "-m", "feature work");
+
+        var vm = ForRepo(repo);
+        await vm.RefreshAsync();
+        vm.PromptPushTarget = (_, _) => Task.FromResult<string?>("origin");
+
+        await vm.PushToCommand.ExecuteAsync(null);
+
+        // The remote receives the pushed branch (it isn't the remote's checked-out branch).
+        Assert.Contains("feature", remote.Git("branch"));
+    }
+
+    [Fact]
     public async Task Checkout_with_uncommitted_changes_asks_first_and_a_cancel_blocks_it()
     {
         using var repo = new TestRepo();

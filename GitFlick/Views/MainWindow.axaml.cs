@@ -314,6 +314,8 @@ public partial class MainWindow : Window
             _observedWorkspace.PropertyChanged += OnWorkspacePropertyChanged;
             _observedWorkspace.ConfirmDirtyCheckout = ConfirmDirtyCheckoutAsync;
             _observedWorkspace.ConfirmDeleteBranch = ConfirmDeleteBranchAsync;
+            _observedWorkspace.PromptPullSource = PromptPullSourceAsync;
+            _observedWorkspace.PromptPushTarget = PromptPushTargetAsync;
         }
 
         UpdateDiffEditor();
@@ -369,6 +371,136 @@ public partial class MainWindow : Window
         delete.Click += (_, _) => dialog.Close((bool?)(force.IsChecked == true));
 
         return await dialog.ShowDialog<bool?>(this);
+    }
+
+    /// <summary>
+    /// "Push to…": picks which remote to push the current branch to. Returns the remote name, or
+    /// null to cancel.
+    /// </summary>
+    private async Task<string?> PromptPushTargetAsync(IReadOnlyList<string> remotes, string branch)
+    {
+        var combo = new ComboBox
+        {
+            ItemsSource = remotes,
+            SelectedIndex = 0,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+        };
+        var cancel = new Button { Content = "Cancel", MinWidth = 92, HorizontalContentAlignment = HorizontalAlignment.Center };
+        var push = new Button { Content = "Push", MinWidth = 92, HorizontalContentAlignment = HorizontalAlignment.Center };
+        push.Classes.Add("primary");
+
+        var dialog = new Window
+        {
+            Title = "Push to",
+            SizeToContent = SizeToContent.WidthAndHeight,
+            CanResize = false,
+            ShowInTaskbar = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Content = new Border
+            {
+                Padding = new Thickness(22),
+                Child = new StackPanel
+                {
+                    Spacing = 14,
+                    MinWidth = 320,
+                    Children =
+                    {
+                        new TextBlock
+                        {
+                            TextWrapping = TextWrapping.Wrap,
+                            Text = $"Push the current branch “{branch}” to which remote?",
+                        },
+                        combo,
+                        new StackPanel
+                        {
+                            Orientation = Orientation.Horizontal,
+                            Spacing = 8,
+                            HorizontalAlignment = HorizontalAlignment.Right,
+                            Children = { cancel, push },
+                        },
+                    },
+                },
+            },
+        };
+
+        cancel.Click += (_, _) => dialog.Close(null);
+        push.Click += (_, _) => dialog.Close(combo.SelectedItem as string);
+
+        return await dialog.ShowDialog<string?>(this);
+    }
+
+    /// <summary>
+    /// "Pull from…": picks a remote and the branch on it to pull into the current branch. Returns
+    /// null to cancel (or if either field is left empty).
+    /// </summary>
+    private async Task<WorkspaceViewModel.RemoteBranch?> PromptPullSourceAsync(IReadOnlyList<string> remotes, string branch)
+    {
+        var remoteCombo = new ComboBox
+        {
+            ItemsSource = remotes,
+            SelectedIndex = 0,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+        };
+        var branchBox = new TextBox
+        {
+            Text = branch,
+            PlaceholderText = "branch to pull",
+            VerticalContentAlignment = VerticalAlignment.Center,
+        };
+        var cancel = new Button { Content = "Cancel", MinWidth = 92, HorizontalContentAlignment = HorizontalAlignment.Center };
+        var pull = new Button { Content = "Pull", MinWidth = 92, HorizontalContentAlignment = HorizontalAlignment.Center };
+        pull.Classes.Add("primary");
+
+        var dialog = new Window
+        {
+            Title = "Pull from",
+            SizeToContent = SizeToContent.WidthAndHeight,
+            CanResize = false,
+            ShowInTaskbar = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Content = new Border
+            {
+                Padding = new Thickness(22),
+                Child = new StackPanel
+                {
+                    Spacing = 10,
+                    MinWidth = 320,
+                    Children =
+                    {
+                        new TextBlock
+                        {
+                            TextWrapping = TextWrapping.Wrap,
+                            Margin = new Thickness(0, 0, 0, 4),
+                            Text = $"Pull a branch from a remote into “{branch}”.",
+                        },
+                        new TextBlock { Text = "REMOTE", FontSize = 10, Opacity = 0.5 },
+                        remoteCombo,
+                        new TextBlock { Text = "BRANCH", FontSize = 10, Opacity = 0.5 },
+                        branchBox,
+                        new StackPanel
+                        {
+                            Orientation = Orientation.Horizontal,
+                            Spacing = 8,
+                            Margin = new Thickness(0, 6, 0, 0),
+                            HorizontalAlignment = HorizontalAlignment.Right,
+                            Children = { cancel, pull },
+                        },
+                    },
+                },
+            },
+        };
+
+        cancel.Click += (_, _) => dialog.Close(null);
+        pull.Click += (_, _) =>
+        {
+            var remote = remoteCombo.SelectedItem as string;
+            var wanted = branchBox.Text?.Trim() ?? string.Empty;
+            dialog.Close(remote is { Length: > 0 } && wanted.Length > 0
+                ? new WorkspaceViewModel.RemoteBranch(remote, wanted)
+                : null);
+        };
+
+        return await dialog.ShowDialog<WorkspaceViewModel.RemoteBranch?>(this);
     }
 
     /// <summary>

@@ -660,6 +660,21 @@ public partial class WorkspaceViewModel : ViewModelBase
     /// </summary>
     public Func<string, Task<bool?>>? ConfirmDeleteBranch { get; set; }
 
+    /// <summary>A remote name paired with a branch on it — the answer from the Pull-from prompt.</summary>
+    public sealed record RemoteBranch(string Remote, string Branch);
+
+    /// <summary>
+    /// Set by the View: given the configured remotes and the current branch, picks a remote + branch
+    /// to pull. Returns null to cancel. Null delegate (e.g. tests without a UI) skips the action.
+    /// </summary>
+    public Func<IReadOnlyList<string>, string, Task<RemoteBranch?>>? PromptPullSource { get; set; }
+
+    /// <summary>
+    /// Set by the View: given the configured remotes and the current branch, picks the remote to push
+    /// that branch to. Returns null to cancel. Null delegate (e.g. tests without a UI) skips the action.
+    /// </summary>
+    public Func<IReadOnlyList<string>, string, Task<string?>>? PromptPushTarget { get; set; }
+
     /// <summary>
     /// Deletes a local-branch badge right-clicked in the graph. The current branch is refused (git
     /// won't delete a checked-out branch); everything else confirms first (offering a force option
@@ -903,12 +918,76 @@ public partial class WorkspaceViewModel : ViewModelBase
         RunAsync(() => _git.FetchAsync(Repository.Path, Progress()), "Fetched");
 
     [RelayCommand]
+    private Task FetchPrune() =>
+        RunAsync(() => _git.FetchPruneAsync(Repository.Path, Progress()), "Fetched (pruned)");
+
+    [RelayCommand]
+    private Task FetchAll() =>
+        RunAsync(() => _git.FetchAllAsync(Repository.Path, Progress()), "Fetched all remotes");
+
+    [RelayCommand]
     private Task Pull() =>
         RunAsync(() => _git.PullAsync(Repository.Path, Progress()), "Pulled");
 
     [RelayCommand]
+    private Task PullRebase() =>
+        RunAsync(() => _git.PullRebaseAsync(Repository.Path, Progress()), "Pulled (rebase)");
+
+    [RelayCommand]
+    private async Task PullFrom()
+    {
+        var remotes = await _git.GetRemotesAsync(Repository.Path);
+        if (remotes.Count == 0)
+        {
+            StatusText = "No remotes configured.";
+            return;
+        }
+
+        if (PromptPullSource is null)
+        {
+            return;
+        }
+
+        var source = await PromptPullSource(remotes, BranchName);
+        if (source is null || source.Branch.Length == 0)
+        {
+            return;   // cancelled, or no branch given
+        }
+
+        await RunAsync(
+            () => _git.PullFromAsync(Repository.Path, source.Remote, source.Branch, Progress()),
+            $"Pulled {source.Branch} from {source.Remote}");
+    }
+
+    [RelayCommand]
     private Task Push() =>
         RunAsync(() => _git.PushAsync(Repository.Path, Progress()), "Pushed");
+
+    [RelayCommand]
+    private async Task PushTo()
+    {
+        var remotes = await _git.GetRemotesAsync(Repository.Path);
+        if (remotes.Count == 0)
+        {
+            StatusText = "No remotes configured.";
+            return;
+        }
+
+        if (PromptPushTarget is null || BranchName.Length == 0)
+        {
+            return;
+        }
+
+        var remote = await PromptPushTarget(remotes, BranchName);
+        if (remote is null)
+        {
+            return;   // cancelled
+        }
+
+        await RunAsync(
+            () => _git.PushToAsync(Repository.Path, remote, BranchName, Progress()),
+            $"Pushed {BranchName} to {remote}");
+    }
 
     [RelayCommand]
     private async Task CreateBranch()

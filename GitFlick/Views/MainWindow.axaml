@@ -172,9 +172,39 @@
 
                     <Rectangle Width="1" Margin="4,4" Fill="#33FFFFFF" />
 
-                    <Button Content="Fetch" Command="{Binding FetchCommand}" />
-                    <Button Content="Pull" Command="{Binding PullCommand}" />
-                    <Button Content="Push" Command="{Binding PushCommand}" />
+                    <!-- Primary click runs the plain action; the chevron opens the variants,
+                         mirroring VS Code's Pull/Fetch split menus. -->
+                    <SplitButton Content="Fetch" Command="{Binding FetchCommand}"
+                                 ToolTip.Tip="Fetch (⌄ for prune / all remotes)">
+                        <SplitButton.Flyout>
+                            <MenuFlyout Placement="BottomEdgeAlignedRight">
+                                <MenuItem Header="Fetch (Prune)" Command="{Binding FetchPruneCommand}"
+                                          ToolTip.Tip="Also drop remote-tracking branches deleted upstream" />
+                                <MenuItem Header="Fetch From All Remotes" Command="{Binding FetchAllCommand}"
+                                          ToolTip.Tip="Fetch from every configured remote" />
+                            </MenuFlyout>
+                        </SplitButton.Flyout>
+                    </SplitButton>
+                    <SplitButton Content="Pull" Command="{Binding PullCommand}"
+                                 ToolTip.Tip="Pull (⌄ for rebase / from…)">
+                        <SplitButton.Flyout>
+                            <MenuFlyout Placement="BottomEdgeAlignedRight">
+                                <MenuItem Header="Pull (Rebase)" Command="{Binding PullRebaseCommand}"
+                                          ToolTip.Tip="Replay local commits on top of upstream instead of merging" />
+                                <MenuItem Header="Pull from…" Command="{Binding PullFromCommand}"
+                                          ToolTip.Tip="Pull a specific branch from a chosen remote" />
+                            </MenuFlyout>
+                        </SplitButton.Flyout>
+                    </SplitButton>
+                    <SplitButton Content="Push" Command="{Binding PushCommand}"
+                                 ToolTip.Tip="Push (⌄ for push to…)">
+                        <SplitButton.Flyout>
+                            <MenuFlyout Placement="BottomEdgeAlignedRight">
+                                <MenuItem Header="Push to…" Command="{Binding PushToCommand}"
+                                          ToolTip.Tip="Push the current branch to a chosen remote" />
+                            </MenuFlyout>
+                        </SplitButton.Flyout>
+                    </SplitButton>
 
                     <Button Content="Branch ▾">
                         <Button.Flyout>

@@ -44,9 +44,27 @@ public interface IGitService
 
     Task<GitCommandResult> FetchAsync(string repoPath, IProgress<string>? progress = null, CancellationToken cancellationToken = default);
 
+    /// <summary>Fetch, dropping remote-tracking branches whose upstream was deleted (<c>--prune</c>).</summary>
+    Task<GitCommandResult> FetchPruneAsync(string repoPath, IProgress<string>? progress = null, CancellationToken cancellationToken = default);
+
+    /// <summary>Fetch from every configured remote, not just the current branch's (<c>--all</c>).</summary>
+    Task<GitCommandResult> FetchAllAsync(string repoPath, IProgress<string>? progress = null, CancellationToken cancellationToken = default);
+
     Task<GitCommandResult> PullAsync(string repoPath, IProgress<string>? progress = null, CancellationToken cancellationToken = default);
 
+    /// <summary>Pull, replaying local commits on top of upstream instead of merging (<c>--rebase</c>).</summary>
+    Task<GitCommandResult> PullRebaseAsync(string repoPath, IProgress<string>? progress = null, CancellationToken cancellationToken = default);
+
+    /// <summary>Pull a specific <paramref name="branch"/> from a specific <paramref name="remote"/>.</summary>
+    Task<GitCommandResult> PullFromAsync(string repoPath, string remote, string branch, IProgress<string>? progress = null, CancellationToken cancellationToken = default);
+
     Task<GitCommandResult> PushAsync(string repoPath, IProgress<string>? progress = null, CancellationToken cancellationToken = default);
+
+    /// <summary>Push a specific <paramref name="branch"/> to a specific <paramref name="remote"/>.</summary>
+    Task<GitCommandResult> PushToAsync(string repoPath, string remote, string branch, IProgress<string>? progress = null, CancellationToken cancellationToken = default);
+
+    /// <summary>The names of the configured remotes (<c>git remote</c>), empty if none.</summary>
+    Task<IReadOnlyList<string>> GetRemotesAsync(string repoPath, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// History for the graph. <paramref name="firstParentOnly"/> collapses merges to one row each

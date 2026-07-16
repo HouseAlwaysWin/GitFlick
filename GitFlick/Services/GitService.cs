@@ -110,11 +110,37 @@ public sealed class GitService : IGitService
     public Task<GitCommandResult> FetchAsync(string repoPath, IProgress<string>? progress = null, CancellationToken cancellationToken = default)
         => RunAsync(repoPath, ["fetch", "--progress"], progress, cancellationToken);
 
+    public Task<GitCommandResult> FetchPruneAsync(string repoPath, IProgress<string>? progress = null, CancellationToken cancellationToken = default)
+        => RunAsync(repoPath, ["fetch", "--prune", "--progress"], progress, cancellationToken);
+
+    public Task<GitCommandResult> FetchAllAsync(string repoPath, IProgress<string>? progress = null, CancellationToken cancellationToken = default)
+        => RunAsync(repoPath, ["fetch", "--all", "--progress"], progress, cancellationToken);
+
     public Task<GitCommandResult> PullAsync(string repoPath, IProgress<string>? progress = null, CancellationToken cancellationToken = default)
         => RunAsync(repoPath, ["pull", "--progress"], progress, cancellationToken);
 
+    public Task<GitCommandResult> PullRebaseAsync(string repoPath, IProgress<string>? progress = null, CancellationToken cancellationToken = default)
+        => RunAsync(repoPath, ["pull", "--rebase", "--progress"], progress, cancellationToken);
+
+    public Task<GitCommandResult> PullFromAsync(string repoPath, string remote, string branch, IProgress<string>? progress = null, CancellationToken cancellationToken = default)
+        => RunAsync(repoPath, ["pull", "--progress", remote, branch], progress, cancellationToken);
+
     public Task<GitCommandResult> PushAsync(string repoPath, IProgress<string>? progress = null, CancellationToken cancellationToken = default)
         => RunAsync(repoPath, ["push", "--progress"], progress, cancellationToken);
+
+    public Task<GitCommandResult> PushToAsync(string repoPath, string remote, string branch, IProgress<string>? progress = null, CancellationToken cancellationToken = default)
+        => RunAsync(repoPath, ["push", "--progress", remote, branch], progress, cancellationToken);
+
+    public async Task<IReadOnlyList<string>> GetRemotesAsync(string repoPath, CancellationToken cancellationToken = default)
+    {
+        var result = await RunAsync(repoPath, ["remote"], null, cancellationToken).ConfigureAwait(false);
+        if (!result.Succeeded)
+        {
+            return [];
+        }
+
+        return result.StandardOutput.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    }
 
     public async Task<IReadOnlyList<CommitInfo>> GetCommitsAsync(
         string repoPath,
