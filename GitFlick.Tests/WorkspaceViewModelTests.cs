@@ -276,6 +276,85 @@ public class WorkspaceViewModelTests
     }
 
     [Fact]
+    public async Task DeleteRef_deletes_a_confirmed_branch()
+    {
+        using var repo = new TestRepo();
+        repo.WriteFile("a.txt", "1");
+        repo.Git("add", "-A");
+        repo.Git("commit", "-m", "first");
+        repo.Git("branch", "feature");
+
+        var vm = ForRepo(repo);
+        await vm.RefreshAsync();
+        vm.ConfirmDeleteBranch = _ => Task.FromResult<bool?>(false);   // confirm, safe delete
+
+        await vm.DeleteRef(new GitRef("feature", GitRefKind.LocalBranch));
+
+        Assert.DoesNotContain("feature", repo.Git("branch"));
+    }
+
+    [Fact]
+    public async Task DeleteRef_cancelled_keeps_the_branch()
+    {
+        using var repo = new TestRepo();
+        repo.WriteFile("a.txt", "1");
+        repo.Git("add", "-A");
+        repo.Git("commit", "-m", "first");
+        repo.Git("branch", "feature");
+
+        var vm = ForRepo(repo);
+        await vm.RefreshAsync();
+        vm.ConfirmDeleteBranch = _ => Task.FromResult<bool?>(null);   // cancel
+
+        await vm.DeleteRef(new GitRef("feature", GitRefKind.LocalBranch));
+
+        Assert.Contains("feature", repo.Git("branch"));
+    }
+
+    [Fact]
+    public async Task DeleteRef_refuses_the_current_branch()
+    {
+        using var repo = new TestRepo();
+        repo.WriteFile("a.txt", "1");
+        repo.Git("add", "-A");
+        repo.Git("commit", "-m", "first");
+
+        var vm = ForRepo(repo);
+        await vm.RefreshAsync();
+
+        var asked = false;
+        vm.ConfirmDeleteBranch = _ => { asked = true; return Task.FromResult<bool?>(false); };
+
+        await vm.DeleteRef(new GitRef("main", GitRefKind.LocalBranch));
+
+        Assert.False(asked);   // guarded before the prompt
+        Assert.Contains("main", repo.Git("branch"));
+        Assert.Contains("current branch", vm.StatusText);
+    }
+
+    [Fact]
+    public async Task DeleteRef_force_deletes_an_unmerged_branch()
+    {
+        using var repo = new TestRepo();
+        repo.WriteFile("a.txt", "1");
+        repo.Git("add", "-A");
+        repo.Git("commit", "-m", "first");
+        repo.Git("checkout", "-b", "wip");
+        repo.WriteFile("b.txt", "2");
+        repo.Git("add", "-A");
+        repo.Git("commit", "-m", "unmerged work");
+        repo.Git("checkout", "main");
+
+        var vm = ForRepo(repo);
+        await vm.RefreshAsync();
+        vm.ConfirmDeleteBranch = _ => Task.FromResult<bool?>(true);   // force
+
+        await vm.DeleteRef(new GitRef("wip", GitRefKind.LocalBranch));
+
+        Assert.DoesNotContain("wip", repo.Git("branch"));
+    }
+
+    [Fact]
     public async Task Checkout_with_uncommitted_changes_asks_first_and_a_cancel_blocks_it()
     {
         using var repo = new TestRepo();

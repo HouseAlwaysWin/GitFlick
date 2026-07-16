@@ -654,6 +654,46 @@ public partial class WorkspaceViewModel : ViewModelBase
         return GuardedCheckout(target, $"Checked out {target}");
     }
 
+    /// <summary>
+    /// Set by the View: confirms deleting a branch. Returns null to cancel, otherwise whether to
+    /// force-delete an unmerged branch. Null (e.g. tests) means "no prompt, just delete safely".
+    /// </summary>
+    public Func<string, Task<bool?>>? ConfirmDeleteBranch { get; set; }
+
+    /// <summary>
+    /// Deletes a local-branch badge right-clicked in the graph. The current branch is refused (git
+    /// won't delete a checked-out branch); everything else confirms first (offering a force option
+    /// for a branch that isn't fully merged) before the delete.
+    /// </summary>
+    public async Task DeleteRef(GitRef reference)
+    {
+        if (reference.Kind != GitRefKind.LocalBranch)
+        {
+            return;   // only local branches are deletable from here
+        }
+
+        var name = reference.Name;
+        if (string.Equals(name, BranchName, StringComparison.Ordinal))
+        {
+            StatusText = $"'{name}' is the current branch — switch away before deleting it.";
+            return;
+        }
+
+        var force = false;
+        if (ConfirmDeleteBranch is not null)
+        {
+            var choice = await ConfirmDeleteBranch(name);
+            if (choice is null)
+            {
+                return;   // cancelled
+            }
+
+            force = choice.Value;
+        }
+
+        await RunAsync(() => _git.DeleteBranchAsync(Repository.Path, name, force), $"Deleted {name}");
+    }
+
     [RelayCommand]
     private Task CherryPick()
     {

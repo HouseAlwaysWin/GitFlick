@@ -510,7 +510,17 @@
                                                                     MaxWidth="150" VerticalAlignment="Center"
                                                                     Cursor="Hand"
                                                                     DoubleTapped="OnRefBadgeDoubleTapped"
-                                                                    ToolTip.Tip="{Binding Name, StringFormat='{}{0}  ·  double-click to check out'}">
+                                                                    ToolTip.Tip="{Binding Name, StringFormat='{}{0}  ·  double-click to check out, right-click for more'}">
+                                                                <Border.ContextFlyout>
+                                                                    <MenuFlyout>
+                                                                        <MenuItem Header="Check out"
+                                                                                  IsVisible="{Binding !IsTag}"
+                                                                                  Click="OnCheckoutRefClick" />
+                                                                        <MenuItem Header="Delete branch"
+                                                                                  IsVisible="{Binding IsLocalBranch}"
+                                                                                  Click="OnDeleteBranchClick" />
+                                                                    </MenuFlyout>
+                                                                </Border.ContextFlyout>
                                                                 <TextBlock Text="{Binding Name}" FontSize="10"
                                                                            TextTrimming="CharacterEllipsis" />
                                                             </Border>

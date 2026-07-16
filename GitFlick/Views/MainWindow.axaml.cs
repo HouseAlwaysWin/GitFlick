@@ -220,6 +220,23 @@ public partial class MainWindow : Window
         }
     }
 
+    // The right-click menu on a branch badge. Its DataContext is the GitRef the badge sits on.
+    private void OnCheckoutRefClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem { DataContext: GitRef reference } && Workspace is { } ws)
+        {
+            _ = ws.CheckoutRef(reference);
+        }
+    }
+
+    private void OnDeleteBranchClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem { DataContext: GitRef reference } && Workspace is { } ws)
+        {
+            _ = ws.DeleteRef(reference);
+        }
+    }
+
     private void OnStageSelectedClick(object? sender, RoutedEventArgs e) => StageSelectedFiles();
 
     private void OnUnstageSelectedClick(object? sender, RoutedEventArgs e) => UnstageSelectedFiles();
@@ -296,9 +313,62 @@ public partial class MainWindow : Window
         {
             _observedWorkspace.PropertyChanged += OnWorkspacePropertyChanged;
             _observedWorkspace.ConfirmDirtyCheckout = ConfirmDirtyCheckoutAsync;
+            _observedWorkspace.ConfirmDeleteBranch = ConfirmDeleteBranchAsync;
         }
 
         UpdateDiffEditor();
+    }
+
+    /// <summary>
+    /// Confirms deleting a branch. Returns null to cancel, else whether to force-delete (the
+    /// checkbox), so an unmerged branch isn't dropped without the user opting in.
+    /// </summary>
+    private async Task<bool?> ConfirmDeleteBranchAsync(string branch)
+    {
+        var force = new CheckBox { Content = "Force delete (even if not fully merged)" };
+        var cancel = new Button { Content = "Cancel", MinWidth = 92, HorizontalContentAlignment = HorizontalAlignment.Center };
+        var delete = new Button { Content = "Delete", MinWidth = 92, HorizontalContentAlignment = HorizontalAlignment.Center };
+        delete.Classes.Add("primary");
+
+        var dialog = new Window
+        {
+            Title = "Delete branch",
+            SizeToContent = SizeToContent.WidthAndHeight,
+            CanResize = false,
+            ShowInTaskbar = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Content = new Border
+            {
+                Padding = new Thickness(22),
+                Child = new StackPanel
+                {
+                    Spacing = 16,
+                    MaxWidth = 380,
+                    Children =
+                    {
+                        new TextBlock
+                        {
+                            TextWrapping = TextWrapping.Wrap,
+                            Text = $"Delete the branch “{branch}”?\n\nThis removes the branch pointer. A safe delete refuses " +
+                                   "if it isn't merged — tick the box to force it.",
+                        },
+                        force,
+                        new StackPanel
+                        {
+                            Orientation = Orientation.Horizontal,
+                            Spacing = 8,
+                            HorizontalAlignment = HorizontalAlignment.Right,
+                            Children = { cancel, delete },
+                        },
+                    },
+                },
+            },
+        };
+
+        cancel.Click += (_, _) => dialog.Close(null);
+        delete.Click += (_, _) => dialog.Close((bool?)(force.IsChecked == true));
+
+        return await dialog.ShowDialog<bool?>(this);
     }
 
     /// <summary>
