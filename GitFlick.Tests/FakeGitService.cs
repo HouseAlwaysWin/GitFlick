@@ -37,6 +37,8 @@ internal sealed class FakeGitService : IGitService
 
     public Task<GitCommandResult> UnstageAllAsync(string repoPath, CancellationToken cancellationToken = default) => Task.FromResult(Ok);
 
+    public Task<string> GetStagedDiffAsync(string repoPath, CancellationToken cancellationToken = default) => Task.FromResult(string.Empty);
+
     public Task<GitCommandResult> CommitAsync(string repoPath, string message, bool signOff = false, CancellationToken cancellationToken = default) => Task.FromResult(Ok);
 
     public Task<GitCommandResult> CommitAmendAsync(string repoPath, string? message, bool signOff = false, CancellationToken cancellationToken = default) => Task.FromResult(Ok);

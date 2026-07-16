@@ -13,6 +13,7 @@ public partial class MainViewModel : ViewModelBase
 {
     private readonly ISettingsService _settings;
     private readonly IGitService _git;
+    private readonly ICommitMessageGenerator _ai;
     private readonly List<RepositoryItem> _pinned = [];
 
     /// <summary>
@@ -72,10 +73,11 @@ public partial class MainViewModel : ViewModelBase
     {
     }
 
-    public MainViewModel(ISettingsService settings, IGitService git)
+    public MainViewModel(ISettingsService settings, IGitService git, ICommitMessageGenerator? ai = null)
     {
         _settings = settings;
         _git = git;
+        _ai = ai ?? new OllamaCommitMessageGenerator();
         ReloadPinned();
     }
 
@@ -183,7 +185,7 @@ public partial class MainViewModel : ViewModelBase
         if (SelectedRepo is { } selected)
         {
             OpenRepo = selected;
-            Workspace = new WorkspaceViewModel(_git, selected);
+            Workspace = new WorkspaceViewModel(_git, selected, _settings, _ai);
             _ = Workspace.RefreshAsync();
         }
     }

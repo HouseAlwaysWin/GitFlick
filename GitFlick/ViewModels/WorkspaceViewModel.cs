@@ -45,14 +45,78 @@ public partial class FilterOption : ObservableObject
 public partial class WorkspaceViewModel : ViewModelBase
 {
     private readonly IGitService _git;
+    private readonly ISettingsService? _settings;
+    private readonly ICommitMessageGenerator? _ai;
 
-    public WorkspaceViewModel(IGitService git, RepositoryItem repository)
+    public WorkspaceViewModel(
+        IGitService git,
+        RepositoryItem repository,
+        ISettingsService? settings = null,
+        ICommitMessageGenerator? ai = null)
     {
         _git = git;
         Repository = repository;
+        _settings = settings;
+        _ai = ai;
+        CommitMessage = TemplateOrEmpty;   // start a fresh commit from the template
     }
 
     public RepositoryItem Repository { get; }
+
+    /// <summary>The configured commit template, or empty when none is set.</summary>
+    private string TemplateOrEmpty =>
+        _settings?.Current.CommitTemplate is { Length: > 0 } template ? template : string.Empty;
+
+    /// <summary>Commit template, edited from the ⚙ flyout. Persists immediately.</summary>
+    public string CommitTemplate
+    {
+        get => _settings?.Current.CommitTemplate ?? string.Empty;
+        set
+        {
+            if (_settings is null)
+            {
+                return;
+            }
+
+            _settings.Current.CommitTemplate = value;
+            _settings.Save();
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>Ollama server URL, edited from the ⚙ flyout. Persists immediately.</summary>
+    public string OllamaUrl
+    {
+        get => _settings?.Current.OllamaUrl ?? string.Empty;
+        set
+        {
+            if (_settings is null)
+            {
+                return;
+            }
+
+            _settings.Current.OllamaUrl = value;
+            _settings.Save();
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>Ollama model name, edited from the ⚙ flyout. Persists immediately.</summary>
+    public string OllamaModel
+    {
+        get => _settings?.Current.OllamaModel ?? string.Empty;
+        set
+        {
+            if (_settings is null)
+            {
+                return;
+            }
+
+            _settings.Current.OllamaModel = value;
+            _settings.Save();
+            OnPropertyChanged();
+        }
+    }
 
     public ObservableCollection<GitStatusEntry> UnstagedFiles { get; } = [];
 
@@ -914,6 +978,53 @@ public partial class WorkspaceViewModel : ViewModelBase
     [RelayCommand]
     private Task UnstageAll() => RunAsync(() => _git.UnstageAllAsync(Repository.Path), "Unstaged everything");
 
+    /// <summary>✨ — draft a commit message from the staged diff using the local Ollama model.</summary>
+    [RelayCommand]
+    private async Task GenerateCommitMessage()
+    {
+        if (_ai is null || _settings is null)
+        {
+            StatusText = "AI generation isn't available.";
+            return;
+        }
+
+        if (!HasStagedFiles)
+        {
+            StatusText = "Stage some changes first, then generate.";
+            return;
+        }
+
+        if (IsBusy)
+        {
+            return;
+        }
+
+        IsBusy = true;
+        StatusText = "Generating a commit message…";
+        try
+        {
+            var diff = await _git.GetStagedDiffAsync(Repository.Path);
+            var message = await _ai.GenerateAsync(diff, _settings.Current.OllamaUrl, _settings.Current.OllamaModel);
+            if (string.IsNullOrWhiteSpace(message))
+            {
+                StatusText = "The model returned an empty message.";
+            }
+            else
+            {
+                CommitMessage = message.Trim();
+                StatusText = "Generated a message — review before committing.";
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusText = ex.Message;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
     [RelayCommand]
     private async Task Commit()
     {
@@ -928,7 +1039,7 @@ public partial class WorkspaceViewModel : ViewModelBase
         // Only clear the box on success (a failed commit keeps the message for the retry).
         if (StatusText == "Committed")
         {
-            CommitMessage = string.Empty;
+            CommitMessage = TemplateOrEmpty;
         }
     }
 
@@ -953,7 +1064,7 @@ public partial class WorkspaceViewModel : ViewModelBase
 
         if (StatusText == "Committed all changes")
         {
-            CommitMessage = string.Empty;
+            CommitMessage = TemplateOrEmpty;
         }
     }
 
@@ -971,7 +1082,7 @@ public partial class WorkspaceViewModel : ViewModelBase
 
         if (StatusText == "Committed (signed off)")
         {
-            CommitMessage = string.Empty;
+            CommitMessage = TemplateOrEmpty;
         }
     }
 
@@ -985,7 +1096,7 @@ public partial class WorkspaceViewModel : ViewModelBase
 
         if (reworded && StatusText == "Amended last commit")
         {
-            CommitMessage = string.Empty;
+            CommitMessage = TemplateOrEmpty;
         }
     }
 
@@ -1007,7 +1118,7 @@ public partial class WorkspaceViewModel : ViewModelBase
 
         if (reworded && StatusText == "Amended last commit")
         {
-            CommitMessage = string.Empty;
+            CommitMessage = TemplateOrEmpty;
         }
     }
 

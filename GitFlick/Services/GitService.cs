@@ -106,6 +106,12 @@ public sealed class GitService : IGitService
     public Task<GitCommandResult> UnstageAllAsync(string repoPath, CancellationToken cancellationToken = default)
         => RunAsync(repoPath, ["reset", "--quiet"], null, cancellationToken);
 
+    public async Task<string> GetStagedDiffAsync(string repoPath, CancellationToken cancellationToken = default)
+    {
+        var result = await RunAsync(repoPath, ["diff", "--cached"], null, cancellationToken).ConfigureAwait(false);
+        return result.StandardOutput;
+    }
+
     public Task<GitCommandResult> CommitAsync(string repoPath, string message, bool signOff = false, CancellationToken cancellationToken = default)
         => RunAsync(
             repoPath,

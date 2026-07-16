@@ -43,6 +43,9 @@ public interface IGitService
 
     Task<GitCommandResult> UnstageAllAsync(string repoPath, CancellationToken cancellationToken = default);
 
+    /// <summary>The full staged diff (<c>git diff --cached</c>) — fed to the AI message generator.</summary>
+    Task<string> GetStagedDiffAsync(string repoPath, CancellationToken cancellationToken = default);
+
     /// <summary>Commit the staged changes. <paramref name="signOff"/> adds a Signed-off-by trailer.</summary>
     Task<GitCommandResult> CommitAsync(string repoPath, string message, bool signOff = false, CancellationToken cancellationToken = default);
 

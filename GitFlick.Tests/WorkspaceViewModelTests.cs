@@ -784,6 +784,89 @@ public class WorkspaceViewModelTests
     }
 
     [Fact]
+    public void CommitTemplate_prefills_the_commit_box_on_open()
+    {
+        var settings = new FakeSettingsService();
+        settings.Current.CommitTemplate = "chore: \n\n- ";
+        var item = new RepositoryItem("r", Path.GetTempPath());
+
+        var vm = new WorkspaceViewModel(new GitService(), item, settings);
+
+        Assert.Equal("chore: \n\n- ", vm.CommitMessage);
+    }
+
+    [Fact]
+    public void Editing_the_commit_template_setting_saves_it()
+    {
+        var settings = new FakeSettingsService();
+        var item = new RepositoryItem("r", Path.GetTempPath());
+        var vm = new WorkspaceViewModel(new GitService(), item, settings);
+
+        vm.CommitTemplate = "my template";
+
+        Assert.Equal("my template", settings.Current.CommitTemplate);
+        Assert.True(settings.SaveCount > 0);
+    }
+
+    [Fact]
+    public async Task Commit_resets_the_box_to_the_template()
+    {
+        using var repo = new TestRepo();
+        repo.WriteFile("a.txt", "1");
+        repo.Git("add", "-A");
+
+        var settings = new FakeSettingsService();
+        settings.Current.CommitTemplate = "TPL";
+        var item = new RepositoryItem(Path.GetFileName(repo.Path), repo.Path);
+        var vm = new WorkspaceViewModel(new GitService(), item, settings);
+        await vm.RefreshAsync();
+
+        vm.CommitMessage = "a real message";
+        await vm.CommitCommand.ExecuteAsync(null);
+
+        Assert.Equal("TPL", vm.CommitMessage);   // back to the template, not blank
+    }
+
+    [Fact]
+    public async Task GenerateCommitMessage_fills_the_box_from_the_model()
+    {
+        using var repo = new TestRepo();
+        repo.WriteFile("a.txt", "1");
+        repo.Git("add", "-A");
+
+        var settings = new FakeSettingsService();
+        var ai = new FakeCommitMessageGenerator { Result = "feat: add a.txt" };
+        var item = new RepositoryItem(Path.GetFileName(repo.Path), repo.Path);
+        var vm = new WorkspaceViewModel(new GitService(), item, settings, ai);
+        await vm.RefreshAsync();
+
+        await vm.GenerateCommitMessageCommand.ExecuteAsync(null);
+
+        Assert.Equal("feat: add a.txt", vm.CommitMessage);
+        Assert.NotNull(ai.LastDiff);   // the staged diff was handed to the model
+    }
+
+    [Fact]
+    public async Task GenerateCommitMessage_without_staged_changes_does_not_call_the_model()
+    {
+        using var repo = new TestRepo();
+        repo.WriteFile("a.txt", "1");
+        repo.Git("add", "-A");
+        repo.Git("commit", "-m", "base");   // clean tree
+
+        var settings = new FakeSettingsService();
+        var ai = new FakeCommitMessageGenerator();
+        var item = new RepositoryItem(Path.GetFileName(repo.Path), repo.Path);
+        var vm = new WorkspaceViewModel(new GitService(), item, settings, ai);
+        await vm.RefreshAsync();
+
+        await vm.GenerateCommitMessageCommand.ExecuteAsync(null);
+
+        Assert.Null(ai.LastDiff);
+        Assert.Contains("Stage", vm.StatusText);
+    }
+
+    [Fact]
     public async Task Checkout_with_uncommitted_changes_asks_first_and_a_cancel_blocks_it()
     {
         using var repo = new TestRepo();
