@@ -522,6 +522,10 @@ public partial class WorkspaceViewModel : ViewModelBase
         }
     }
 
+    /// <summary>The complete message (subject + body) of a commit, for the "view full message" popup.</summary>
+    public Task<string> GetCommitMessageAsync(CommitInfo commit) =>
+        _git.GetCommitMessageAsync(Repository.Path, commit.Sha);
+
     [RelayCommand]
     private void ShowChanges()
     {

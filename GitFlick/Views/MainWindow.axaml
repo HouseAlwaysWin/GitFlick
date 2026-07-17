@@ -648,6 +648,7 @@
                                                   Command="{Binding CherryPickCommand}"
                                                   ToolTip.Tip="{loc:Tr History_Ctx_CherryPick_Tooltip}" />
                                         <Separator />
+                                        <MenuItem Header="{loc:Tr History_Ctx_ViewMessage}" Click="OnViewCommitMessageClick" />
                                         <MenuItem Header="{loc:Tr History_Ctx_CopySha}" Click="OnCopyShaClick" />
                                     </MenuFlyout>
                                 </ListBox.ContextFlyout>
@@ -708,7 +709,13 @@
                                                 </ItemsControl>
 
                                                 <TextBlock Grid.Column="1" Text="{Binding Subject}"
-                                                           TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                                           TextTrimming="CharacterEllipsis" VerticalAlignment="Center">
+                                                    <ToolTip.Tip>
+                                                        <TextBlock x:DataType="models:CommitInfo"
+                                                                   Text="{Binding Subject}"
+                                                                   TextWrapping="Wrap" MaxWidth="520" />
+                                                    </ToolTip.Tip>
+                                                </TextBlock>
                                             </Grid>
 
                                             <TextBlock Grid.Column="1" Text="{Binding Author}"

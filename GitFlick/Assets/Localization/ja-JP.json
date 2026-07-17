@@ -79,6 +79,7 @@
   "History_Ctx_CherryPick": "チェリーピック",
   "History_Ctx_CherryPick_Tooltip": "このコミットを現在のブランチの上に再適用します。",
   "History_Ctx_CopySha": "完全な SHA をコピー",
+  "History_Ctx_ViewMessage": "コミットメッセージを表示",
   "History_Sha_Tooltip": "クリックして完全な SHA をコピー",
   "History_NoCommits": "コミットはまだありません。",
   "History_LoadMore": "さらにコミットを読み込む",
@@ -151,6 +152,8 @@
   "Diff_SelectFile": "差分を表示するには変更されたファイルを選択してください。",
 
   "Dialog_Cancel": "キャンセル",
+  "Dialog_Close": "閉じる",
+  "Dialog_CommitMessage_Title": "コミットメッセージ · {0}",
   "Dialog_Delete": "削除",
   "Dialog_Discard": "破棄",
   "Dialog_Push": "プッシュ",

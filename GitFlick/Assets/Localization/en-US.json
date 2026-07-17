@@ -79,6 +79,7 @@
   "History_Ctx_CherryPick": "Cherry-pick",
   "History_Ctx_CherryPick_Tooltip": "Replay this commit on top of the current branch.",
   "History_Ctx_CopySha": "Copy full SHA",
+  "History_Ctx_ViewMessage": "View full message",
   "History_Sha_Tooltip": "Click to copy the full SHA",
   "History_NoCommits": "No commits yet.",
   "History_LoadMore": "Load more commits",
@@ -151,6 +152,8 @@
   "Diff_SelectFile": "Select a changed file to see its diff.",
 
   "Dialog_Cancel": "Cancel",
+  "Dialog_Close": "Close",
+  "Dialog_CommitMessage_Title": "Commit message · {0}",
   "Dialog_Delete": "Delete",
   "Dialog_Discard": "Discard",
   "Dialog_Push": "Push",

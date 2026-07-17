@@ -79,6 +79,7 @@
   "History_Ctx_CherryPick": "揀選（Cherry-pick）",
   "History_Ctx_CherryPick_Tooltip": "將此提交重播到目前分支之上。",
   "History_Ctx_CopySha": "複製完整 SHA",
+  "History_Ctx_ViewMessage": "查看完整訊息",
   "History_Sha_Tooltip": "點擊以複製完整 SHA",
   "History_NoCommits": "尚無提交。",
   "History_LoadMore": "載入更多提交",
@@ -151,6 +152,8 @@
   "Diff_SelectFile": "選擇一個變更的檔案以查看其差異。",
 
   "Dialog_Cancel": "取消",
+  "Dialog_Close": "關閉",
+  "Dialog_CommitMessage_Title": "提交訊息 · {0}",
   "Dialog_Delete": "刪除",
   "Dialog_Discard": "捨棄",
   "Dialog_Push": "推送",

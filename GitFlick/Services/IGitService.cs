@@ -108,6 +108,9 @@ public interface IGitService
     /// <summary>The full patch introduced by one commit.</summary>
     Task<string> GetCommitDiffAsync(string repoPath, string sha, CancellationToken cancellationToken = default);
 
+    /// <summary>The complete commit message (subject + body), fetched on demand for the "view message" popup.</summary>
+    Task<string> GetCommitMessageAsync(string repoPath, string sha, CancellationToken cancellationToken = default);
+
     /// <summary>The files a commit changed (vs its first parent), so the diff can be split per file.</summary>
     Task<IReadOnlyList<CommitFileEntry>> GetCommitFilesAsync(string repoPath, string sha, CancellationToken cancellationToken = default);
 

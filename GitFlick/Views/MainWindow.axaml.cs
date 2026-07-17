@@ -147,6 +147,80 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// Context-menu "View full message": the history list only carries the subject, so the full
+    /// message (subject + body) is fetched on demand and shown in a read-only, copyable popup.
+    /// </summary>
+    private async void OnViewCommitMessageClick(object? sender, RoutedEventArgs e)
+    {
+        if (Workspace is not { SelectedCommit: { } commit } workspace)
+        {
+            return;
+        }
+
+        var message = await workspace.GetCommitMessageAsync(commit);
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            message = commit.Subject;   // fall back to what the list already has
+        }
+
+        var close = new Button
+        {
+            Content = Loc["Dialog_Close"],
+            MinWidth = 92,
+            HorizontalContentAlignment = HorizontalAlignment.Center,
+        };
+        close.Classes.Add("primary");
+
+        var body = new TextBox
+        {
+            Text = message,
+            IsReadOnly = true,
+            AcceptsReturn = true,
+            TextWrapping = TextWrapping.Wrap,
+            FontFamily = new FontFamily("Cascadia Mono,Consolas,monospace"),
+            FontSize = 12,
+            MaxHeight = 360,
+        };
+        ScrollViewer.SetVerticalScrollBarVisibility(body, Avalonia.Controls.Primitives.ScrollBarVisibility.Auto);
+
+        var header = new TextBlock
+        {
+            Text = $"{commit.ShortSha}  ·  {commit.Author}  ·  {commit.WhenDisplay}",
+            Opacity = 0.6,
+            Margin = new Thickness(0, 0, 0, 10),
+        };
+        DockPanel.SetDock(header, Dock.Top);
+
+        var buttonRow = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(0, 12, 0, 0),
+            Children = { close },
+        };
+        DockPanel.SetDock(buttonRow, Dock.Bottom);
+
+        var panel = new DockPanel();
+        panel.Children.Add(header);
+        panel.Children.Add(buttonRow);
+        panel.Children.Add(body);
+
+        var dialog = new Window
+        {
+            Title = string.Format(Loc["Dialog_CommitMessage_Title"], commit.ShortSha),
+            Width = 560,
+            SizeToContent = SizeToContent.Height,
+            MaxHeight = 560,
+            ShowInTaskbar = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Content = new Border { Padding = new Thickness(18), Child = panel },
+        };
+
+        close.Click += (_, _) => dialog.Close();
+        await dialog.ShowDialog(this);
+    }
+
     private CommandLogWindow? _commandLogWindow;
 
     /// <summary>Opens the git command log in its own window (reusing one if it's already open).</summary>

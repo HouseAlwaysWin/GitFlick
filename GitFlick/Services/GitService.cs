@@ -272,6 +272,19 @@ public sealed class GitService : IGitService
         return result.StandardOutput;
     }
 
+    public async Task<string> GetCommitMessageAsync(string repoPath, string sha, CancellationToken cancellationToken = default)
+    {
+        // %B is the raw body — the complete commit message (subject + body) exactly as written.
+        // Fetched on demand (the history list only carries the subject), so viewing it never fails hard.
+        var result = await RunAsync(
+            repoPath,
+            ["log", "-1", "--no-show-signature", "--format=%B", sha],
+            null,
+            cancellationToken).ConfigureAwait(false);
+
+        return result.Succeeded ? result.StandardOutput.TrimEnd('\r', '\n') : string.Empty;
+    }
+
     public async Task<IReadOnlyList<CommitFileEntry>> GetCommitFilesAsync(string repoPath, string sha, CancellationToken cancellationToken = default)
     {
         // --name-status: one "M\tpath" line per file. --no-renames keeps it to a single tab
