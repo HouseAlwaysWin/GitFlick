@@ -25,6 +25,9 @@ public partial class MainWindow : Window
     private MainViewModel? _observedMain;
     private WorkspaceViewModel? _observedWorkspace;
 
+    /// <summary>Remembers the History file-list height across mode switches (it collapses in Changes mode).</summary>
+    private GridLength _commitFilesHeight = new(150);
+
     /// <summary>Shorthand for the app string table. Dialogs rebuild per open, so they pick up the current language.</summary>
     private static LocalizationService Loc => LocalizationService.Instance;
 
@@ -380,6 +383,7 @@ public partial class MainWindow : Window
 
         UpdateTitle();
         UpdateDiffEditor();
+        SyncCommitFilesRow();
     }
 
     /// <summary>
@@ -742,9 +746,42 @@ public partial class MainWindow : Window
         {
             UpdateTitle();   // e.g. after a checkout
         }
+        else if (e.PropertyName == nameof(WorkspaceViewModel.IsHistoryMode))
+        {
+            SyncCommitFilesRow();
+        }
     }
 
     private void UpdateDiffEditor() => DiffEditor.Text = _observedWorkspace?.DiffText ?? string.Empty;
+
+    /// <summary>
+    /// The commit-files list (with its draggable divider) exists only in History mode. Collapse its row
+    /// to 0 in Changes mode so the diff gets the full height, and restore the last dragged height when
+    /// History comes back. A GridSplitter writes the row height directly, so this can't be a binding.
+    /// </summary>
+    private void SyncCommitFilesRow()
+    {
+        if (DiffPaneGrid is null)
+        {
+            return;
+        }
+
+        var commitFilesRow = DiffPaneGrid.RowDefinitions[0];
+
+        if (_observedWorkspace?.IsHistoryMode == true)
+        {
+            commitFilesRow.Height = _commitFilesHeight;
+        }
+        else
+        {
+            if (commitFilesRow.Height.IsAbsolute && commitFilesRow.Height.Value > 0)
+            {
+                _commitFilesHeight = commitFilesRow.Height;   // remember what the user dragged it to
+            }
+
+            commitFilesRow.Height = new GridLength(0);
+        }
+    }
 
     private void OnBackClick(object? sender, RoutedEventArgs e) => ReturnToPalette();
 

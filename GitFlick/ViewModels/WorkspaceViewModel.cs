@@ -313,8 +313,15 @@ public partial class WorkspaceViewModel : ViewModelBase
     /// <summary>Row height of the commit list. The graph is drawn in row units, so it must match.</summary>
     public const double CommitRowHeight = 26;
 
-    /// <summary>Bound so a huge history can't stall the UI (spec §5⑦ Level 2: keep it bounded).</summary>
-    private const int MaxCommits = 300;
+    /// <summary>History loads in pages so a huge repo can't stall the UI; "Load more" grows the window.</summary>
+    private const int CommitPageSize = 300;
+
+    /// <summary>How many commits the current history load asks git for. Grows via "Load more".</summary>
+    private int _commitLimit = CommitPageSize;
+
+    /// <summary>True when the last load hit the limit, so there are (probably) older commits to fetch.</summary>
+    [ObservableProperty]
+    public partial bool HasMoreCommits { get; set; }
 
     public ObservableCollection<CommitInfo> Commits { get; } = [];
 
@@ -473,9 +480,12 @@ public partial class WorkspaceViewModel : ViewModelBase
         try
         {
             var commits = await _git.GetCommitsAsync(
-                Repository.Path, MaxCommits, FirstParentOnly);
+                Repository.Path, _commitLimit, FirstParentOnly);
 
             _graphOrder = commits.ToList();
+
+            // git returns min(limit, total); hitting the limit means older commits are still unfetched.
+            HasMoreCommits = commits.Count >= _commitLimit;
 
             RebuildAuthorFilters();
             RebuildBranchFilters();
@@ -494,6 +504,21 @@ public partial class WorkspaceViewModel : ViewModelBase
         catch (GitException ex)
         {
             StatusText = ex.Message;
+        }
+    }
+
+    /// <summary>Grows the history window by another page and reloads, keeping the selected commit.</summary>
+    [RelayCommand]
+    private async Task LoadMoreCommits()
+    {
+        var keepSha = SelectedCommit?.Sha;
+        _commitLimit += CommitPageSize;
+
+        await LoadHistoryAsync();
+
+        if (keepSha is not null)
+        {
+            SelectedCommit = Commits.FirstOrDefault(c => c.Sha == keepSha);
         }
     }
 

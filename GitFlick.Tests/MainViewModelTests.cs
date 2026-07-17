@@ -214,6 +214,58 @@ public class MainViewModelTests : IDisposable
         Assert.Empty(vm.SearchText);
     }
 
+    [Fact]
+    public void Opening_repos_tracks_frequency_and_fills_the_frequent_panel()
+    {
+        var vm = NewViewModel(out var settings);
+        vm.AddRepository(_repoA);
+        vm.AddRepository(_repoB);
+
+        Open(vm, _repoA);
+        Open(vm, _repoA);
+        Open(vm, _repoB);
+
+        Assert.Equal(2, settings.Current.RepoOpenCounts[_repoA]);
+        Assert.Equal(1, settings.Current.RepoOpenCounts[_repoB]);
+
+        Assert.True(vm.HasFrequentRepos);
+        Assert.Equal(2, vm.FrequentRepos.Count);
+        Assert.Equal(_repoA, vm.FrequentRepos[0].Path);   // most-opened first
+        Assert.Equal(2, vm.FrequentRepos[0].OpenCount);
+        Assert.Equal(_repoB, vm.FrequentRepos[1].Path);
+    }
+
+    [Fact]
+    public void No_frequent_repos_until_something_is_opened()
+    {
+        var vm = NewViewModel(out _);
+        vm.AddRepository(_repoA);
+
+        Assert.False(vm.HasFrequentRepos);
+        Assert.Empty(vm.FrequentRepos);
+    }
+
+    [Fact]
+    public void Removing_a_repo_drops_its_open_count()
+    {
+        var vm = NewViewModel(out var settings);
+        vm.AddRepository(_repoA);
+        Open(vm, _repoA);
+        Assert.True(settings.Current.RepoOpenCounts.ContainsKey(_repoA));
+
+        vm.SelectedRepo = vm.Repos.First(r => r.Path == _repoA);
+        vm.RemoveSelected();
+
+        Assert.False(settings.Current.RepoOpenCounts.ContainsKey(_repoA));
+        Assert.False(vm.HasFrequentRepos);
+    }
+
+    private static void Open(MainViewModel vm, string path)
+    {
+        vm.SelectedRepo = vm.Repos.First(r => r.Path == path);
+        vm.OpenSelected();
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_root))

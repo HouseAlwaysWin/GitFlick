@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using GitFlick.Models;
 using GitFlick.Services;
 
@@ -57,6 +58,12 @@ public partial class MainViewModel : ViewModelBase
 
     /// <summary>Repos matching the current search, best match first.</summary>
     public ObservableCollection<RepositoryItem> Repos { get; } = [];
+
+    /// <summary>Most-opened repos for the palette's side panel, most-used first.</summary>
+    public ObservableCollection<FrequentRepo> FrequentRepos { get; } = [];
+
+    [ObservableProperty]
+    public partial bool HasFrequentRepos { get; set; }
 
     public bool IsRepoOpen => OpenRepo is not null;
 
@@ -180,6 +187,7 @@ public partial class MainViewModel : ViewModelBase
 
         _settings.Current.PinnedRepos.RemoveAll(
             p => string.Equals(p, selected.Path, StringComparison.OrdinalIgnoreCase));
+        _settings.Current.RepoOpenCounts.Remove(selected.Path);
         _settings.Save();
 
         StatusMessage = string.Empty;
@@ -190,10 +198,54 @@ public partial class MainViewModel : ViewModelBase
     {
         if (SelectedRepo is { } selected)
         {
-            OpenRepo = selected;
-            Workspace = new WorkspaceViewModel(_git, selected, _settings, _ai);
-            _ = Workspace.RefreshAsync();
+            Open(selected);
         }
+    }
+
+    /// <summary>Opens a repo picked from the "frequent projects" side panel.</summary>
+    [RelayCommand]
+    private void OpenFrequent(FrequentRepo? item)
+    {
+        if (item is not null)
+        {
+            Open(item.Repo);
+        }
+    }
+
+    private void Open(RepositoryItem repo)
+    {
+        RecordOpen(repo.Path);
+        OpenRepo = repo;
+        Workspace = new WorkspaceViewModel(_git, repo, _settings, _ai);
+        _ = Workspace.RefreshAsync();
+    }
+
+    /// <summary>Bumps the repo's open count, persists it, and refreshes the frequent panel.</summary>
+    private void RecordOpen(string path)
+    {
+        var counts = _settings.Current.RepoOpenCounts;
+        counts[path] = counts.GetValueOrDefault(path) + 1;
+        _settings.Save();
+        RebuildFrequent();
+    }
+
+    /// <summary>Top opened repos (most-used first), for the palette side panel.</summary>
+    private void RebuildFrequent()
+    {
+        var counts = _settings.Current.RepoOpenCounts;
+
+        FrequentRepos.Clear();
+        foreach (var item in _pinned
+            .Select(repo => new FrequentRepo(repo, counts.GetValueOrDefault(repo.Path)))
+            .Where(f => f.OpenCount > 0)
+            .OrderByDescending(f => f.OpenCount)
+            .ThenBy(f => f.Name, StringComparer.OrdinalIgnoreCase)
+            .Take(6))
+        {
+            FrequentRepos.Add(item);
+        }
+
+        HasFrequentRepos = FrequentRepos.Count > 0;
     }
 
     public void CloseRepo()
@@ -235,6 +287,7 @@ public partial class MainViewModel : ViewModelBase
         }
 
         HasPinnedRepos = _pinned.Count > 0;
+        RebuildFrequent();
         ApplyFilter();
     }
 

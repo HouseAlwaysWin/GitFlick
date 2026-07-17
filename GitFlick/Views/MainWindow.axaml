@@ -82,6 +82,24 @@
         <Style Selector="GridSplitter.hsplit:pointerover /template/ Border#Handle">
             <Setter Property="Background" Value="{DynamicResource HoverStrongBrush}" />
         </Style>
+
+        <!-- Frequent-projects rows: flat like list items (not the accent chip), with a hover highlight. -->
+        <Style Selector="Button.frequent">
+            <Setter Property="Padding" Value="8,6" />
+            <Setter Property="CornerRadius" Value="5" />
+        </Style>
+        <Style Selector="Button.frequent /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <Style Selector="Button.frequent:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AccentSubtleBrush}" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <Style Selector="Button.frequent:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AccentSubtlePressedBrush}" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
     </Window.Styles>
 
     <DockPanel Margin="16">
@@ -112,86 +130,121 @@
              This wrapper fills as the DockPanel's last child so the palette can be centred within it. -->
         <Panel>
 
-        <!-- Palette — centred command-palette card. -->
+        <!-- Palette — a wide command-palette card: search + pinned list on the left, a
+             "frequent projects" panel on the right so the width isn't wasted. -->
         <Grid IsVisible="{Binding IsPaletteVisible}"
-              RowDefinitions="Auto,Auto,*,Auto"
               HorizontalAlignment="Center"
-              MaxWidth="600">
+              MaxWidth="1000"
+              ColumnDefinitions="2*,28,*">
 
-            <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
-                <TextBox Grid.Column="0"
-                         x:Name="SearchBox"
-                         PlaceholderText="{loc:Tr Palette_SearchPlaceholder}"
-                         FontSize="16"
-                         Padding="10,8"
-                         Text="{Binding SearchText}" />
-                <Button Grid.Column="1"
-                        Classes="primary"
-                        Content="{loc:Tr Palette_Open}"
-                        FontSize="14"
-                        Padding="16,8"
-                        VerticalAlignment="Stretch"
-                        Click="OnOpenRepositoryClick"
-                        ToolTip.Tip="{loc:Tr Palette_Open_Tooltip}" />
-                <Button Grid.Column="2"
-                        Content="⚙"
-                        FontSize="16"
-                        Padding="12,8"
-                        VerticalAlignment="Stretch"
-                        Click="OnOpenSettingsClick"
-                        ToolTip.Tip="{loc:Tr Palette_Settings_Tooltip}" />
+            <!-- Left: search, pinned list, hints. -->
+            <Grid Grid.Column="0" RowDefinitions="Auto,Auto,*,Auto">
+                <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                    <TextBox Grid.Column="0"
+                             x:Name="SearchBox"
+                             PlaceholderText="{loc:Tr Palette_SearchPlaceholder}"
+                             FontSize="16"
+                             Padding="10,8"
+                             Text="{Binding SearchText}" />
+                    <Button Grid.Column="1"
+                            Classes="primary"
+                            Content="{loc:Tr Palette_Open}"
+                            FontSize="14"
+                            Padding="16,8"
+                            VerticalAlignment="Stretch"
+                            Click="OnOpenRepositoryClick"
+                            ToolTip.Tip="{loc:Tr Palette_Open_Tooltip}" />
+                    <Button Grid.Column="2"
+                            Content="⚙"
+                            FontSize="16"
+                            Padding="12,8"
+                            VerticalAlignment="Stretch"
+                            Click="OnOpenSettingsClick"
+                            ToolTip.Tip="{loc:Tr Palette_Settings_Tooltip}" />
+                </Grid>
+
+                <TextBlock Grid.Row="1"
+                           IsVisible="{Binding HasStatusMessage}"
+                           Text="{Binding StatusMessage}"
+                           Foreground="#F05133"
+                           Margin="2,8,0,0"
+                           TextWrapping="Wrap" />
+
+                <ListBox Grid.Row="2"
+                         x:Name="RepoList"
+                         Margin="0,12,0,0"
+                         ItemsSource="{Binding Repos}"
+                         SelectedItem="{Binding SelectedRepo}"
+                         Background="Transparent"
+                         BorderThickness="0">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="models:RepositoryItem">
+                            <StackPanel Spacing="1" Margin="0,2">
+                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                                <TextBlock Text="{Binding Path}" Opacity="0.55" FontSize="11" TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+
+                <!-- Empty states, mutually exclusive with the list having content -->
+                <StackPanel Grid.Row="2"
+                            IsVisible="{Binding !HasPinnedRepos}"
+                            VerticalAlignment="Center"
+                            Spacing="6">
+                    <TextBlock Text="{loc:Tr Palette_NoReposPinned}"
+                               HorizontalAlignment="Center"
+                               Opacity="0.7" />
+                    <TextBlock Text="{loc:Tr Palette_PressCtrlO}"
+                               HorizontalAlignment="Center"
+                               Opacity="0.45"
+                               FontSize="12" />
+                </StackPanel>
+
+                <TextBlock Grid.Row="2"
+                           IsVisible="{Binding HasNoMatches}"
+                           Text="{loc:Tr Palette_NoMatches}"
+                           VerticalAlignment="Center"
+                           HorizontalAlignment="Center"
+                           Opacity="0.55" />
+
+                <TextBlock Grid.Row="3"
+                           Margin="2,10,0,0"
+                           Opacity="0.4"
+                           FontSize="11"
+                           Text="{loc:Tr Palette_Hints}" />
             </Grid>
 
-            <TextBlock Grid.Row="1"
-                       IsVisible="{Binding HasStatusMessage}"
-                       Text="{Binding StatusMessage}"
-                       Foreground="#F05133"
-                       Margin="2,8,0,0"
-                       TextWrapping="Wrap" />
-
-            <ListBox Grid.Row="2"
-                     x:Name="RepoList"
-                     Margin="0,12,0,0"
-                     ItemsSource="{Binding Repos}"
-                     SelectedItem="{Binding SelectedRepo}"
-                     Background="Transparent"
-                     BorderThickness="0">
-                <ListBox.ItemTemplate>
-                    <DataTemplate x:DataType="models:RepositoryItem">
-                        <StackPanel Spacing="1" Margin="0,2">
-                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
-                            <TextBlock Text="{Binding Path}" Opacity="0.55" FontSize="11" TextTrimming="CharacterEllipsis" />
-                        </StackPanel>
-                    </DataTemplate>
-                </ListBox.ItemTemplate>
-            </ListBox>
-
-            <!-- Empty states, mutually exclusive with the list having content -->
-            <StackPanel Grid.Row="2"
-                        IsVisible="{Binding !HasPinnedRepos}"
-                        VerticalAlignment="Center"
-                        Spacing="6">
-                <TextBlock Text="{loc:Tr Palette_NoReposPinned}"
-                           HorizontalAlignment="Center"
-                           Opacity="0.7" />
-                <TextBlock Text="{loc:Tr Palette_PressCtrlO}"
-                           HorizontalAlignment="Center"
-                           Opacity="0.45"
-                           FontSize="12" />
-            </StackPanel>
-
-            <TextBlock Grid.Row="2"
-                       IsVisible="{Binding HasNoMatches}"
-                       Text="{loc:Tr Palette_NoMatches}"
-                       VerticalAlignment="Center"
-                       HorizontalAlignment="Center"
-                       Opacity="0.55" />
-
-            <TextBlock Grid.Row="3"
-                       Margin="2,10,0,0"
-                       Opacity="0.4"
-                       FontSize="11"
-                       Text="{loc:Tr Palette_Hints}" />
+            <!-- Right: frequent projects (by open count), click to open. -->
+            <DockPanel Grid.Column="2">
+                <TextBlock DockPanel.Dock="Top"
+                           Text="{loc:Tr Palette_Frequent_Header}"
+                           FontSize="12" FontWeight="SemiBold" Opacity="0.55"
+                           Margin="2,2,0,8" />
+                <TextBlock DockPanel.Dock="Top"
+                           Text="{loc:Tr Palette_Frequent_Empty}"
+                           IsVisible="{Binding !HasFrequentRepos}"
+                           TextWrapping="Wrap" Opacity="0.4" FontSize="12"
+                           Margin="2,4,0,0" />
+                <ItemsControl ItemsSource="{Binding FrequentRepos}"
+                              IsVisible="{Binding HasFrequentRepos}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="models:FrequentRepo">
+                            <Button Classes="frequent"
+                                    Command="{Binding $parent[ItemsControl].((vm:MainViewModel)DataContext).OpenFrequentCommand}"
+                                    CommandParameter="{Binding}"
+                                    HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Left"
+                                    Margin="0,0,0,4">
+                                <StackPanel Spacing="1">
+                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                                    <TextBlock Text="{Binding Path}" Opacity="0.55" FontSize="11" TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </DockPanel>
         </Grid>
 
         <!-- Workspace. The outer Panel keeps IsVisible bound to MainViewModel; the inner Grid
@@ -526,6 +579,16 @@
 
                     <Border BorderBrush="#30808080" BorderThickness="1" CornerRadius="4" ClipToBounds="True">
                         <DockPanel>
+                            <!-- Older commits are fetched a page at a time; this appears when the last
+                                 load hit the limit, so the graph never has to build the whole repo up front. -->
+                            <Button DockPanel.Dock="Bottom"
+                                    Content="{loc:Tr History_LoadMore}"
+                                    Command="{Binding LoadMoreCommitsCommand}"
+                                    IsVisible="{Binding HasMoreCommits}"
+                                    HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Center"
+                                    Margin="6" FontSize="12" />
+
                             <!-- Column headers — click to sort. HistoryHeaderMargin absorbs the graph
                                  gutter and the scrollbar so the labels line up with the rows below. -->
                             <Border DockPanel.Dock="Top" BorderBrush="#22808080" BorderThickness="0,0,0,1">
@@ -687,13 +750,21 @@
                     </Border>
                 </DockPanel>
 
-                <!-- Diff viewer -->
-                <DockPanel Grid.Column="2">
+                <!-- Diff viewer. History adds the selected commit's file list on top; the divider
+                     between it and the diff is draggable. CommitFilesRow is collapsed to 0 in Changes
+                     mode (and the splitter hidden) from code-behind, so Changes shows the diff full-height. -->
+                <Grid Grid.Column="2" x:Name="DiffPaneGrid">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="150" MinHeight="60" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" MinHeight="80" />
+                    </Grid.RowDefinitions>
+
                     <!-- History: the selected commit's files, split out so the diff is one file at a
                          time instead of one long blob. Picking a file loads just its patch. -->
-                    <Border DockPanel.Dock="Top" IsVisible="{Binding IsHistoryMode}"
+                    <Border Grid.Row="0" IsVisible="{Binding IsHistoryMode}"
                             BorderBrush="#30808080" BorderThickness="1" CornerRadius="4"
-                            Height="150" Margin="0,0,0,8" ClipToBounds="True">
+                            ClipToBounds="True">
                         <Panel>
                             <ListBox x:Name="CommitFilesList"
                                      Background="Transparent"
@@ -717,37 +788,44 @@
                         </Panel>
                     </Border>
 
-                    <TextBlock DockPanel.Dock="Top"
-                               Margin="0,0,0,4"
-                               FontWeight="SemiBold"
-                               TextTrimming="CharacterEllipsis"
-                               Text="{Binding DiffPath, StringFormat='Diff — {0}'}"
-                               IsVisible="{Binding HasDiff}" />
-                    <TextBlock DockPanel.Dock="Top"
-                               Margin="0,0,0,4"
-                               FontWeight="SemiBold"
-                               Opacity="0.6"
-                               Text="{loc:Tr Diff_Header}"
-                               IsVisible="{Binding !HasDiff}" />
+                    <!-- Draggable divider between the commit's files and the diff (History only). -->
+                    <GridSplitter Grid.Row="1" Classes="hsplit" Height="10"
+                                  ResizeDirection="Rows" ResizeBehavior="PreviousAndNext"
+                                  IsVisible="{Binding IsHistoryMode}" />
 
-                    <Border BorderBrush="#30808080" BorderThickness="1" CornerRadius="4" ClipToBounds="True">
-                        <Panel>
-                            <edit:TextEditor x:Name="DiffEditor"
-                                             IsReadOnly="True"
-                                             ShowLineNumbers="False"
-                                             FontFamily="Cascadia Mono,Consolas,Menlo,monospace"
-                                             FontSize="12"
-                                             Background="Transparent"
-                                             HorizontalScrollBarVisibility="Auto"
-                                             VerticalScrollBarVisibility="Auto"
-                                             IsVisible="{Binding HasDiff}" />
-                            <TextBlock Text="{Binding DiffEmptyHint}"
-                                       IsVisible="{Binding !HasDiff}"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center"
-                                       Opacity="0.35" IsHitTestVisible="False" />
-                        </Panel>
-                    </Border>
-                </DockPanel>
+                    <DockPanel Grid.Row="2">
+                        <TextBlock DockPanel.Dock="Top"
+                                   Margin="0,0,0,4"
+                                   FontWeight="SemiBold"
+                                   TextTrimming="CharacterEllipsis"
+                                   Text="{Binding DiffPath, StringFormat='Diff — {0}'}"
+                                   IsVisible="{Binding HasDiff}" />
+                        <TextBlock DockPanel.Dock="Top"
+                                   Margin="0,0,0,4"
+                                   FontWeight="SemiBold"
+                                   Opacity="0.6"
+                                   Text="{loc:Tr Diff_Header}"
+                                   IsVisible="{Binding !HasDiff}" />
+
+                        <Border BorderBrush="#30808080" BorderThickness="1" CornerRadius="4" ClipToBounds="True">
+                            <Panel>
+                                <edit:TextEditor x:Name="DiffEditor"
+                                                 IsReadOnly="True"
+                                                 ShowLineNumbers="False"
+                                                 FontFamily="Cascadia Mono,Consolas,Menlo,monospace"
+                                                 FontSize="12"
+                                                 Background="Transparent"
+                                                 HorizontalScrollBarVisibility="Auto"
+                                                 VerticalScrollBarVisibility="Auto"
+                                                 IsVisible="{Binding HasDiff}" />
+                                <TextBlock Text="{Binding DiffEmptyHint}"
+                                           IsVisible="{Binding !HasDiff}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           Opacity="0.35" IsHitTestVisible="False" />
+                            </Panel>
+                        </Border>
+                    </DockPanel>
+                </Grid>
             </Grid>
 
             <!-- Commit (staging only — History has nothing to commit) -->

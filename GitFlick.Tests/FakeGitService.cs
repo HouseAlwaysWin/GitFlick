@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using GitFlick.Models;
@@ -67,8 +68,11 @@ internal sealed class FakeGitService : IGitService
 
     public Task<IReadOnlyList<string>> GetRemotesAsync(string repoPath, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<string>>([]);
 
+    /// <summary>Newest-first commits the fake serves; GetCommitsAsync honours maxCount like git log.</summary>
+    public List<CommitInfo> StubCommits { get; } = [];
+
     public Task<IReadOnlyList<CommitInfo>> GetCommitsAsync(string repoPath, int maxCount = 300, bool firstParentOnly = false, CancellationToken cancellationToken = default)
-        => Task.FromResult<IReadOnlyList<CommitInfo>>([]);
+        => Task.FromResult<IReadOnlyList<CommitInfo>>(StubCommits.Take(maxCount).ToList());
 
     public Task<string> GetCommitDiffAsync(string repoPath, string sha, CancellationToken cancellationToken = default)
         => Task.FromResult(string.Empty);

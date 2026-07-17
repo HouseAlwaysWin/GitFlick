@@ -7,6 +7,8 @@
   "Palette_PressCtrlO": "按 Ctrl+O 選擇資料夾。",
   "Palette_NoMatches": "沒有符合的項目。",
   "Palette_Hints": "↑↓ 選擇 · Enter／雙擊開啟 · Ctrl+O 新增 · Ctrl+D 移除 · Esc 關閉",
+  "Palette_Frequent_Header": "常用專案",
+  "Palette_Frequent_Empty": "常開的專案會出現在這裡。",
 
   "Toolbar_Back": "← 返回",
   "Toolbar_Back_Tooltip": "返回儲存庫列表（Esc）",
@@ -79,6 +81,7 @@
   "History_Ctx_CopySha": "複製完整 SHA",
   "History_Sha_Tooltip": "點擊以複製完整 SHA",
   "History_NoCommits": "尚無提交。",
+  "History_LoadMore": "載入更多提交",
 
   "Ref_CheckOut": "簽出",
   "Ref_DeleteBranch": "刪除分支",

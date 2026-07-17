@@ -7,6 +7,8 @@
   "Palette_PressCtrlO": "Press Ctrl+O to pick a folder.",
   "Palette_NoMatches": "No matches.",
   "Palette_Hints": "↑↓ select · Enter / double-click open · Ctrl+O add · Ctrl+D remove · Esc close",
+  "Palette_Frequent_Header": "Frequent projects",
+  "Palette_Frequent_Empty": "Projects you open often show up here.",
 
   "Toolbar_Back": "← Back",
   "Toolbar_Back_Tooltip": "Back to repositories (Esc)",
@@ -79,6 +81,7 @@
   "History_Ctx_CopySha": "Copy full SHA",
   "History_Sha_Tooltip": "Click to copy the full SHA",
   "History_NoCommits": "No commits yet.",
+  "History_LoadMore": "Load more commits",
 
   "Ref_CheckOut": "Check out",
   "Ref_DeleteBranch": "Delete branch",

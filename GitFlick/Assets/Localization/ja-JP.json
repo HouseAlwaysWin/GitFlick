@@ -7,6 +7,8 @@
   "Palette_PressCtrlO": "Ctrl+O を押してフォルダーを選択します。",
   "Palette_NoMatches": "一致する項目がありません。",
   "Palette_Hints": "↑↓ 選択 · Enter／ダブルクリックで開く · Ctrl+O 追加 · Ctrl+D 削除 · Esc 閉じる",
+  "Palette_Frequent_Header": "よく使うプロジェクト",
+  "Palette_Frequent_Empty": "よく開くプロジェクトがここに表示されます。",
 
   "Toolbar_Back": "← 戻る",
   "Toolbar_Back_Tooltip": "リポジトリ一覧に戻る（Esc）",
@@ -79,6 +81,7 @@
   "History_Ctx_CopySha": "完全な SHA をコピー",
   "History_Sha_Tooltip": "クリックして完全な SHA をコピー",
   "History_NoCommits": "コミットはまだありません。",
+  "History_LoadMore": "さらにコミットを読み込む",
 
   "Ref_CheckOut": "チェックアウト",
   "Ref_DeleteBranch": "ブランチを削除",

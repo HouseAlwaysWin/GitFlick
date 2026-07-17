@@ -7,6 +7,8 @@
   "Palette_PressCtrlO": "按 Ctrl+O 选择文件夹。",
   "Palette_NoMatches": "没有匹配的项目。",
   "Palette_Hints": "↑↓ 选择 · Enter／双击打开 · Ctrl+O 添加 · Ctrl+D 移除 · Esc 关闭",
+  "Palette_Frequent_Header": "常用项目",
+  "Palette_Frequent_Empty": "常打开的项目会出现在这里。",
 
   "Toolbar_Back": "← 返回",
   "Toolbar_Back_Tooltip": "返回仓库列表（Esc）",
@@ -79,6 +81,7 @@
   "History_Ctx_CopySha": "复制完整 SHA",
   "History_Sha_Tooltip": "点击以复制完整 SHA",
   "History_NoCommits": "尚无提交。",
+  "History_LoadMore": "加载更多提交",
 
   "Ref_CheckOut": "检出",
   "Ref_DeleteBranch": "删除分支",

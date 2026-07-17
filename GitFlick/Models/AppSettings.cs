@@ -10,6 +10,9 @@ public sealed class AppSettings
     /// <summary>Reserved for module ② (pinned repos). Unused in module ①.</summary>
     public List<string> PinnedRepos { get; set; } = [];
 
+    /// <summary>How many times each repo (by path) has been opened. Drives the "frequent projects" panel.</summary>
+    public Dictionary<string, int> RepoOpenCounts { get; set; } = [];
+
     /// <summary>Reserved for module ③: explicit git path when it isn't on PATH.</summary>
     public string? GitExecutablePath { get; set; }
 
