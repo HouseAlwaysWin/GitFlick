@@ -6,10 +6,54 @@
              <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
 
     <Application.Resources>
+        <ResourceDictionary>
+        <ResourceDictionary.ThemeDictionaries>
+            <!-- Semantic brushes that flip with the light/dark variant. Everything else below is
+                 theme-independent (accent, git-semantic colours). -->
+            <ResourceDictionary x:Key="Dark">
+                <SolidColorBrush x:Key="SecondaryButtonForeground" Color="#E6EEFB" />
+                <SolidColorBrush x:Key="SubtleForeground" Color="#B0FFFFFF" />
+                <SolidColorBrush x:Key="FaintForeground" Color="#8CFFFFFF" />
+                <SolidColorBrush x:Key="DisabledForeground" Color="#88FFFFFF" />
+                <SolidColorBrush x:Key="HoverOverlayBrush" Color="#1AFFFFFF" />
+                <SolidColorBrush x:Key="HoverStrongBrush" Color="#2EFFFFFF" />
+                <SolidColorBrush x:Key="SeparatorBrush" Color="#33FFFFFF" />
+            </ResourceDictionary>
+            <ResourceDictionary x:Key="Light">
+                <SolidColorBrush x:Key="SecondaryButtonForeground" Color="#123A6B" />
+                <SolidColorBrush x:Key="SubtleForeground" Color="#99000000" />
+                <SolidColorBrush x:Key="FaintForeground" Color="#73000000" />
+                <SolidColorBrush x:Key="DisabledForeground" Color="#61000000" />
+                <SolidColorBrush x:Key="HoverOverlayBrush" Color="#14000000" />
+                <SolidColorBrush x:Key="HoverStrongBrush" Color="#24000000" />
+                <SolidColorBrush x:Key="SeparatorBrush" Color="#24000000" />
+            </ResourceDictionary>
+        </ResourceDictionary.ThemeDictionaries>
+
         <!-- GitFlick brand orange (from the icon). Kept for badges/banners; buttons are blue now. -->
         <SolidColorBrush x:Key="AccentBrush" Color="#F05133" />
 
-        <!-- Blue is the default action colour. -->
+        <!-- Accent = the user-chosen primary/highlight colour (seeded to blue). AccentService
+             overwrites these Color keys at runtime; every DynamicResource brush below repaints. -->
+        <Color x:Key="AccentColor">#588CF0</Color>
+        <Color x:Key="AccentColorHover">#6E9DF4</Color>
+        <Color x:Key="AccentColorPressed">#3F6FD1</Color>
+        <Color x:Key="AccentColorDisabled">#55588CF0</Color>
+        <Color x:Key="AccentColorSubtle">#2E588CF0</Color>
+        <Color x:Key="AccentColorSubtleHover">#4D588CF0</Color>
+        <Color x:Key="AccentColorSubtlePressed">#66588CF0</Color>
+        <Color x:Key="AccentColorBorder">#73588CF0</Color>
+
+        <SolidColorBrush x:Key="AccentSolidBrush" Color="{DynamicResource AccentColor}" />
+        <SolidColorBrush x:Key="AccentSolidHoverBrush" Color="{DynamicResource AccentColorHover}" />
+        <SolidColorBrush x:Key="AccentSolidPressedBrush" Color="{DynamicResource AccentColorPressed}" />
+        <SolidColorBrush x:Key="AccentSolidDisabledBrush" Color="{DynamicResource AccentColorDisabled}" />
+        <SolidColorBrush x:Key="AccentSubtleBrush" Color="{DynamicResource AccentColorSubtle}" />
+        <SolidColorBrush x:Key="AccentSubtleHoverBrush" Color="{DynamicResource AccentColorSubtleHover}" />
+        <SolidColorBrush x:Key="AccentSubtlePressedBrush" Color="{DynamicResource AccentColorSubtlePressed}" />
+        <SolidColorBrush x:Key="AccentBorderBrush" Color="{DynamicResource AccentColorBorder}" />
+
+        <!-- Legacy blue aliases (kept so nothing that still references them breaks). -->
         <SolidColorBrush x:Key="BlueBrush" Color="#588CF0" />
         <SolidColorBrush x:Key="BlueHoverBrush" Color="#6E9DF4" />
         <SolidColorBrush x:Key="BluePressedBrush" Color="#3F6FD1" />
@@ -24,8 +68,22 @@
         <SolidColorBrush x:Key="RedHoverBrush" Color="#F2665E" />
         <SolidColorBrush x:Key="RedPressedBrush" Color="#C6413A" />
 
+        <!-- File-status colours: git-semantic, fixed across light/dark. Single source of truth shared
+             by the per-file badge converter (resource lookup) and the footer legend (DynamicResource). -->
+        <SolidColorBrush x:Key="FileStatusAddedBrush" Color="#3FB950" />
+        <SolidColorBrush x:Key="FileStatusModifiedBrush" Color="#D29922" />
+        <SolidColorBrush x:Key="FileStatusDeletedBrush" Color="#F85149" />
+        <SolidColorBrush x:Key="FileStatusMovedBrush" Color="#588CF0" />
+        <SolidColorBrush x:Key="FileStatusConflictBrush" Color="#F0883E" />
+        <SolidColorBrush x:Key="FileStatusNeutralBrush" Color="#9FB0C0" />
+
+        <!-- Command-log status glyph colours. -->
+        <SolidColorBrush x:Key="CommandOkBrush" Color="#3FB950" />
+        <SolidColorBrush x:Key="CommandFailBrush" Color="#F85149" />
+
         <converters:FileStatusBrushConverter x:Key="FileStatusBrush" />
         <converters:SuccessBrushConverter x:Key="SuccessBrush" />
+        </ResourceDictionary>
     </Application.Resources>
 
     <Application.Styles>
@@ -39,21 +97,21 @@
              the ContentPresenter in every state so the Fluent theme's default can't win.
              Exact-type selector, so ComboBox/scrollbar buttons are untouched. -->
         <Style Selector="Button">
-            <Setter Property="Foreground" Value="#E6EEFB" />
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryButtonForeground}" />
             <Setter Property="CornerRadius" Value="5" />
         </Style>
         <Style Selector="Button /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#2E588CF0" />
-            <Setter Property="BorderBrush" Value="#73588CF0" />
+            <Setter Property="Background" Value="{DynamicResource AccentSubtleBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
         </Style>
         <Style Selector="Button:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#4D588CF0" />
-            <Setter Property="BorderBrush" Value="#588CF0" />
+            <Setter Property="Background" Value="{DynamicResource AccentSubtleHoverBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentSolidBrush}" />
         </Style>
         <Style Selector="Button:pressed /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#66588CF0" />
-            <Setter Property="BorderBrush" Value="#588CF0" />
+            <Setter Property="Background" Value="{DynamicResource AccentSubtlePressedBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentSolidBrush}" />
         </Style>
         <Style Selector="Button:disabled /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="#14808080" />
@@ -68,20 +126,20 @@
             <Setter Property="BorderThickness" Value="0" />
         </Style>
         <Style Selector="Button.primary /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="{StaticResource BlueBrush}" />
+            <Setter Property="Background" Value="{DynamicResource AccentSolidBrush}" />
             <Setter Property="Foreground" Value="White" />
         </Style>
         <Style Selector="Button.primary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="{StaticResource BlueHoverBrush}" />
+            <Setter Property="Background" Value="{DynamicResource AccentSolidHoverBrush}" />
             <Setter Property="Foreground" Value="White" />
         </Style>
         <Style Selector="Button.primary:pressed /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="{StaticResource BluePressedBrush}" />
+            <Setter Property="Background" Value="{DynamicResource AccentSolidPressedBrush}" />
             <Setter Property="Foreground" Value="White" />
         </Style>
         <Style Selector="Button.primary:disabled /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#55588CF0" />
-            <Setter Property="Foreground" Value="#88FFFFFF" />
+            <Setter Property="Background" Value="{DynamicResource AccentSolidDisabledBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource DisabledForeground}" />
         </Style>
 
         <!-- Success buttons: solid green. Constructive/positive actions (Commit). -->
@@ -103,7 +161,7 @@
         </Style>
         <Style Selector="Button.success:disabled /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="#553FB950" />
-            <Setter Property="Foreground" Value="#88FFFFFF" />
+            <Setter Property="Foreground" Value="{DynamicResource DisabledForeground}" />
         </Style>
 
         <!-- Danger buttons: solid red. Reserved for destructive actions only (Delete). -->
@@ -125,7 +183,7 @@
         </Style>
         <Style Selector="Button.danger:disabled /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="#55E5534B" />
-            <Setter Property="Foreground" Value="#88FFFFFF" />
+            <Setter Property="Foreground" Value="{DynamicResource DisabledForeground}" />
         </Style>
 
         <!-- Column-header buttons in the History table: flat, quiet, with a faint hover so it
@@ -133,7 +191,7 @@
         <Style Selector="Button.header">
             <Setter Property="FontSize" Value="11" />
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Foreground" Value="#B0FFFFFF" />
+            <Setter Property="Foreground" Value="{DynamicResource SubtleForeground}" />
             <Setter Property="Padding" Value="4,2" />
             <Setter Property="CornerRadius" Value="3" />
             <Setter Property="HorizontalAlignment" Value="Stretch" />
@@ -144,10 +202,21 @@
             <Setter Property="BorderThickness" Value="0" />
         </Style>
         <Style Selector="Button.header:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#1AFFFFFF" />
+            <Setter Property="Background" Value="{DynamicResource HoverOverlayBrush}" />
         </Style>
         <Style Selector="Button.header:pressed /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#2EFFFFFF" />
+            <Setter Property="Background" Value="{DynamicResource HoverStrongBrush}" />
+        </Style>
+
+        <!-- List row hover/selection follows the accent colour instead of Fluent's fixed blue. -->
+        <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AccentSubtleBrush}" />
+        </Style>
+        <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AccentSubtlePressedBrush}" />
+        </Style>
+        <Style Selector="ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AccentSubtlePressedBrush}" />
         </Style>
     </Application.Styles>
 </Application>

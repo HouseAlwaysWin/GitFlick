@@ -5,6 +5,7 @@
         xmlns:services="using:GitFlick.Services"
         xmlns:views="using:GitFlick.Views"
         xmlns:conv="using:GitFlick.Converters"
+        xmlns:loc="using:GitFlick.Markup"
         xmlns:edit="using:AvaloniaEdit"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -23,18 +24,63 @@
     </Design.DataContext>
 
     <Window.Styles>
-        <!-- Ref badges: local branch (default), remote, tag. -->
+        <!-- Ref badges: local branch (orange), remote (purple), tag (green). Fills are OPAQUE, not
+             translucent, so the row's hover/selection highlight (which sits behind the pill) can't
+             bleed through and wash the colour out. A brighter matching border defines the pill, and
+             remote is purple — deliberately NOT the theme blue — so it can't blend into the blue
+             highlight. Text is white for contrast on the solid fills. -->
         <Style Selector="Border.tag, Border.remote">
             <Setter Property="Background" Value="#33808080" />
         </Style>
         <Style Selector="ItemsControl > ContentPresenter > Border">
-            <Setter Property="Background" Value="#40F05133" />
+            <Setter Property="Background" Value="#A8402A" />
+            <Setter Property="BorderBrush" Value="#F05133" />
+            <Setter Property="BorderThickness" Value="1" />
         </Style>
         <Style Selector="ItemsControl > ContentPresenter > Border.remote">
-            <Setter Property="Background" Value="#40588CF0" />
+            <Setter Property="Background" Value="#6E4CB8" />
+            <Setter Property="BorderBrush" Value="#A371F7" />
         </Style>
         <Style Selector="ItemsControl > ContentPresenter > Border.tag">
-            <Setter Property="Background" Value="#403FB950" />
+            <Setter Property="Background" Value="#2C8F41" />
+            <Setter Property="BorderBrush" Value="#3FB950" />
+        </Style>
+
+        <!-- Pane splitters: a wide transparent grab area with a thin centred handle, so the divider
+             is discoverable and easy to grab. The handle follows the theme (SeparatorBrush) and
+             brightens on hover (HoverStrongBrush). -->
+        <Style Selector="GridSplitter.vsplit">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Cursor" Value="SizeWestEast" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="{TemplateBinding Background}">
+                        <Border Name="Handle" Width="2" CornerRadius="1" Margin="0,6"
+                                HorizontalAlignment="Center" VerticalAlignment="Stretch"
+                                Background="{DynamicResource SeparatorBrush}" />
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="GridSplitter.vsplit:pointerover /template/ Border#Handle">
+            <Setter Property="Background" Value="{DynamicResource HoverStrongBrush}" />
+        </Style>
+
+        <Style Selector="GridSplitter.hsplit">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Cursor" Value="SizeNorthSouth" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="{TemplateBinding Background}">
+                        <Border Name="Handle" Height="2" CornerRadius="1" Margin="80,0"
+                                HorizontalAlignment="Stretch" VerticalAlignment="Center"
+                                Background="{DynamicResource SeparatorBrush}" />
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="GridSplitter.hsplit:pointerover /template/ Border#Handle">
+            <Setter Property="Background" Value="{DynamicResource HoverStrongBrush}" />
         </Style>
     </Window.Styles>
 
@@ -72,21 +118,28 @@
               HorizontalAlignment="Center"
               MaxWidth="600">
 
-            <Grid Grid.Row="0" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
                 <TextBox Grid.Column="0"
                          x:Name="SearchBox"
-                         PlaceholderText="Search pinned repositories…"
+                         PlaceholderText="{loc:Tr Palette_SearchPlaceholder}"
                          FontSize="16"
                          Padding="10,8"
                          Text="{Binding SearchText}" />
                 <Button Grid.Column="1"
                         Classes="primary"
-                        Content="Open…"
+                        Content="{loc:Tr Palette_Open}"
                         FontSize="14"
                         Padding="16,8"
                         VerticalAlignment="Stretch"
                         Click="OnOpenRepositoryClick"
-                        ToolTip.Tip="Open a Git repository in a new workspace" />
+                        ToolTip.Tip="{loc:Tr Palette_Open_Tooltip}" />
+                <Button Grid.Column="2"
+                        Content="⚙"
+                        FontSize="16"
+                        Padding="12,8"
+                        VerticalAlignment="Stretch"
+                        Click="OnOpenSettingsClick"
+                        ToolTip.Tip="{loc:Tr Palette_Settings_Tooltip}" />
             </Grid>
 
             <TextBlock Grid.Row="1"
@@ -118,10 +171,10 @@
                         IsVisible="{Binding !HasPinnedRepos}"
                         VerticalAlignment="Center"
                         Spacing="6">
-                <TextBlock Text="No repositories pinned yet."
+                <TextBlock Text="{loc:Tr Palette_NoReposPinned}"
                            HorizontalAlignment="Center"
                            Opacity="0.7" />
-                <TextBlock Text="Press Ctrl+O to pick a folder."
+                <TextBlock Text="{loc:Tr Palette_PressCtrlO}"
                            HorizontalAlignment="Center"
                            Opacity="0.45"
                            FontSize="12" />
@@ -129,7 +182,7 @@
 
             <TextBlock Grid.Row="2"
                        IsVisible="{Binding HasNoMatches}"
-                       Text="No matches."
+                       Text="{loc:Tr Palette_NoMatches}"
                        VerticalAlignment="Center"
                        HorizontalAlignment="Center"
                        Opacity="0.55" />
@@ -138,7 +191,7 @@
                        Margin="2,10,0,0"
                        Opacity="0.4"
                        FontSize="11"
-                       Text="↑↓ select · Enter / double-click open · Ctrl+O add · Ctrl+D remove · Esc close" />
+                       Text="{loc:Tr Palette_Hints}" />
         </Grid>
 
         <!-- Workspace. The outer Panel keeps IsVisible bound to MainViewModel; the inner Grid
@@ -161,8 +214,8 @@
                     <TextBlock VerticalAlignment="Center" Opacity="0.6" FontSize="12"
                                Text="{Binding Behind, StringFormat='↓{0}'}"
                                IsVisible="{Binding Behind}" />
-                    <Button Content="← Back" Click="OnBackClick" VerticalAlignment="Center"
-                            ToolTip.Tip="Back to repositories (Esc)" />
+                    <Button Content="{loc:Tr Toolbar_Back}" Click="OnBackClick" VerticalAlignment="Center"
+                            ToolTip.Tip="{loc:Tr Toolbar_Back_Tooltip}" />
                 </StackPanel>
 
                 <!-- WrapPanel (not StackPanel), left-aligned, so a narrow window wraps the toolbar
@@ -177,61 +230,61 @@
                         </Style>
                     </WrapPanel.Styles>
                     <!-- The active view is the one wearing the accent. -->
-                    <Button Content="Changes" Command="{Binding ShowChangesCommand}"
+                    <Button Content="{loc:Tr Toolbar_Changes}" Command="{Binding ShowChangesCommand}"
                             Classes.primary="{Binding !IsHistoryMode}" />
-                    <Button Content="History" Command="{Binding ShowHistoryCommand}"
+                    <Button Content="{loc:Tr Toolbar_History}" Command="{Binding ShowHistoryCommand}"
                             Classes.primary="{Binding IsHistoryMode}" />
 
-                    <Rectangle Width="1" Height="22" Fill="#33FFFFFF" VerticalAlignment="Center" />
+                    <Rectangle Width="1" Height="22" Fill="{DynamicResource SeparatorBrush}" VerticalAlignment="Center" />
 
                     <!-- Primary click runs the plain action; the chevron opens the variants,
                          mirroring VS Code's Pull/Fetch split menus. -->
-                    <SplitButton Content="Fetch" Command="{Binding FetchCommand}"
-                                 ToolTip.Tip="Fetch (⌄ for prune / all remotes)">
+                    <SplitButton Content="{loc:Tr Toolbar_Fetch}" Command="{Binding FetchCommand}"
+                                 ToolTip.Tip="{loc:Tr Toolbar_Fetch_Tooltip}">
                         <SplitButton.Flyout>
                             <MenuFlyout Placement="BottomEdgeAlignedRight">
-                                <MenuItem Header="Fetch (Prune)" Command="{Binding FetchPruneCommand}"
-                                          ToolTip.Tip="Also drop remote-tracking branches deleted upstream" />
-                                <MenuItem Header="Fetch From All Remotes" Command="{Binding FetchAllCommand}"
-                                          ToolTip.Tip="Fetch from every configured remote" />
+                                <MenuItem Header="{loc:Tr Toolbar_FetchPrune}" Command="{Binding FetchPruneCommand}"
+                                          ToolTip.Tip="{loc:Tr Toolbar_FetchPrune_Tooltip}" />
+                                <MenuItem Header="{loc:Tr Toolbar_FetchAll}" Command="{Binding FetchAllCommand}"
+                                          ToolTip.Tip="{loc:Tr Toolbar_FetchAll_Tooltip}" />
                             </MenuFlyout>
                         </SplitButton.Flyout>
                     </SplitButton>
-                    <SplitButton Content="Pull" Command="{Binding PullCommand}"
-                                 ToolTip.Tip="Pull (⌄ for rebase / from…)">
+                    <SplitButton Content="{loc:Tr Toolbar_Pull}" Command="{Binding PullCommand}"
+                                 ToolTip.Tip="{loc:Tr Toolbar_Pull_Tooltip}">
                         <SplitButton.Flyout>
                             <MenuFlyout Placement="BottomEdgeAlignedRight">
-                                <MenuItem Header="Pull (Rebase)" Command="{Binding PullRebaseCommand}"
-                                          ToolTip.Tip="Replay local commits on top of upstream instead of merging" />
-                                <MenuItem Header="Pull from…" Command="{Binding PullFromCommand}"
-                                          ToolTip.Tip="Pull a specific branch from a chosen remote" />
+                                <MenuItem Header="{loc:Tr Toolbar_PullRebase}" Command="{Binding PullRebaseCommand}"
+                                          ToolTip.Tip="{loc:Tr Toolbar_PullRebase_Tooltip}" />
+                                <MenuItem Header="{loc:Tr Toolbar_PullFrom}" Command="{Binding PullFromCommand}"
+                                          ToolTip.Tip="{loc:Tr Toolbar_PullFrom_Tooltip}" />
                             </MenuFlyout>
                         </SplitButton.Flyout>
                     </SplitButton>
-                    <SplitButton Content="Push" Command="{Binding PushCommand}"
-                                 ToolTip.Tip="Push (⌄ for push to…)">
+                    <SplitButton Content="{loc:Tr Toolbar_Push}" Command="{Binding PushCommand}"
+                                 ToolTip.Tip="{loc:Tr Toolbar_Push_Tooltip}">
                         <SplitButton.Flyout>
                             <MenuFlyout Placement="BottomEdgeAlignedRight">
-                                <MenuItem Header="Push to…" Command="{Binding PushToCommand}"
-                                          ToolTip.Tip="Push the current branch to a chosen remote" />
+                                <MenuItem Header="{loc:Tr Toolbar_PushTo}" Command="{Binding PushToCommand}"
+                                          ToolTip.Tip="{loc:Tr Toolbar_PushTo_Tooltip}" />
                             </MenuFlyout>
                         </SplitButton.Flyout>
                     </SplitButton>
 
-                    <Button Content="Branch ▾">
+                    <Button Content="{loc:Tr Toolbar_Branch}">
                         <Button.Flyout>
                             <Flyout Placement="BottomEdgeAlignedRight">
                                 <StackPanel Width="300" Spacing="8" x:DataType="vm:WorkspaceViewModel">
-                                    <TextBlock Text="CREATE BRANCH" FontSize="10" Opacity="0.5" />
+                                    <TextBlock Text="{loc:Tr Branch_CreateHeader}" FontSize="10" Opacity="0.5" />
                                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
-                                        <TextBox Grid.Column="0" PlaceholderText="new branch name"
+                                        <TextBox Grid.Column="0" PlaceholderText="{loc:Tr Branch_NewNamePlaceholder}"
                                                  Text="{Binding NewBranchName}" VerticalContentAlignment="Center" />
-                                        <Button Grid.Column="1" Content="Create" Command="{Binding CreateBranchCommand}" />
+                                        <Button Grid.Column="1" Content="{loc:Tr Branch_Create}" Command="{Binding CreateBranchCommand}" />
                                     </Grid>
 
                                     <Separator Margin="0,4" />
 
-                                    <TextBlock Text="BRANCHES" FontSize="10" Opacity="0.5" />
+                                    <TextBlock Text="{loc:Tr Branch_ListHeader}" FontSize="10" Opacity="0.5" />
                                     <ListBox MaxHeight="200"
                                              ItemsSource="{Binding Branches}"
                                              SelectedItem="{Binding SelectedBranch}">
@@ -239,39 +292,39 @@
                                             <DataTemplate x:DataType="models:GitBranch">
                                                 <Grid ColumnDefinitions="*,Auto">
                                                     <TextBlock Grid.Column="0" Text="{Binding Name}" />
-                                                    <TextBlock Grid.Column="1" Text="current" FontSize="10" Opacity="0.5"
+                                                    <TextBlock Grid.Column="1" Text="{loc:Tr Branch_Current}" FontSize="10" Opacity="0.5"
                                                                IsVisible="{Binding IsCurrent}" />
                                                 </Grid>
                                             </DataTemplate>
                                         </ListBox.ItemTemplate>
                                     </ListBox>
                                     <Grid ColumnDefinitions="*,*,*" ColumnSpacing="6">
-                                        <Button Grid.Column="0" Content="Checkout" HorizontalAlignment="Stretch"
+                                        <Button Grid.Column="0" Content="{loc:Tr Branch_Checkout}" HorizontalAlignment="Stretch"
                                                 HorizontalContentAlignment="Center" Command="{Binding CheckoutCommand}" />
-                                        <Button Grid.Column="1" Content="Merge" HorizontalAlignment="Stretch"
+                                        <Button Grid.Column="1" Content="{loc:Tr Branch_Merge}" HorizontalAlignment="Stretch"
                                                 HorizontalContentAlignment="Center" Command="{Binding MergeCommand}" />
-                                        <Button Grid.Column="2" Classes="danger" Content="Delete" HorizontalAlignment="Stretch"
+                                        <Button Grid.Column="2" Classes="danger" Content="{loc:Tr Branch_Delete}" HorizontalAlignment="Stretch"
                                                 HorizontalContentAlignment="Center" Command="{Binding DeleteBranchCommand}" />
                                     </Grid>
-                                    <TextBlock Text="Checkout / Merge / Delete act on the selected branch."
+                                    <TextBlock Text="{loc:Tr Branch_ActionsHint}"
                                                FontSize="10" Opacity="0.4" TextWrapping="Wrap" />
                                 </StackPanel>
                             </Flyout>
                         </Button.Flyout>
                     </Button>
 
-                    <Button Content="Stash ▾">
+                    <Button Content="{loc:Tr Toolbar_Stash}">
                         <Button.Flyout>
                             <Flyout Placement="BottomEdgeAlignedRight">
                                 <StackPanel Width="260" Spacing="8" x:DataType="vm:WorkspaceViewModel">
                                     <Grid ColumnDefinitions="*,*" ColumnSpacing="6">
-                                        <Button Grid.Column="0" Content="Stash changes" HorizontalAlignment="Stretch"
+                                        <Button Grid.Column="0" Content="{loc:Tr Stash_Changes}" HorizontalAlignment="Stretch"
                                                 HorizontalContentAlignment="Center" Command="{Binding StashPushCommand}" />
-                                        <Button Grid.Column="1" Content="Pop latest" HorizontalAlignment="Stretch"
+                                        <Button Grid.Column="1" Content="{loc:Tr Stash_PopLatest}" HorizontalAlignment="Stretch"
                                                 HorizontalContentAlignment="Center" Command="{Binding StashPopCommand}" />
                                     </Grid>
                                     <Separator Margin="0,4" />
-                                    <TextBlock Text="STASHES" FontSize="10" Opacity="0.5" />
+                                    <TextBlock Text="{loc:Tr Stash_ListHeader}" FontSize="10" Opacity="0.5" />
                                     <ListBox MaxHeight="160" ItemsSource="{Binding Stashes}">
                                         <ListBox.ItemTemplate>
                                             <DataTemplate x:DataType="models:StashEntry">
@@ -279,7 +332,7 @@
                                             </DataTemplate>
                                         </ListBox.ItemTemplate>
                                     </ListBox>
-                                    <TextBlock Text="No stashes" IsVisible="{Binding !HasStashes}" Opacity="0.4" />
+                                    <TextBlock Text="{loc:Tr Stash_None}" IsVisible="{Binding !HasStashes}" Opacity="0.4" />
                                 </StackPanel>
                             </Flyout>
                         </Button.Flyout>
@@ -287,9 +340,9 @@
 
                     <Button Content="&gt;_" FontFamily="Cascadia Mono,Consolas,monospace"
                             Click="OnShowCommandLogClick"
-                            ToolTip.Tip="Git command log — every command GitFlick ran (opens a window)" />
+                            ToolTip.Tip="{loc:Tr Toolbar_CommandLog_Tooltip}" />
 
-                    <Button Content="⟳" Command="{Binding RefreshCommand}" ToolTip.Tip="Refresh" />
+                    <Button Content="⟳" Command="{Binding RefreshCommand}" ToolTip.Tip="{loc:Tr Toolbar_Refresh_Tooltip}" />
                 </WrapPanel>
             </Grid>
 
@@ -304,16 +357,20 @@
                 </Grid.ColumnDefinitions>
 
                 <GridSplitter Grid.Column="1"
+                              Classes="vsplit"
                               ResizeDirection="Columns"
-                              Background="Transparent"
                               ResizeBehavior="PreviousAndNext" />
 
                 <Grid Grid.Column="0" RowDefinitions="*,10,*" IsVisible="{Binding !IsHistoryMode}">
 
+                    <!-- Draggable divider between the Unstaged and Staged lists. -->
+                    <GridSplitter Grid.Row="1" Classes="hsplit"
+                                  ResizeDirection="Rows" ResizeBehavior="PreviousAndNext" />
+
                     <DockPanel Grid.Row="0">
                         <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,4">
-                            <TextBlock Grid.Column="0" Text="Unstaged" FontWeight="SemiBold" VerticalAlignment="Center" />
-                            <Button Grid.Column="1" Content="Stage all" FontSize="11"
+                            <TextBlock Grid.Column="0" Text="{loc:Tr Changes_Unstaged}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            <Button Grid.Column="1" Content="{loc:Tr Changes_StageAll}" FontSize="11"
                                     Command="{Binding StageAllCommand}" IsEnabled="{Binding !IsBusy}" />
                         </Grid>
                         <Border BorderBrush="#30808080" BorderThickness="1" CornerRadius="4">
@@ -325,9 +382,9 @@
                                          SelectedItem="{Binding SelectedUnstagedFile}">
                                     <ListBox.ContextFlyout>
                                         <MenuFlyout>
-                                            <MenuItem Header="Stage selected" Click="OnStageSelectedClick" />
+                                            <MenuItem Header="{loc:Tr Changes_StageSelected}" Click="OnStageSelectedClick" />
                                             <Separator />
-                                            <MenuItem Header="Discard changes" Click="OnDiscardSelectedClick" />
+                                            <MenuItem Header="{loc:Tr Changes_DiscardChanges}" Click="OnDiscardSelectedClick" />
                                         </MenuFlyout>
                                     </ListBox.ContextFlyout>
                                     <ListBox.ItemTemplate>
@@ -341,7 +398,7 @@
                                         </DataTemplate>
                                     </ListBox.ItemTemplate>
                                 </ListBox>
-                                <TextBlock Text="No unstaged changes"
+                                <TextBlock Text="{loc:Tr Changes_NoUnstaged}"
                                            IsVisible="{Binding !HasUnstagedFiles}"
                                            HorizontalAlignment="Center" VerticalAlignment="Center"
                                            Opacity="0.35" IsHitTestVisible="False" />
@@ -351,8 +408,8 @@
 
                     <DockPanel Grid.Row="2">
                         <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,4">
-                            <TextBlock Grid.Column="0" Text="Staged" FontWeight="SemiBold" VerticalAlignment="Center" />
-                            <Button Grid.Column="1" Content="Unstage all" FontSize="11"
+                            <TextBlock Grid.Column="0" Text="{loc:Tr Changes_Staged}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            <Button Grid.Column="1" Content="{loc:Tr Changes_UnstageAll}" FontSize="11"
                                     Command="{Binding UnstageAllCommand}" IsEnabled="{Binding !IsBusy}" />
                         </Grid>
                         <Border BorderBrush="#30808080" BorderThickness="1" CornerRadius="4">
@@ -364,7 +421,7 @@
                                          SelectedItem="{Binding SelectedStagedFile}">
                                     <ListBox.ContextFlyout>
                                         <MenuFlyout>
-                                            <MenuItem Header="Unstage selected" Click="OnUnstageSelectedClick" />
+                                            <MenuItem Header="{loc:Tr Changes_UnstageSelected}" Click="OnUnstageSelectedClick" />
                                         </MenuFlyout>
                                     </ListBox.ContextFlyout>
                                     <ListBox.ItemTemplate>
@@ -378,7 +435,7 @@
                                         </DataTemplate>
                                     </ListBox.ItemTemplate>
                                 </ListBox>
-                                <TextBlock Text="Nothing staged"
+                                <TextBlock Text="{loc:Tr Changes_NothingStaged}"
                                            IsVisible="{Binding !HasStagedFiles}"
                                            HorizontalAlignment="Center" VerticalAlignment="Center"
                                            Opacity="0.35" IsHitTestVisible="False" />
@@ -390,25 +447,25 @@
                 <!-- History: commit list with the lane graph drawn over its left gutter. -->
                 <DockPanel Grid.Column="0" IsVisible="{Binding IsHistoryMode}">
                     <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,4">
-                        <TextBlock Grid.Column="0" Text="History" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="0" Text="{loc:Tr History_Header}" FontWeight="SemiBold" VerticalAlignment="Center" />
                         <TextBlock Grid.Column="1" Text="{Binding StatusText}"
                                    Margin="12,0" VerticalAlignment="Center"
                                    Opacity="0.7" FontSize="11" TextTrimming="CharacterEllipsis" />
                         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                             <Button Classes="header" FontWeight="Normal"
                                     Content="{Binding AuthorFilterLabel}"
-                                    ToolTip.Tip="Show only commits by the ticked authors (multi-select).">
+                                    ToolTip.Tip="{loc:Tr History_AuthorFilter_Tooltip}">
                                 <Button.Flyout>
                                     <Flyout Placement="BottomEdgeAlignedRight">
                                         <StackPanel Width="250" Spacing="6" x:DataType="vm:WorkspaceViewModel">
                                             <Grid ColumnDefinitions="*,Auto">
-                                                <TextBlock Grid.Column="0" Text="SHOW ONLY THESE AUTHORS"
+                                                <TextBlock Grid.Column="0" Text="{loc:Tr History_ShowOnlyAuthors}"
                                                            FontSize="10" Opacity="0.5" VerticalAlignment="Center" />
-                                                <Button Grid.Column="1" Content="Clear" FontSize="11" Padding="8,2"
+                                                <Button Grid.Column="1" Content="{loc:Tr History_Clear}" FontSize="11" Padding="8,2"
                                                         IsEnabled="{Binding HasAuthorFilter}"
                                                         Command="{Binding ClearAuthorFilterCommand}" />
                                             </Grid>
-                                            <TextBox Text="{Binding AuthorFilterSearch}" PlaceholderText="Search authors…"
+                                            <TextBox Text="{Binding AuthorFilterSearch}" PlaceholderText="{loc:Tr History_SearchAuthors}"
                                                      FontSize="12" Padding="6,3" />
                                             <ScrollViewer MaxHeight="280">
                                                 <ItemsControl ItemsSource="{Binding FilteredAuthorFilters}">
@@ -427,18 +484,18 @@
                             </Button>
                             <Button Classes="header" FontWeight="Normal"
                                     Content="{Binding BranchFilterLabel}"
-                                    ToolTip.Tip="Show only commits reachable from the ticked branches (multi-select).">
+                                    ToolTip.Tip="{loc:Tr History_BranchFilter_Tooltip}">
                                 <Button.Flyout>
                                     <Flyout Placement="BottomEdgeAlignedRight">
                                         <StackPanel Width="270" Spacing="6" x:DataType="vm:WorkspaceViewModel">
                                             <Grid ColumnDefinitions="*,Auto">
-                                                <TextBlock Grid.Column="0" Text="SHOW ONLY THESE BRANCHES"
+                                                <TextBlock Grid.Column="0" Text="{loc:Tr History_ShowOnlyBranches}"
                                                            FontSize="10" Opacity="0.5" VerticalAlignment="Center" />
-                                                <Button Grid.Column="1" Content="Clear" FontSize="11" Padding="8,2"
+                                                <Button Grid.Column="1" Content="{loc:Tr History_Clear}" FontSize="11" Padding="8,2"
                                                         IsEnabled="{Binding HasBranchFilter}"
                                                         Command="{Binding ClearBranchFilterCommand}" />
                                             </Grid>
-                                            <TextBox Text="{Binding BranchFilterSearch}" PlaceholderText="Search branches…"
+                                            <TextBox Text="{Binding BranchFilterSearch}" PlaceholderText="{loc:Tr History_SearchBranches}"
                                                      FontSize="12" Padding="6,3" />
                                             <ScrollViewer MaxHeight="280">
                                                 <ItemsControl ItemsSource="{Binding FilteredBranchFilters}">
@@ -456,14 +513,14 @@
                                 </Button.Flyout>
                             </Button>
                             <Button Classes="header"
-                                    Content="↕ Graph order"
+                                    Content="{loc:Tr History_GraphOrder}"
                                     IsVisible="{Binding !ShowGraph}"
                                     Command="{Binding ResetSortCommand}"
-                                    ToolTip.Tip="Drop the sort/filter and return to git's order (which shows the lane graph)." />
-                            <CheckBox Content="First-parent only"
+                                    ToolTip.Tip="{loc:Tr History_GraphOrder_Tooltip}" />
+                            <CheckBox Content="{loc:Tr History_FirstParentOnly}"
                                       FontSize="11"
                                       IsChecked="{Binding FirstParentOnly}"
-                                      ToolTip.Tip="Collapse each merged branch to a single row — what actually landed on this branch." />
+                                      ToolTip.Tip="{loc:Tr History_FirstParentOnly_Tooltip}" />
                         </StackPanel>
                     </Grid>
 
@@ -481,8 +538,8 @@
                                     </Grid.ColumnDefinitions>
 
                                     <!-- Only Author and Date sort; Message and Commit are plain labels. -->
-                                    <TextBlock Grid.Column="0" Text="Message" Margin="4,0" VerticalAlignment="Center"
-                                               FontSize="11" FontWeight="SemiBold" Foreground="#B0FFFFFF" />
+                                    <TextBlock Grid.Column="0" Text="{loc:Tr History_Col_Message}" Margin="4,0" VerticalAlignment="Center"
+                                               FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource SubtleForeground}" />
                                     <Button Grid.Column="1" Classes="header"
                                             Content="{Binding AuthorSortGlyph, StringFormat='Author{0}'}"
                                             Command="{Binding SortByCommand}"
@@ -491,8 +548,8 @@
                                             Content="{Binding DateSortGlyph, StringFormat='Date{0}'}"
                                             Command="{Binding SortByCommand}"
                                             CommandParameter="{x:Static vm:HistorySortColumn.Date}" />
-                                    <TextBlock Grid.Column="3" Text="Commit" Margin="4,0" VerticalAlignment="Center"
-                                               FontSize="11" FontWeight="SemiBold" Foreground="#B0FFFFFF" />
+                                    <TextBlock Grid.Column="3" Text="{loc:Tr History_Col_Commit}" Margin="4,0" VerticalAlignment="Center"
+                                               FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource SubtleForeground}" />
 
                                     <!-- Drag a boundary to resize the two columns it separates; the
                                          header and every row share these widths. The Message|Author
@@ -521,14 +578,14 @@
                                      SelectedItem="{Binding SelectedCommit}">
                                 <ListBox.ContextFlyout>
                                     <MenuFlyout>
-                                        <MenuItem Header="Checkout"
+                                        <MenuItem Header="{loc:Tr History_Ctx_Checkout}"
                                                   Command="{Binding CheckoutCommitCommand}"
-                                                  ToolTip.Tip="Checks out the branch on this commit, or the commit itself (detached HEAD)." />
-                                        <MenuItem Header="Cherry-pick"
+                                                  ToolTip.Tip="{loc:Tr History_Ctx_Checkout_Tooltip}" />
+                                        <MenuItem Header="{loc:Tr History_Ctx_CherryPick}"
                                                   Command="{Binding CherryPickCommand}"
-                                                  ToolTip.Tip="Replay this commit on top of the current branch." />
+                                                  ToolTip.Tip="{loc:Tr History_Ctx_CherryPick_Tooltip}" />
                                         <Separator />
-                                        <MenuItem Header="Copy full SHA" Click="OnCopyShaClick" />
+                                        <MenuItem Header="{loc:Tr History_Ctx_CopySha}" Click="OnCopyShaClick" />
                                     </MenuFlyout>
                                 </ListBox.ContextFlyout>
                                 <ListBox.Styles>
@@ -571,15 +628,16 @@
                                                                     ToolTip.Tip="{Binding Name, StringFormat='{}{0}  ·  double-click to check out, right-click for more'}">
                                                                 <Border.ContextFlyout>
                                                                     <MenuFlyout>
-                                                                        <MenuItem Header="Check out"
+                                                                        <MenuItem Header="{loc:Tr Ref_CheckOut}"
                                                                                   IsVisible="{Binding !IsTag}"
                                                                                   Click="OnCheckoutRefClick" />
-                                                                        <MenuItem Header="Delete branch"
+                                                                        <MenuItem Header="{loc:Tr Ref_DeleteBranch}"
                                                                                   IsVisible="{Binding IsLocalBranch}"
                                                                                   Click="OnDeleteBranchClick" />
                                                                     </MenuFlyout>
                                                                 </Border.ContextFlyout>
                                                                 <TextBlock Text="{Binding Name}" FontSize="10"
+                                                                           Foreground="White"
                                                                            TextTrimming="CharacterEllipsis" />
                                                             </Border>
                                                         </DataTemplate>
@@ -602,10 +660,10 @@
                                             <Button Grid.Column="3" Classes="header"
                                                     Content="{Binding ShortSha}"
                                                     FontFamily="Cascadia Mono,Consolas,monospace"
-                                                    FontWeight="Normal" Foreground="#8CFFFFFF"
+                                                    FontWeight="Normal" Foreground="{DynamicResource FaintForeground}"
                                                     VerticalAlignment="Center"
                                                     Click="OnCopyShaCellClick"
-                                                    ToolTip.Tip="Click to copy the full SHA" />
+                                                    ToolTip.Tip="{loc:Tr History_Sha_Tooltip}" />
                                         </Grid>
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
@@ -620,7 +678,7 @@
                                                    VerticalAlignment="Stretch"
                                                    IsHitTestVisible="False" />
 
-                            <TextBlock Text="No commits yet."
+                            <TextBlock Text="{loc:Tr History_NoCommits}"
                                        IsVisible="{Binding !HasCommits}"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"
                                        Opacity="0.35" IsHitTestVisible="False" />
@@ -652,7 +710,7 @@
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
                             </ListBox>
-                            <TextBlock Text="No files changed"
+                            <TextBlock Text="{loc:Tr Diff_NoFilesChanged}"
                                        IsVisible="{Binding !HasCommitFiles}"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"
                                        Opacity="0.35" IsHitTestVisible="False" />
@@ -669,7 +727,7 @@
                                Margin="0,0,0,4"
                                FontWeight="SemiBold"
                                Opacity="0.6"
-                               Text="Diff"
+                               Text="{loc:Tr Diff_Header}"
                                IsVisible="{Binding !HasDiff}" />
 
                     <Border BorderBrush="#30808080" BorderThickness="1" CornerRadius="4" ClipToBounds="True">
@@ -698,7 +756,7 @@
                      MinHeight="56"
                      AcceptsReturn="True"
                      TextWrapping="Wrap"
-                     PlaceholderText="Commit message"
+                     PlaceholderText="{loc:Tr Commit_MessagePlaceholder}"
                      Text="{Binding CommitMessage}"
                      IsVisible="{Binding !IsHistoryMode}"
                      IsEnabled="{Binding !IsBusy}" />
@@ -706,49 +764,49 @@
             <Grid Grid.Row="3" ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto" Margin="0,8,0,0"
                   IsVisible="{Binding !IsHistoryMode}">
                 <!-- Commit (staged) plus a menu of the variants — amend, commit-all, sign-off, undo. -->
-                <Button Grid.Column="0" Classes="success" Content="Commit"
+                <Button Grid.Column="0" Classes="success" Content="{loc:Tr Commit_Commit}"
                         Command="{Binding CommitCommand}" IsEnabled="{Binding CanCommit}" />
                 <Button Grid.Column="1" Classes="success" Content="▾" Margin="3,0,0,0"
-                        IsEnabled="{Binding !IsBusy}" ToolTip.Tip="More commit options">
+                        IsEnabled="{Binding !IsBusy}" ToolTip.Tip="{loc:Tr Commit_MoreOptions_Tooltip}">
                     <Button.Flyout>
                         <MenuFlyout Placement="Top">
-                            <MenuItem Header="Commit All" Command="{Binding CommitAllCommand}"
-                                      ToolTip.Tip="Stage every change, then commit" />
+                            <MenuItem Header="{loc:Tr Commit_CommitAll}" Command="{Binding CommitAllCommand}"
+                                      ToolTip.Tip="{loc:Tr Commit_CommitAll_Tooltip}" />
                             <Separator />
-                            <MenuItem Header="Commit (Amend)" Command="{Binding CommitAmendCommand}"
-                                      ToolTip.Tip="Replace the last commit with the staged changes; an empty message keeps the old one" />
-                            <MenuItem Header="Commit All (Amend)" Command="{Binding CommitAllAmendCommand}"
-                                      ToolTip.Tip="Stage everything, then amend the last commit" />
+                            <MenuItem Header="{loc:Tr Commit_Amend}" Command="{Binding CommitAmendCommand}"
+                                      ToolTip.Tip="{loc:Tr Commit_Amend_Tooltip}" />
+                            <MenuItem Header="{loc:Tr Commit_AllAmend}" Command="{Binding CommitAllAmendCommand}"
+                                      ToolTip.Tip="{loc:Tr Commit_AllAmend_Tooltip}" />
                             <Separator />
-                            <MenuItem Header="Commit (Signed Off)" Command="{Binding CommitSignedOffCommand}"
-                                      ToolTip.Tip="Commit staged changes with a Signed-off-by trailer" />
+                            <MenuItem Header="{loc:Tr Commit_SignedOff}" Command="{Binding CommitSignedOffCommand}"
+                                      ToolTip.Tip="{loc:Tr Commit_SignedOff_Tooltip}" />
                             <Separator />
-                            <MenuItem Header="Undo Last Commit" Command="{Binding UndoLastCommitCommand}"
-                                      ToolTip.Tip="Move HEAD back one commit, keeping its changes staged" />
+                            <MenuItem Header="{loc:Tr Commit_UndoLast}" Command="{Binding UndoLastCommitCommand}"
+                                      ToolTip.Tip="{loc:Tr Commit_UndoLast_Tooltip}" />
                         </MenuFlyout>
                     </Button.Flyout>
                 </Button>
 
                 <!-- ✨ AI: draft the message from the staged diff using the local Ollama model. -->
-                <Button Grid.Column="2" Content="✨ Generate" Margin="8,0,0,0"
+                <Button Grid.Column="2" Content="{loc:Tr Commit_Generate}" Margin="8,0,0,0"
                         Command="{Binding GenerateCommitMessageCommand}" IsEnabled="{Binding HasStagedFiles}"
-                        ToolTip.Tip="Draft a commit message from the staged diff (runs locally — nothing leaves your machine)" />
+                        ToolTip.Tip="{loc:Tr Commit_Generate_Tooltip}" />
 
                 <!-- ⚙ Commit template + AI settings, edited in a flyout and saved immediately. -->
-                <Button Grid.Column="3" Content="⚙" Margin="4,0,0,0" ToolTip.Tip="Commit template &amp; AI settings">
+                <Button Grid.Column="3" Content="⚙" Margin="4,0,0,0" ToolTip.Tip="{loc:Tr Commit_Settings_Tooltip}">
                     <Button.Flyout>
                         <Flyout Placement="Top">
                             <StackPanel Width="380" Spacing="8" x:DataType="vm:WorkspaceViewModel">
-                                <TextBlock Text="COMMIT TEMPLATE" FontSize="10" Opacity="0.5" />
+                                <TextBlock Text="{loc:Tr CommitSettings_TemplateHeader}" FontSize="10" Opacity="0.5" />
                                 <TextBox AcceptsReturn="True" TextWrapping="Wrap" MinHeight="70"
-                                         PlaceholderText="Pre-filled into every new commit…"
+                                         PlaceholderText="{loc:Tr CommitSettings_TemplatePlaceholder}"
                                          Text="{Binding CommitTemplate, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" />
                                 <Separator Margin="0,2" />
 
-                                <TextBlock Text="AI ENGINE" FontSize="10" Opacity="0.5" />
+                                <TextBlock Text="{loc:Tr CommitSettings_AiEngineHeader}" FontSize="10" Opacity="0.5" />
                                 <ComboBox HorizontalAlignment="Stretch" SelectedIndex="{Binding AiEngineIndex, Mode=TwoWay}">
-                                    <ComboBoxItem Content="Built-in local model (no installs)" />
-                                    <ComboBoxItem Content="Ollama server" />
+                                    <ComboBoxItem Content="{loc:Tr CommitSettings_Engine_Builtin}" />
+                                    <ComboBoxItem Content="{loc:Tr CommitSettings_Engine_Ollama}" />
                                 </ComboBox>
 
                                 <!-- Built-in engine: pick a model from the catalog, download once, done. -->
@@ -765,7 +823,7 @@
                                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                                         <TextBlock Grid.Column="0" Text="{Binding BuiltinModelStatus}"
                                                    FontSize="12" Opacity="0.7" VerticalAlignment="Center" />
-                                        <Button Grid.Column="1" Classes="primary" Content="Download" FontSize="12" Padding="10,3"
+                                        <Button Grid.Column="1" Classes="primary" Content="{loc:Tr CommitSettings_Download}" FontSize="12" Padding="10,3"
                                                 IsVisible="{Binding NeedsModelDownload}"
                                                 Command="{Binding DownloadModelCommand}" />
                                     </Grid>
@@ -777,16 +835,16 @@
                                 <!-- Ollama engine: point at an existing server. -->
                                 <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" RowDefinitions="Auto,Auto" RowSpacing="6"
                                       IsVisible="{Binding UseOllamaEngine}">
-                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Server" FontSize="12" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="{loc:Tr CommitSettings_Server}" FontSize="12" VerticalAlignment="Center" />
                                     <TextBox Grid.Row="0" Grid.Column="1" FontSize="12" Padding="6,3"
                                              Text="{Binding OllamaUrl, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" />
-                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Model" FontSize="12" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="{loc:Tr CommitSettings_Model}" FontSize="12" VerticalAlignment="Center" />
                                     <TextBox Grid.Row="1" Grid.Column="1" FontSize="12" Padding="6,3"
-                                             PlaceholderText="e.g. llama3.2, qwen2.5-coder"
+                                             PlaceholderText="{loc:Tr CommitSettings_ModelPlaceholder}"
                                              Text="{Binding OllamaModel, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" />
                                 </Grid>
 
-                                <TextBlock Text="✨ Generate runs locally either way — nothing leaves your machine. Changes save automatically."
+                                <TextBlock Text="{loc:Tr CommitSettings_LocalNote}"
                                            FontSize="10" Opacity="0.4" TextWrapping="Wrap" />
                             </StackPanel>
                         </Flyout>
@@ -794,11 +852,11 @@
                 </Button>
 
                 <TextBlock Grid.Column="4"
-                           Text="✓ Working tree clean"
+                           Text="{loc:Tr Status_WorkingTreeClean}"
                            IsVisible="{Binding IsCleanTree}"
                            Margin="12,0,0,0"
                            VerticalAlignment="Center"
-                           Foreground="#4CAF50"
+                           Foreground="{DynamicResource GreenBrush}"
                            Opacity="0.8" />
                 <TextBlock Grid.Column="5"
                            Text="{Binding StatusText}"
@@ -807,9 +865,9 @@
                            Opacity="0.7"
                            TextTrimming="CharacterEllipsis" />
                 <!-- Discard all: destructive, so red and confirmed. -->
-                <Button Grid.Column="6" Classes="danger" Content="Discard all"
+                <Button Grid.Column="6" Classes="danger" Content="{loc:Tr Status_DiscardAll}"
                         Command="{Binding DiscardAllCommand}" IsEnabled="{Binding !IsCleanTree}"
-                        ToolTip.Tip="Throw away all uncommitted changes (reset --hard)" />
+                        ToolTip.Tip="{loc:Tr Status_DiscardAll_Tooltip}" />
             </Grid>
 
             <Grid Grid.Row="4" Margin="0,10,0,0" ColumnDefinitions="*,Auto">
@@ -823,42 +881,42 @@
                 <!-- File-status legend: the same letters/colours shown beside each changed file,
                      so the code (green A, amber M, red D, blue R/C, orange U, grey ?) is on screen. -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="11" VerticalAlignment="Center"
-                            ToolTip.Tip="What the coloured letter beside each file means">
+                            ToolTip.Tip="{loc:Tr Legend_Tooltip}">
                     <StackPanel Orientation="Horizontal" Spacing="3">
                         <TextBlock Text="A" FontSize="11" FontWeight="SemiBold"
                                    FontFamily="Cascadia Mono,Consolas,monospace"
-                                   Foreground="{x:Static conv:FileStatusBrushConverter.AddedBrush}" />
-                        <TextBlock Text="Added" FontSize="11" Opacity="0.5" />
+                                   Foreground="{DynamicResource FileStatusAddedBrush}" />
+                        <TextBlock Text="{loc:Tr Legend_Added}" FontSize="11" Opacity="0.5" />
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Spacing="3">
                         <TextBlock Text="M" FontSize="11" FontWeight="SemiBold"
                                    FontFamily="Cascadia Mono,Consolas,monospace"
-                                   Foreground="{x:Static conv:FileStatusBrushConverter.ModifiedBrush}" />
-                        <TextBlock Text="Modified" FontSize="11" Opacity="0.5" />
+                                   Foreground="{DynamicResource FileStatusModifiedBrush}" />
+                        <TextBlock Text="{loc:Tr Legend_Modified}" FontSize="11" Opacity="0.5" />
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Spacing="3">
                         <TextBlock Text="D" FontSize="11" FontWeight="SemiBold"
                                    FontFamily="Cascadia Mono,Consolas,monospace"
-                                   Foreground="{x:Static conv:FileStatusBrushConverter.DeletedBrush}" />
-                        <TextBlock Text="Deleted" FontSize="11" Opacity="0.5" />
+                                   Foreground="{DynamicResource FileStatusDeletedBrush}" />
+                        <TextBlock Text="{loc:Tr Legend_Deleted}" FontSize="11" Opacity="0.5" />
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Spacing="3">
                         <TextBlock Text="R" FontSize="11" FontWeight="SemiBold"
                                    FontFamily="Cascadia Mono,Consolas,monospace"
-                                   Foreground="{x:Static conv:FileStatusBrushConverter.MovedBrush}" />
-                        <TextBlock Text="Renamed" FontSize="11" Opacity="0.5" />
+                                   Foreground="{DynamicResource FileStatusMovedBrush}" />
+                        <TextBlock Text="{loc:Tr Legend_Renamed}" FontSize="11" Opacity="0.5" />
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Spacing="3">
                         <TextBlock Text="U" FontSize="11" FontWeight="SemiBold"
                                    FontFamily="Cascadia Mono,Consolas,monospace"
-                                   Foreground="{x:Static conv:FileStatusBrushConverter.ConflictBrush}" />
-                        <TextBlock Text="Conflict" FontSize="11" Opacity="0.5" />
+                                   Foreground="{DynamicResource FileStatusConflictBrush}" />
+                        <TextBlock Text="{loc:Tr Legend_Conflict}" FontSize="11" Opacity="0.5" />
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Spacing="3">
                         <TextBlock Text="?" FontSize="11" FontWeight="SemiBold"
                                    FontFamily="Cascadia Mono,Consolas,monospace"
-                                   Foreground="{x:Static conv:FileStatusBrushConverter.NeutralBrush}" />
-                        <TextBlock Text="Untracked" FontSize="11" Opacity="0.5" />
+                                   Foreground="{DynamicResource FileStatusNeutralBrush}" />
+                        <TextBlock Text="{loc:Tr Legend_Untracked}" FontSize="11" Opacity="0.5" />
                     </StackPanel>
                 </StackPanel>
             </Grid>

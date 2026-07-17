@@ -48,6 +48,9 @@ public partial class WorkspaceViewModel : ViewModelBase
     private readonly ISettingsService? _settings;
     private readonly ICommitMessageGenerator? _ai;
 
+    /// <summary>Shorthand for the app string table (transient status text, resolved in the current language).</summary>
+    private static LocalizationService Loc => LocalizationService.Instance;
+
     public WorkspaceViewModel(
         IGitService git,
         RepositoryItem repository,
@@ -195,7 +198,7 @@ public partial class WorkspaceViewModel : ViewModelBase
 
         IsDownloadingModel = true;
         ModelDownloadProgress = 0;
-        StatusText = $"Downloading {preset.FileName}…";
+        StatusText = string.Format(Loc["Status_DownloadingModel"], preset.FileName);
         try
         {
             var progress = new Progress<double>(fraction =>
@@ -203,11 +206,11 @@ public partial class WorkspaceViewModel : ViewModelBase
                 ModelDownloadProgress = fraction * 100;
             });
             await new ModelDownloader().DownloadAsync(preset, progress);
-            StatusText = "Model downloaded — ✨ Generate is ready.";
+            StatusText = Loc["Status_ModelDownloaded"];
         }
         catch (Exception ex)
         {
-            StatusText = $"Download failed: {ex.Message}";
+            StatusText = string.Format(Loc["Status_DownloadFailed"], ex.Message);
         }
         finally
         {
@@ -321,8 +324,8 @@ public partial class WorkspaceViewModel : ViewModelBase
     public partial bool IsHistoryMode { get; set; }
 
     public string DiffEmptyHint => IsHistoryMode
-        ? "Select a commit to see what it changed."
-        : "Select a changed file to see its diff.";
+        ? Loc["Diff_SelectCommit"]
+        : Loc["Diff_SelectFile"];
 
     public string FooterHint => IsHistoryMode
         ? "Click a commit to see its changes · Esc back to the palette"
@@ -813,7 +816,7 @@ public partial class WorkspaceViewModel : ViewModelBase
         // branch sits on this commit, check that out instead.
         var target = commit.Refs.FirstOrDefault(r => r.Kind == GitRefKind.LocalBranch)?.Name ?? commit.Sha;
 
-        return GuardedCheckout(target, $"Checked out {target}");
+        return GuardedCheckout(target, string.Format(Loc["Status_CheckedOut"], target));
     }
 
     /// <summary>
@@ -833,7 +836,7 @@ public partial class WorkspaceViewModel : ViewModelBase
             ? reference.Name[(reference.Name.IndexOf('/') + 1)..]
             : reference.Name;
 
-        return GuardedCheckout(target, $"Checked out {target}");
+        return GuardedCheckout(target, string.Format(Loc["Status_CheckedOut"], target));
     }
 
     /// <summary>
@@ -872,7 +875,7 @@ public partial class WorkspaceViewModel : ViewModelBase
         var name = reference.Name;
         if (string.Equals(name, BranchName, StringComparison.Ordinal))
         {
-            StatusText = $"'{name}' is the current branch — switch away before deleting it.";
+            StatusText = string.Format(Loc["Status_CurrentBranchDelete"], name);
             return;
         }
 
@@ -888,7 +891,7 @@ public partial class WorkspaceViewModel : ViewModelBase
             force = choice.Value;
         }
 
-        await RunAsync(() => _git.DeleteBranchAsync(Repository.Path, name, force), $"Deleted {name}");
+        await RunAsync(() => _git.DeleteBranchAsync(Repository.Path, name, force), string.Format(Loc["Status_Deleted"], name));
     }
 
     [RelayCommand]
@@ -922,7 +925,7 @@ public partial class WorkspaceViewModel : ViewModelBase
         CommitFiles.Clear();
         HasCommitFiles = false;
         DiffPath = string.Empty;
-        DiffText = "Loading…";
+        DiffText = Loc["Diff_Loading"];
 
         try
         {
@@ -940,7 +943,7 @@ public partial class WorkspaceViewModel : ViewModelBase
             SelectedCommitFile = CommitFiles.FirstOrDefault();   // fires the file diff load
             if (SelectedCommitFile is null)
             {
-                DiffText = "(no textual changes)";
+                DiffText = Loc["Diff_NoTextualChanges"];
             }
         }
         catch (GitException ex)
@@ -962,7 +965,7 @@ public partial class WorkspaceViewModel : ViewModelBase
     private async Task ShowCommitFileDiffAsync(string sha, CommitFileEntry file)
     {
         DiffPath = file.Path;
-        DiffText = "Loading…";
+        DiffText = Loc["Diff_Loading"];
 
         try
         {
@@ -1026,7 +1029,7 @@ public partial class WorkspaceViewModel : ViewModelBase
         entry ??= SelectedUnstagedFile;
         return entry is null
             ? Task.CompletedTask
-            : RunAsync(() => _git.StageAsync(Repository.Path, entry.Path), $"Staged {entry.Path}");
+            : RunAsync(() => _git.StageAsync(Repository.Path, entry.Path), string.Format(Loc["Status_Staged"], entry.Path));
     }
 
     [RelayCommand]
@@ -1035,7 +1038,7 @@ public partial class WorkspaceViewModel : ViewModelBase
         entry ??= SelectedStagedFile;
         return entry is null
             ? Task.CompletedTask
-            : RunAsync(() => _git.UnstageAsync(Repository.Path, entry.Path), $"Unstaged {entry.Path}");
+            : RunAsync(() => _git.UnstageAsync(Repository.Path, entry.Path), string.Format(Loc["Status_Unstaged"], entry.Path));
     }
 
     /// <summary>Stages every file in one batch — the multi-select action from the Unstaged list.</summary>
@@ -1043,14 +1046,18 @@ public partial class WorkspaceViewModel : ViewModelBase
         files.Count == 0
             ? Task.CompletedTask
             : RunAsync(() => StageOrUnstageAllAsync(files, stage: true),
-                files.Count == 1 ? $"Staged {files[0].Path}" : $"Staged {files.Count} files");
+                files.Count == 1
+                    ? string.Format(Loc["Status_Staged"], files[0].Path)
+                    : string.Format(Loc["Status_StagedFiles"], files.Count));
 
     /// <summary>Unstages every file in one batch — the multi-select action from the Staged list.</summary>
     public Task UnstageFiles(IReadOnlyList<GitStatusEntry> files) =>
         files.Count == 0
             ? Task.CompletedTask
             : RunAsync(() => StageOrUnstageAllAsync(files, stage: false),
-                files.Count == 1 ? $"Unstaged {files[0].Path}" : $"Unstaged {files.Count} files");
+                files.Count == 1
+                    ? string.Format(Loc["Status_Unstaged"], files[0].Path)
+                    : string.Format(Loc["Status_UnstagedFiles"], files.Count));
 
     private async Task<GitCommandResult> StageOrUnstageAllAsync(IReadOnlyList<GitStatusEntry> files, bool stage)
     {
@@ -1072,10 +1079,10 @@ public partial class WorkspaceViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private Task StageAll() => RunAsync(() => _git.StageAllAsync(Repository.Path), "Staged all changes");
+    private Task StageAll() => RunAsync(() => _git.StageAllAsync(Repository.Path), Loc["Status_StagedAll"]);
 
     [RelayCommand]
-    private Task UnstageAll() => RunAsync(() => _git.UnstageAllAsync(Repository.Path), "Unstaged everything");
+    private Task UnstageAll() => RunAsync(() => _git.UnstageAllAsync(Repository.Path), Loc["Status_UnstagedAll"]);
 
     /// <summary>✨ — draft a commit message from the staged diff using the local Ollama model.</summary>
     [RelayCommand]
@@ -1083,13 +1090,13 @@ public partial class WorkspaceViewModel : ViewModelBase
     {
         if (_ai is null || _settings is null)
         {
-            StatusText = "AI generation isn't available.";
+            StatusText = Loc["Status_AiUnavailable"];
             return;
         }
 
         if (!HasStagedFiles)
         {
-            StatusText = "Stage some changes first, then generate.";
+            StatusText = Loc["Status_StageFirst"];
             return;
         }
 
@@ -1099,19 +1106,19 @@ public partial class WorkspaceViewModel : ViewModelBase
         }
 
         IsBusy = true;
-        StatusText = "Generating a commit message…";
+        StatusText = Loc["Status_Generating"];
         try
         {
             var diff = await _git.GetStagedDiffAsync(Repository.Path);
             var message = await _ai.GenerateAsync(diff);
             if (string.IsNullOrWhiteSpace(message))
             {
-                StatusText = "The model returned an empty message.";
+                StatusText = Loc["Status_EmptyMessage"];
             }
             else
             {
                 CommitMessage = message.Trim();
-                StatusText = "Generated a message — review before committing.";
+                StatusText = Loc["Status_Generated"];
             }
         }
         catch (Exception ex)
@@ -1133,10 +1140,10 @@ public partial class WorkspaceViewModel : ViewModelBase
         }
 
         var message = CommitMessage;
-        await RunAsync(() => _git.CommitAsync(Repository.Path, message), "Committed");
+        await RunAsync(() => _git.CommitAsync(Repository.Path, message), Loc["Status_Committed"]);
 
         // Only clear the box on success (a failed commit keeps the message for the retry).
-        if (StatusText == "Committed")
+        if (StatusText == Loc["Status_Committed"])
         {
             CommitMessage = TemplateOrEmpty;
         }
@@ -1148,7 +1155,7 @@ public partial class WorkspaceViewModel : ViewModelBase
     {
         if (string.IsNullOrWhiteSpace(CommitMessage))
         {
-            StatusText = "Enter a commit message first.";
+            StatusText = Loc["Status_EnterMessageFirst"];
             return;
         }
 
@@ -1159,9 +1166,9 @@ public partial class WorkspaceViewModel : ViewModelBase
                 var staged = await _git.StageAllAsync(Repository.Path);
                 return staged.Succeeded ? await _git.CommitAsync(Repository.Path, message) : staged;
             },
-            "Committed all changes");
+            Loc["Status_CommittedAll"]);
 
-        if (StatusText == "Committed all changes")
+        if (StatusText == Loc["Status_CommittedAll"])
         {
             CommitMessage = TemplateOrEmpty;
         }
@@ -1177,9 +1184,9 @@ public partial class WorkspaceViewModel : ViewModelBase
         }
 
         var message = CommitMessage;
-        await RunAsync(() => _git.CommitAsync(Repository.Path, message, signOff: true), "Committed (signed off)");
+        await RunAsync(() => _git.CommitAsync(Repository.Path, message, signOff: true), Loc["Status_CommittedSignedOff"]);
 
-        if (StatusText == "Committed (signed off)")
+        if (StatusText == Loc["Status_CommittedSignedOff"])
         {
             CommitMessage = TemplateOrEmpty;
         }
@@ -1191,9 +1198,9 @@ public partial class WorkspaceViewModel : ViewModelBase
     {
         var message = CommitMessage;
         var reworded = !string.IsNullOrWhiteSpace(message);
-        await RunAsync(() => _git.CommitAmendAsync(Repository.Path, reworded ? message : null), "Amended last commit");
+        await RunAsync(() => _git.CommitAmendAsync(Repository.Path, reworded ? message : null), Loc["Status_AmendedLast"]);
 
-        if (reworded && StatusText == "Amended last commit")
+        if (reworded && StatusText == Loc["Status_AmendedLast"])
         {
             CommitMessage = TemplateOrEmpty;
         }
@@ -1213,9 +1220,9 @@ public partial class WorkspaceViewModel : ViewModelBase
                     ? await _git.CommitAmendAsync(Repository.Path, reworded ? message : null)
                     : staged;
             },
-            "Amended last commit");
+            Loc["Status_AmendedLast"]);
 
-        if (reworded && StatusText == "Amended last commit")
+        if (reworded && StatusText == Loc["Status_AmendedLast"])
         {
             CommitMessage = TemplateOrEmpty;
         }
@@ -1224,7 +1231,7 @@ public partial class WorkspaceViewModel : ViewModelBase
     /// <summary>Undo the last commit, keeping its changes staged so nothing is lost.</summary>
     [RelayCommand]
     private Task UndoLastCommit() =>
-        RunAsync(() => _git.UndoLastCommitAsync(Repository.Path), "Undid last commit");
+        RunAsync(() => _git.UndoLastCommitAsync(Repository.Path), Loc["Status_UndidLastCommit"]);
 
     /// <summary>
     /// Set by the View: confirms discarding every change. Returns null to cancel, else whether to
@@ -1238,7 +1245,7 @@ public partial class WorkspaceViewModel : ViewModelBase
     {
         if (IsCleanTree)
         {
-            StatusText = "Nothing to discard.";
+            StatusText = Loc["Status_NothingToDiscard"];
             return;
         }
 
@@ -1254,7 +1261,7 @@ public partial class WorkspaceViewModel : ViewModelBase
             includeUntracked = choice.Value;
         }
 
-        await RunAsync(() => _git.DiscardAllAsync(Repository.Path, includeUntracked), "Discarded all changes");
+        await RunAsync(() => _git.DiscardAllAsync(Repository.Path, includeUntracked), Loc["Status_DiscardedAll"]);
     }
 
     /// <summary>
@@ -1280,7 +1287,9 @@ public partial class WorkspaceViewModel : ViewModelBase
             }
         }
 
-        var label = files.Count == 1 ? $"Discarded {files[0].Path}" : $"Discarded {files.Count} files";
+        var label = files.Count == 1
+            ? string.Format(Loc["Status_Discarded"], files[0].Path)
+            : string.Format(Loc["Status_DiscardedFiles"], files.Count);
         await RunAsync(() => DiscardEachAsync(files), label);
     }
 
@@ -1303,23 +1312,23 @@ public partial class WorkspaceViewModel : ViewModelBase
 
     [RelayCommand]
     private Task Fetch() =>
-        RunAsync(() => _git.FetchAsync(Repository.Path, Progress()), "Fetched");
+        RunAsync(() => _git.FetchAsync(Repository.Path, Progress()), Loc["Status_Fetched"]);
 
     [RelayCommand]
     private Task FetchPrune() =>
-        RunAsync(() => _git.FetchPruneAsync(Repository.Path, Progress()), "Fetched (pruned)");
+        RunAsync(() => _git.FetchPruneAsync(Repository.Path, Progress()), Loc["Status_FetchedPruned"]);
 
     [RelayCommand]
     private Task FetchAll() =>
-        RunAsync(() => _git.FetchAllAsync(Repository.Path, Progress()), "Fetched all remotes");
+        RunAsync(() => _git.FetchAllAsync(Repository.Path, Progress()), Loc["Status_FetchedAll"]);
 
     [RelayCommand]
     private Task Pull() =>
-        RunAsync(() => _git.PullAsync(Repository.Path, Progress()), "Pulled");
+        RunAsync(() => _git.PullAsync(Repository.Path, Progress()), Loc["Status_Pulled"]);
 
     [RelayCommand]
     private Task PullRebase() =>
-        RunAsync(() => _git.PullRebaseAsync(Repository.Path, Progress()), "Pulled (rebase)");
+        RunAsync(() => _git.PullRebaseAsync(Repository.Path, Progress()), Loc["Status_PulledRebase"]);
 
     [RelayCommand]
     private async Task PullFrom()
@@ -1327,7 +1336,7 @@ public partial class WorkspaceViewModel : ViewModelBase
         var remotes = await _git.GetRemotesAsync(Repository.Path);
         if (remotes.Count == 0)
         {
-            StatusText = "No remotes configured.";
+            StatusText = Loc["Status_NoRemotes"];
             return;
         }
 
@@ -1349,7 +1358,7 @@ public partial class WorkspaceViewModel : ViewModelBase
 
     [RelayCommand]
     private Task Push() =>
-        RunAsync(() => _git.PushAsync(Repository.Path, Progress()), "Pushed");
+        RunAsync(() => _git.PushAsync(Repository.Path, Progress()), Loc["Status_Pushed"]);
 
     [RelayCommand]
     private async Task PushTo()
@@ -1357,7 +1366,7 @@ public partial class WorkspaceViewModel : ViewModelBase
         var remotes = await _git.GetRemotesAsync(Repository.Path);
         if (remotes.Count == 0)
         {
-            StatusText = "No remotes configured.";
+            StatusText = Loc["Status_NoRemotes"];
             return;
         }
 
@@ -1386,7 +1395,7 @@ public partial class WorkspaceViewModel : ViewModelBase
             return;
         }
 
-        await RunAsync(() => _git.CreateBranchAsync(Repository.Path, name), $"Created and switched to {name}");
+        await RunAsync(() => _git.CreateBranchAsync(Repository.Path, name), string.Format(Loc["Status_CreatedBranch"], name));
         NewBranchName = string.Empty;
     }
 
@@ -1398,7 +1407,7 @@ public partial class WorkspaceViewModel : ViewModelBase
             return Task.CompletedTask;
         }
 
-        return GuardedCheckout(branch.Name, $"Switched to {branch.Name}");
+        return GuardedCheckout(branch.Name, string.Format(Loc["Status_SwitchedTo"], branch.Name));
     }
 
     [RelayCommand]
@@ -1409,7 +1418,7 @@ public partial class WorkspaceViewModel : ViewModelBase
             return Task.CompletedTask;
         }
 
-        return RunAsync(() => _git.DeleteBranchAsync(Repository.Path, branch.Name), $"Deleted {branch.Name}");
+        return RunAsync(() => _git.DeleteBranchAsync(Repository.Path, branch.Name), string.Format(Loc["Status_Deleted"], branch.Name));
     }
 
     [RelayCommand]
@@ -1420,11 +1429,11 @@ public partial class WorkspaceViewModel : ViewModelBase
             return Task.CompletedTask;
         }
 
-        return RunAsync(() => _git.MergeAsync(Repository.Path, branch.Name), $"Merged {branch.Name}");
+        return RunAsync(() => _git.MergeAsync(Repository.Path, branch.Name), string.Format(Loc["Status_Merged"], branch.Name));
     }
 
     [RelayCommand]
-    private Task StashPush() => RunAsync(() => _git.StashPushAsync(Repository.Path), "Stashed changes");
+    private Task StashPush() => RunAsync(() => _git.StashPushAsync(Repository.Path), Loc["Status_Stashed"]);
 
     [RelayCommand]
     private Task StashPop()
@@ -1434,7 +1443,7 @@ public partial class WorkspaceViewModel : ViewModelBase
             return Task.CompletedTask;
         }
 
-        return RunAsync(() => _git.StashPopAsync(Repository.Path), "Popped stash");
+        return RunAsync(() => _git.StashPopAsync(Repository.Path), Loc["Status_PoppedStash"]);
     }
 
     // Selecting in one list clears the other, so the diff always corresponds to exactly one file.
@@ -1463,7 +1472,7 @@ public partial class WorkspaceViewModel : ViewModelBase
     private async Task ShowDiffAsync(GitStatusEntry entry, bool staged)
     {
         DiffPath = entry.Path;
-        DiffText = "Loading…";
+        DiffText = Loc["Diff_Loading"];
 
         try
         {
@@ -1507,7 +1516,7 @@ public partial class WorkspaceViewModel : ViewModelBase
         }
 
         IsBusy = true;
-        StatusText = "Working…";
+        StatusText = Loc["Status_Working"];
 
         try
         {

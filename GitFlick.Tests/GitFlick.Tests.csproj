@@ -12,6 +12,12 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+    <!-- Headless UI harness: drives the live {loc:Tr} binding refresh on a real Avalonia dispatcher.
+         Plain Avalonia.Headless (not the .XUnit integration, which would drag in xUnit v3). Avalonia +
+         Fluent are referenced explicitly so the test can name binding/control/theme types at compile time. -->
+    <PackageReference Include="Avalonia" Version="12.1.0" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.0" />
+    <PackageReference Include="Avalonia.Headless" Version="12.1.0" />
   </ItemGroup>
 
   <ItemGroup>

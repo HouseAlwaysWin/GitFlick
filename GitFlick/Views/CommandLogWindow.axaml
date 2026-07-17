@@ -3,9 +3,10 @@
         xmlns:vm="using:GitFlick.ViewModels"
         xmlns:services="using:GitFlick.Services"
         xmlns:conv="using:GitFlick.Converters"
+        xmlns:loc="using:GitFlick.Markup"
         x:Class="GitFlick.Views.CommandLogWindow"
         x:DataType="vm:WorkspaceViewModel"
-        Title="Git command log"
+        Title="{loc:Tr CmdLog_Title}"
         Icon="/Assets/gitflick.ico"
         Width="780" Height="500"
         MinWidth="420" MinHeight="220"
@@ -13,13 +14,13 @@
 
     <DockPanel Margin="14">
         <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto,Auto,Auto" Margin="0,0,0,10">
-            <TextBlock Grid.Column="0" Text="Every git command GitFlick has run"
+            <TextBlock Grid.Column="0" Text="{loc:Tr CmdLog_Header}"
                        FontWeight="SemiBold" VerticalAlignment="Center" />
-            <Button Grid.Column="1" Content="Refresh" Click="OnRefreshClick"
-                    ToolTip.Tip="Pull in the latest commands" />
-            <Button Grid.Column="2" Content="Copy" Margin="6,0,0,0" Click="OnCopyClick"
+            <Button Grid.Column="1" Content="{loc:Tr CmdLog_Refresh}" Click="OnRefreshClick"
+                    ToolTip.Tip="{loc:Tr CmdLog_Refresh_Tooltip}" />
+            <Button Grid.Column="2" Content="{loc:Tr CmdLog_Copy}" Margin="6,0,0,0" Click="OnCopyClick"
                     IsEnabled="{Binding HasCommandLog}" />
-            <Button Grid.Column="3" Content="Clear" Margin="6,0,0,0"
+            <Button Grid.Column="3" Content="{loc:Tr CmdLog_Clear}" Margin="6,0,0,0"
                     Command="{Binding ClearCommandLogCommand}" IsEnabled="{Binding HasCommandLog}" />
         </Grid>
 
@@ -46,7 +47,7 @@
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
                 </ScrollViewer>
-                <TextBlock Text="No commands run yet." IsVisible="{Binding !HasCommandLog}"
+                <TextBlock Text="{loc:Tr CmdLog_None}" IsVisible="{Binding !HasCommandLog}"
                            HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.4" />
             </Panel>
         </Border>

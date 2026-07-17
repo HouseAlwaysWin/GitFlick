@@ -16,6 +16,9 @@ public partial class MainViewModel : ViewModelBase
     private readonly ICommitMessageGenerator _ai;
     private readonly List<RepositoryItem> _pinned = [];
 
+    /// <summary>Shorthand for the app string table (palette status text, resolved in the current language).</summary>
+    private static LocalizationService Loc => LocalizationService.Instance;
+
     /// <summary>
     /// Shown when the global hotkey could not be registered (e.g. another app owns it).
     /// Empty means the hotkey is live.
@@ -81,6 +84,9 @@ public partial class MainViewModel : ViewModelBase
         ReloadPinned();
     }
 
+    /// <summary>The settings store — used by the palette ⚙ to build a <see cref="SettingsViewModel"/>.</summary>
+    public ISettingsService Settings => _settings;
+
     public void ReportHotkeyFailure(string message)
     {
         HotkeyStatus = message;
@@ -111,7 +117,7 @@ public partial class MainViewModel : ViewModelBase
 
         if (!IsGitRepository(full))
         {
-            StatusMessage = $"'{Path.GetFileName(full)}' is not a Git repository.";
+            StatusMessage = string.Format(Loc["MainVM_NotAGitRepo"], Path.GetFileName(full));
             return;
         }
 
@@ -119,7 +125,7 @@ public partial class MainViewModel : ViewModelBase
 
         if (repos.Any(p => string.Equals(p, full, StringComparison.OrdinalIgnoreCase)))
         {
-            StatusMessage = $"'{Path.GetFileName(full)}' is already pinned.";
+            StatusMessage = string.Format(Loc["MainVM_AlreadyPinned"], Path.GetFileName(full));
             return;
         }
 
@@ -143,7 +149,7 @@ public partial class MainViewModel : ViewModelBase
 
         if (!IsGitRepository(full))
         {
-            StatusMessage = $"'{Path.GetFileName(full)}' is not a Git repository.";
+            StatusMessage = string.Format(Loc["MainVM_NotAGitRepo"], Path.GetFileName(full));
             return;
         }
 

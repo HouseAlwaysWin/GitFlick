@@ -40,6 +40,12 @@ public partial class App : Application
             _settings = new SettingsService();
             _settings.Load();
 
+            // Apply the persisted appearance before the window is built, so it renders correctly
+            // with no first-frame flash.
+            ThemeService.Apply(_settings.Current.ThemeVariant);
+            AccentService.Apply(AccentService.Parse(_settings.Current.AccentColorHex));
+            LocalizationService.Instance.CurrentLanguage = _settings.Current.Language;
+
             _gitService = new GitService(_settings.Current.GitExecutablePath);
             _viewModel = new MainViewModel(_settings, _gitService);
 

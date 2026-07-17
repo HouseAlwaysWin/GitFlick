@@ -17,7 +17,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <AvaloniaResource Include="Assets\**" />
+    <!-- Localization bundles load via GetManifestResourceStream (works with no Avalonia platform, so
+         headless unit tests read them too), not the Avalonia asset system. Everything else in Assets
+         (icons, themes) stays an AvaloniaResource. -->
+    <AvaloniaResource Include="Assets\**" Exclude="Assets\Localization\**" />
+    <EmbeddedResource Include="Assets\Localization\*.json">
+      <LogicalName>GitFlick.Localization.%(Filename).json</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
 
   <ItemGroup>

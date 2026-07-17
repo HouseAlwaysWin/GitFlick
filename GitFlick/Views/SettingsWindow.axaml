@@ -1,0 +1,81 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:GitFlick.ViewModels"
+        xmlns:loc="using:GitFlick.Markup"
+        x:Class="GitFlick.Views.SettingsWindow"
+        x:DataType="vm:SettingsViewModel"
+        Title="{loc:Tr Settings_Title}"
+        Icon="/Assets/gitflick.ico"
+        Width="460" Height="440"
+        MinWidth="380" MinHeight="340"
+        WindowStartupLocation="CenterOwner">
+
+    <Window.Styles>
+        <!-- Accent swatch: a bare clickable circle. Clears the global secondary-button chrome
+             (App.axaml paints every Button's ContentPresenter with the accent-subtle chip) so the
+             only thing visible is the colour dot and, when selected, its ring. -->
+        <Style Selector="Button.swatch /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <Style Selector="Button.swatch:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <Style Selector="Button.swatch:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+    </Window.Styles>
+
+    <StackPanel Margin="22" Spacing="18">
+        <TextBlock x:Name="HeaderText" Text="{loc:Tr Settings_Header}" FontSize="18" FontWeight="SemiBold" />
+
+        <StackPanel Spacing="6">
+            <TextBlock x:Name="LanguageLabel" Text="{loc:Tr Settings_Language}" FontSize="10" Opacity="0.5" />
+            <ComboBox HorizontalAlignment="Stretch" SelectedIndex="{Binding LanguageIndex, Mode=TwoWay}">
+                <ComboBoxItem Content="English" />
+                <ComboBoxItem Content="繁體中文" />
+                <ComboBoxItem Content="简体中文" />
+                <ComboBoxItem Content="日本語" />
+            </ComboBox>
+        </StackPanel>
+
+        <StackPanel Spacing="6">
+            <TextBlock x:Name="ThemeLabel" Text="{loc:Tr Settings_Theme}" FontSize="10" Opacity="0.5" />
+            <ComboBox x:Name="ThemeCombo" HorizontalAlignment="Stretch"
+                      SelectedIndex="{Binding ThemeVariantIndex, Mode=TwoWay}">
+                <ComboBoxItem x:Name="ThemeSystemItem" Content="{loc:Tr Settings_Theme_System}" />
+                <ComboBoxItem x:Name="ThemeLightItem" Content="{loc:Tr Settings_Theme_Light}" />
+                <ComboBoxItem x:Name="ThemeDarkItem" Content="{loc:Tr Settings_Theme_Dark}" />
+            </ComboBox>
+        </StackPanel>
+
+        <StackPanel Spacing="6">
+            <TextBlock x:Name="AccentLabel" Text="{loc:Tr Settings_Accent}" FontSize="10" Opacity="0.5" />
+            <ItemsControl x:Name="AccentList" ItemsSource="{Binding AccentSwatches}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="vm:AccentSwatch">
+                        <Button Classes="swatch" Padding="0" Margin="3"
+                                Command="{Binding $parent[ItemsControl].((vm:SettingsViewModel)DataContext).SelectAccentCommand}"
+                                CommandParameter="{Binding Hex}"
+                                ToolTip.Tip="{Binding Hex}">
+                            <Panel Width="30" Height="30">
+                                <Ellipse Width="30" Height="30" Fill="Transparent"
+                                         Stroke="{DynamicResource SubtleForeground}" StrokeThickness="2"
+                                         IsVisible="{Binding IsSelected}" />
+                                <Ellipse Width="20" Height="20" Fill="{Binding Brush}"
+                                         HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Panel>
+                        </Button>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </StackPanel>
+    </StackPanel>
+</Window>

@@ -25,6 +25,9 @@ public partial class MainWindow : Window
     private MainViewModel? _observedMain;
     private WorkspaceViewModel? _observedWorkspace;
 
+    /// <summary>Shorthand for the app string table. Dialogs rebuild per open, so they pick up the current language.</summary>
+    private static LocalizationService Loc => LocalizationService.Instance;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -136,7 +139,7 @@ public partial class MainWindow : Window
 
             if (Workspace is { } workspace)
             {
-                workspace.StatusText = $"Copied {commit.ShortSha} to clipboard";
+                workspace.StatusText = string.Format(Loc["Status_CopiedSha"], commit.ShortSha);
             }
         }
     }
@@ -163,6 +166,28 @@ public partial class MainWindow : Window
         {
             _commandLogWindow.DataContext = workspace;
             _commandLogWindow.Activate();
+        }
+    }
+
+    private SettingsWindow? _settingsWindow;
+
+    /// <summary>Opens the global Settings window (language + theme) from the palette ⚙.</summary>
+    private void OnOpenSettingsClick(object? sender, RoutedEventArgs e)
+    {
+        if ((DataContext as MainViewModel)?.Settings is not { } settings)
+        {
+            return;
+        }
+
+        if (_settingsWindow is null)
+        {
+            _settingsWindow = new SettingsWindow { DataContext = new SettingsViewModel(settings) };
+            _settingsWindow.Closed += (_, _) => _settingsWindow = null;
+            _settingsWindow.Show(this);
+        }
+        else
+        {
+            _settingsWindow.Activate();
         }
     }
 
@@ -381,14 +406,14 @@ public partial class MainWindow : Window
     /// </summary>
     private async Task<bool?> ConfirmDeleteBranchAsync(string branch)
     {
-        var force = new CheckBox { Content = "Force delete (even if not fully merged)" };
-        var cancel = new Button { Content = "Cancel", MinWidth = 92, HorizontalContentAlignment = HorizontalAlignment.Center };
-        var delete = new Button { Content = "Delete", MinWidth = 92, HorizontalContentAlignment = HorizontalAlignment.Center };
+        var force = new CheckBox { Content = Loc["Dialog_ForceDelete"] };
+        var cancel = new Button { Content = Loc["Dialog_Cancel"], MinWidth = 92, HorizontalContentAlignment = HorizontalAlignment.Center };
+        var delete = new Button { Content = Loc["Dialog_Delete"], MinWidth = 92, HorizontalContentAlignment = HorizontalAlignment.Center };
         delete.Classes.Add("danger");
 
         var dialog = new Window
         {
-            Title = "Delete branch",
+            Title = Loc["Dialog_DeleteBranch_Title"],
             SizeToContent = SizeToContent.WidthAndHeight,
             CanResize = false,
             ShowInTaskbar = false,
@@ -405,8 +430,7 @@ public partial class MainWindow : Window
                         new TextBlock
                         {
                             TextWrapping = TextWrapping.Wrap,
-                            Text = $"Delete the branch “{branch}”?\n\nThis removes the branch pointer. A safe delete refuses " +
-                                   "if it isn't merged — tick the box to force it.",
+                            Text = string.Format(Loc["Dialog_DeleteBranch_Body"], branch),
                         },
                         force,
                         new StackPanel
@@ -433,14 +457,14 @@ public partial class MainWindow : Window
     /// </summary>
     private async Task<bool?> ConfirmDiscardAllAsync()
     {
-        var untracked = new CheckBox { Content = "Also delete untracked files" };
-        var cancel = new Button { Content = "Cancel", MinWidth = 92, HorizontalContentAlignment = HorizontalAlignment.Center };
-        var discard = new Button { Content = "Discard", MinWidth = 92, HorizontalContentAlignment = HorizontalAlignment.Center };
+        var untracked = new CheckBox { Content = Loc["Dialog_AlsoDeleteUntracked"] };
+        var cancel = new Button { Content = Loc["Dialog_Cancel"], MinWidth = 92, HorizontalContentAlignment = HorizontalAlignment.Center };
+        var discard = new Button { Content = Loc["Dialog_Discard"], MinWidth = 92, HorizontalContentAlignment = HorizontalAlignment.Center };
         discard.Classes.Add("danger");
 
         var dialog = new Window
         {
-            Title = "Discard all changes",
+            Title = Loc["Dialog_DiscardAll_Title"],
             SizeToContent = SizeToContent.WidthAndHeight,
             CanResize = false,
             ShowInTaskbar = false,
@@ -457,8 +481,7 @@ public partial class MainWindow : Window
                         new TextBlock
                         {
                             TextWrapping = TextWrapping.Wrap,
-                            Text = "Discard every uncommitted change? This resets all tracked files to the last " +
-                                   "commit and cannot be undone.",
+                            Text = Loc["Dialog_DiscardAll_Body"],
                         },
                         untracked,
                         new StackPanel
@@ -485,15 +508,15 @@ public partial class MainWindow : Window
     /// </summary>
     private async Task<bool> ConfirmDiscardFilesAsync(IReadOnlyList<string> paths)
     {
-        var cancel = new Button { Content = "Cancel", MinWidth = 92, HorizontalContentAlignment = HorizontalAlignment.Center };
-        var discard = new Button { Content = "Discard", MinWidth = 92, HorizontalContentAlignment = HorizontalAlignment.Center };
+        var cancel = new Button { Content = Loc["Dialog_Cancel"], MinWidth = 92, HorizontalContentAlignment = HorizontalAlignment.Center };
+        var discard = new Button { Content = Loc["Dialog_Discard"], MinWidth = 92, HorizontalContentAlignment = HorizontalAlignment.Center };
         discard.Classes.Add("danger");
 
-        var target = paths.Count == 1 ? $"“{paths[0]}”" : $"these {paths.Count} files";
+        var target = paths.Count == 1 ? $"“{paths[0]}”" : string.Format(Loc["Dialog_DiscardChanges_MultipleTarget"], paths.Count);
 
         var dialog = new Window
         {
-            Title = "Discard changes",
+            Title = Loc["Dialog_DiscardChanges_Title"],
             SizeToContent = SizeToContent.WidthAndHeight,
             CanResize = false,
             ShowInTaskbar = false,
@@ -510,8 +533,7 @@ public partial class MainWindow : Window
                         new TextBlock
                         {
                             TextWrapping = TextWrapping.Wrap,
-                            Text = $"Discard the changes to {target}? This reverts them to the last commit " +
-                                   "(untracked files are deleted) and cannot be undone.",
+                            Text = string.Format(Loc["Dialog_DiscardChanges_Body"], target),
                         },
                         new StackPanel
                         {
@@ -543,13 +565,13 @@ public partial class MainWindow : Window
             SelectedIndex = 0,
             HorizontalAlignment = HorizontalAlignment.Stretch,
         };
-        var cancel = new Button { Content = "Cancel", MinWidth = 92, HorizontalContentAlignment = HorizontalAlignment.Center };
-        var push = new Button { Content = "Push", MinWidth = 92, HorizontalContentAlignment = HorizontalAlignment.Center };
+        var cancel = new Button { Content = Loc["Dialog_Cancel"], MinWidth = 92, HorizontalContentAlignment = HorizontalAlignment.Center };
+        var push = new Button { Content = Loc["Dialog_Push"], MinWidth = 92, HorizontalContentAlignment = HorizontalAlignment.Center };
         push.Classes.Add("primary");
 
         var dialog = new Window
         {
-            Title = "Push to",
+            Title = Loc["Dialog_PushTo_Title"],
             SizeToContent = SizeToContent.WidthAndHeight,
             CanResize = false,
             ShowInTaskbar = false,
@@ -566,7 +588,7 @@ public partial class MainWindow : Window
                         new TextBlock
                         {
                             TextWrapping = TextWrapping.Wrap,
-                            Text = $"Push the current branch “{branch}” to which remote?",
+                            Text = string.Format(Loc["Dialog_PushTo_Body"], branch),
                         },
                         combo,
                         new StackPanel
@@ -602,16 +624,16 @@ public partial class MainWindow : Window
         var branchBox = new TextBox
         {
             Text = branch,
-            PlaceholderText = "branch to pull",
+            PlaceholderText = Loc["Dialog_PullBranchPlaceholder"],
             VerticalContentAlignment = VerticalAlignment.Center,
         };
-        var cancel = new Button { Content = "Cancel", MinWidth = 92, HorizontalContentAlignment = HorizontalAlignment.Center };
-        var pull = new Button { Content = "Pull", MinWidth = 92, HorizontalContentAlignment = HorizontalAlignment.Center };
+        var cancel = new Button { Content = Loc["Dialog_Cancel"], MinWidth = 92, HorizontalContentAlignment = HorizontalAlignment.Center };
+        var pull = new Button { Content = Loc["Dialog_Pull"], MinWidth = 92, HorizontalContentAlignment = HorizontalAlignment.Center };
         pull.Classes.Add("primary");
 
         var dialog = new Window
         {
-            Title = "Pull from",
+            Title = Loc["Dialog_PullFrom_Title"],
             SizeToContent = SizeToContent.WidthAndHeight,
             CanResize = false,
             ShowInTaskbar = false,
@@ -629,11 +651,11 @@ public partial class MainWindow : Window
                         {
                             TextWrapping = TextWrapping.Wrap,
                             Margin = new Thickness(0, 0, 0, 4),
-                            Text = $"Pull a branch from a remote into “{branch}”.",
+                            Text = string.Format(Loc["Dialog_PullFrom_Body"], branch),
                         },
-                        new TextBlock { Text = "REMOTE", FontSize = 10, Opacity = 0.5 },
+                        new TextBlock { Text = Loc["Dialog_Remote"], FontSize = 10, Opacity = 0.5 },
                         remoteCombo,
-                        new TextBlock { Text = "BRANCH", FontSize = 10, Opacity = 0.5 },
+                        new TextBlock { Text = Loc["Dialog_Branch"], FontSize = 10, Opacity = 0.5 },
                         branchBox,
                         new StackPanel
                         {
@@ -667,13 +689,13 @@ public partial class MainWindow : Window
     /// </summary>
     private async Task<bool> ConfirmDirtyCheckoutAsync(string target)
     {
-        var cancel = new Button { Content = "Cancel", MinWidth = 92, HorizontalContentAlignment = HorizontalAlignment.Center };
-        var proceed = new Button { Content = "Switch anyway", MinWidth = 92, HorizontalContentAlignment = HorizontalAlignment.Center };
+        var cancel = new Button { Content = Loc["Dialog_Cancel"], MinWidth = 92, HorizontalContentAlignment = HorizontalAlignment.Center };
+        var proceed = new Button { Content = Loc["Dialog_SwitchAnyway"], MinWidth = 92, HorizontalContentAlignment = HorizontalAlignment.Center };
         proceed.Classes.Add("primary");
 
         var dialog = new Window
         {
-            Title = "Uncommitted changes",
+            Title = Loc["Dialog_DirtyCheckout_Title"],
             SizeToContent = SizeToContent.WidthAndHeight,
             CanResize = false,
             ShowInTaskbar = false,
@@ -690,8 +712,7 @@ public partial class MainWindow : Window
                         new TextBlock
                         {
                             TextWrapping = TextWrapping.Wrap,
-                            Text = $"You have uncommitted changes.\n\nSwitch to “{target}” anyway? " +
-                                   "Git keeps your changes if it can, and refuses the switch if any would be overwritten.",
+                            Text = string.Format(Loc["Dialog_DirtyCheckout_Body"], target),
                         },
                         new StackPanel
                         {
@@ -822,7 +843,7 @@ public partial class MainWindow : Window
 
         var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
         {
-            Title = "Pin a Git repository",
+            Title = Loc["Dialog_PinRepo_Title"],
             AllowMultiple = false,
         });
 
@@ -849,7 +870,7 @@ public partial class MainWindow : Window
 
         var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
         {
-            Title = "Open a Git repository",
+            Title = Loc["Dialog_OpenRepo_Title"],
             AllowMultiple = false,
         });
 

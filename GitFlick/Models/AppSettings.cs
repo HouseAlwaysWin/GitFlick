@@ -27,6 +27,15 @@ public sealed class AppSettings
 
     /// <summary>Ollama model name for commit-message generation (must be pulled locally).</summary>
     public string OllamaModel { get; set; } = "llama3.2";
+
+    /// <summary>UI language. Serialized as a string via the source-gen context's enum converter.</summary>
+    public Language Language { get; set; } = Language.English;
+
+    /// <summary>Light / Dark / follow-system theme.</summary>
+    public AppThemeVariant ThemeVariant { get; set; } = AppThemeVariant.System;
+
+    /// <summary>Accent colour hex (drives the primary buttons and selection highlight).</summary>
+    public string AccentColorHex { get; set; } = "#588CF0";
 }
 
 /// <summary>How commit messages are generated.</summary>
@@ -37,4 +46,21 @@ public enum CommitAiEngine
 
     /// <summary>An external Ollama server (for users who already run one).</summary>
     Ollama,
+}
+
+/// <summary>UI languages GitFlick ships translations for.</summary>
+public enum Language
+{
+    English,
+    TraditionalChinese,
+    SimplifiedChinese,
+    Japanese,
+}
+
+/// <summary>Theme variant selection.</summary>
+public enum AppThemeVariant
+{
+    System,
+    Light,
+    Dark,
 }
