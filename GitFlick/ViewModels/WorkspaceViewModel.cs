@@ -933,7 +933,109 @@ public partial class WorkspaceViewModel : ViewModelBase
 
         return RunAsync(
             () => _git.CherryPickAsync(Repository.Path, commit.Sha),
-            $"Cherry-picked {commit.ShortSha}");
+            string.Format(Loc["Status_CherryPicked"], commit.ShortSha));
+    }
+
+    // Set by the View. Each returns the entered value (or null to cancel); a null delegate (e.g. in
+    // tests, no UI) skips the action.
+    public Func<Task<string?>>? PromptTagName { get; set; }
+    public Func<Task<string?>>? PromptBranchName { get; set; }
+    public Func<string, Task<GitResetMode?>>? PromptResetMode { get; set; }
+    public Func<string, Task<bool>>? ConfirmRebase { get; set; }
+
+    /// <summary>Tags the selected commit (lightweight) after prompting for a name.</summary>
+    [RelayCommand]
+    private async Task AddTag()
+    {
+        if (SelectedCommit is not { } commit || PromptTagName is null)
+        {
+            return;
+        }
+
+        var name = await PromptTagName();
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return;
+        }
+
+        await RunAsync(() => _git.CreateTagAsync(Repository.Path, name, commit.Sha), string.Format(Loc["Status_Tagged"], name));
+    }
+
+    /// <summary>Creates a branch at the selected commit (without switching) after prompting for a name.</summary>
+    [RelayCommand]
+    private async Task CreateBranchHere()
+    {
+        if (SelectedCommit is not { } commit || PromptBranchName is null)
+        {
+            return;
+        }
+
+        var name = await PromptBranchName();
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return;
+        }
+
+        await RunAsync(() => _git.CreateBranchAtAsync(Repository.Path, name, commit.Sha), string.Format(Loc["Status_CreatedBranchAt"], name));
+    }
+
+    /// <summary>Reverts the selected commit (records a new commit that undoes it).</summary>
+    [RelayCommand]
+    private Task RevertCommit()
+    {
+        if (SelectedCommit is not { } commit)
+        {
+            return Task.CompletedTask;
+        }
+
+        return RunAsync(() => _git.RevertAsync(Repository.Path, commit.Sha), string.Format(Loc["Status_Reverted"], commit.ShortSha));
+    }
+
+    /// <summary>Merges the selected commit into the current branch.</summary>
+    [RelayCommand]
+    private Task MergeCommit()
+    {
+        if (SelectedCommit is not { } commit)
+        {
+            return Task.CompletedTask;
+        }
+
+        return RunAsync(() => _git.MergeAsync(Repository.Path, commit.Sha), string.Format(Loc["Status_Merged"], commit.ShortSha));
+    }
+
+    /// <summary>Rebases the current branch onto the selected commit (confirmed — it rewrites history).</summary>
+    [RelayCommand]
+    private async Task RebaseOnto()
+    {
+        if (SelectedCommit is not { } commit)
+        {
+            return;
+        }
+
+        if (ConfirmRebase is not null && !await ConfirmRebase(commit.ShortSha))
+        {
+            return;
+        }
+
+        await RunAsync(() => _git.RebaseOntoAsync(Repository.Path, commit.Sha), string.Format(Loc["Status_Rebased"], commit.ShortSha));
+    }
+
+    /// <summary>Moves the current branch to the selected commit; the prompt picks soft/mixed/hard.</summary>
+    [RelayCommand]
+    private async Task ResetToCommit()
+    {
+        if (SelectedCommit is not { } commit || PromptResetMode is null)
+        {
+            return;
+        }
+
+        var mode = await PromptResetMode(commit.ShortSha);
+        if (mode is null)
+        {
+            return;
+        }
+
+        await RunAsync(() => _git.ResetToAsync(Repository.Path, commit.Sha, mode.Value), string.Format(Loc["Status_Reset"], commit.ShortSha));
     }
 
     partial void OnSelectedCommitChanged(CommitInfo? value)

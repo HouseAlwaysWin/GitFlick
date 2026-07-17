@@ -224,5 +224,35 @@
   "Status_CreatedBranch": "{0} を作成して切り替えました",
   "Status_CheckedOut": "{0} をチェックアウトしました",
   "Status_SwitchedTo": "{0} に切り替えました",
-  "Diff_NoTextualChanges": "（テキストの変更はありません）"
+  "Diff_NoTextualChanges": "（テキストの変更はありません）",
+
+  "History_Ctx_AddTag": "タグを追加…",
+  "History_Ctx_CreateBranch": "ブランチを作成…",
+  "History_Ctx_Revert": "このコミットを取り消し…",
+  "History_Ctx_Merge": "現在のブランチにマージ…",
+  "History_Ctx_Rebase": "現在のブランチをこのコミットにリベース…",
+  "History_Ctx_Reset": "現在のブランチをこのコミットにリセット…",
+  "History_Ctx_CopySubject": "コミットの件名をコピー",
+
+  "Status_Tagged": "{0} にタグを付けました",
+  "Status_CreatedBranchAt": "ブランチ {0} を作成しました",
+  "Status_Reverted": "{0} を取り消しました",
+  "Status_Rebased": "{0} にリベースしました",
+  "Status_Reset": "{0} にリセットしました",
+  "Status_CopiedSubject": "コミットの件名をコピーしました",
+  "Status_CherryPicked": "{0} をチェリーピックしました",
+
+  "Dialog_AddTag_Title": "タグを追加",
+  "Dialog_TagName_Placeholder": "タグ名",
+  "Dialog_CreateBranch_Title": "ブランチを作成",
+  "Dialog_Reset_Title": "現在のブランチをリセット",
+  "Dialog_Reset_Body": "現在のブランチを {0} に移動します。作業中の変更はどうしますか？",
+  "Dialog_Reset_Soft": "Soft — 変更を保持（ステージ済み）",
+  "Dialog_Reset_Mixed": "Mixed — 変更を保持（未ステージ、既定）",
+  "Dialog_Reset_Hard": "Hard — すべての変更を破棄",
+  "Dialog_Reset_HardWarning": "⚠ Hard リセットはコミットしていない変更を完全に破棄します。",
+  "Dialog_Reset_Confirm": "リセット",
+  "Dialog_Rebase_Title": "リベース",
+  "Dialog_Rebase_Body": "現在のブランチを {0} にリベースしますか？コミットが書き換えられ、コンフリクトが発生する可能性があります。",
+  "Dialog_Rebase_Confirm": "リベース"
 }

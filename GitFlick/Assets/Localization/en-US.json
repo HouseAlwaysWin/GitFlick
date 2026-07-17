@@ -224,5 +224,35 @@
   "Status_CreatedBranch": "Created and switched to {0}",
   "Status_CheckedOut": "Checked out {0}",
   "Status_SwitchedTo": "Switched to {0}",
-  "Diff_NoTextualChanges": "(no textual changes)"
+  "Diff_NoTextualChanges": "(no textual changes)",
+
+  "History_Ctx_AddTag": "Add tag…",
+  "History_Ctx_CreateBranch": "Create branch…",
+  "History_Ctx_Revert": "Revert…",
+  "History_Ctx_Merge": "Merge into current branch…",
+  "History_Ctx_Rebase": "Rebase current branch on this commit…",
+  "History_Ctx_Reset": "Reset current branch to this commit…",
+  "History_Ctx_CopySubject": "Copy commit subject",
+
+  "Status_Tagged": "Tagged {0}",
+  "Status_CreatedBranchAt": "Created branch {0}",
+  "Status_Reverted": "Reverted {0}",
+  "Status_Rebased": "Rebased onto {0}",
+  "Status_Reset": "Reset to {0}",
+  "Status_CopiedSubject": "Copied commit subject",
+  "Status_CherryPicked": "Cherry-picked {0}",
+
+  "Dialog_AddTag_Title": "Add tag",
+  "Dialog_TagName_Placeholder": "tag name",
+  "Dialog_CreateBranch_Title": "Create branch",
+  "Dialog_Reset_Title": "Reset current branch",
+  "Dialog_Reset_Body": "Move the current branch to {0}. What should happen to your working changes?",
+  "Dialog_Reset_Soft": "Soft — keep changes, staged",
+  "Dialog_Reset_Mixed": "Mixed — keep changes, unstaged (default)",
+  "Dialog_Reset_Hard": "Hard — discard all changes",
+  "Dialog_Reset_HardWarning": "⚠ Hard reset permanently discards your uncommitted changes.",
+  "Dialog_Reset_Confirm": "Reset",
+  "Dialog_Rebase_Title": "Rebase",
+  "Dialog_Rebase_Body": "Rebase the current branch onto {0}? This rewrites commits and can cause conflicts.",
+  "Dialog_Rebase_Confirm": "Rebase"
 }

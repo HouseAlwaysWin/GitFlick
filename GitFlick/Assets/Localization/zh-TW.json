@@ -224,5 +224,35 @@
   "Status_CreatedBranch": "已建立並切換到 {0}",
   "Status_CheckedOut": "已簽出 {0}",
   "Status_SwitchedTo": "已切換到 {0}",
-  "Diff_NoTextualChanges": "（沒有文字變更）"
+  "Diff_NoTextualChanges": "（沒有文字變更）",
+
+  "History_Ctx_AddTag": "新增標籤…",
+  "History_Ctx_CreateBranch": "建立分支…",
+  "History_Ctx_Revert": "還原此提交…",
+  "History_Ctx_Merge": "合併進目前分支…",
+  "History_Ctx_Rebase": "將目前分支變基到此提交…",
+  "History_Ctx_Reset": "將目前分支重設到此提交…",
+  "History_Ctx_CopySubject": "複製提交標題",
+
+  "Status_Tagged": "已標記 {0}",
+  "Status_CreatedBranchAt": "已建立分支 {0}",
+  "Status_Reverted": "已還原 {0}",
+  "Status_Rebased": "已變基到 {0}",
+  "Status_Reset": "已重設到 {0}",
+  "Status_CopiedSubject": "已複製提交標題",
+  "Status_CherryPicked": "已揀選 {0}",
+
+  "Dialog_AddTag_Title": "新增標籤",
+  "Dialog_TagName_Placeholder": "標籤名稱",
+  "Dialog_CreateBranch_Title": "建立分支",
+  "Dialog_Reset_Title": "重設目前分支",
+  "Dialog_Reset_Body": "將目前分支移動到 {0}。你的工作區變更要如何處理？",
+  "Dialog_Reset_Soft": "Soft — 保留變更（已暫存）",
+  "Dialog_Reset_Mixed": "Mixed — 保留變更（未暫存，預設）",
+  "Dialog_Reset_Hard": "Hard — 捨棄所有變更",
+  "Dialog_Reset_HardWarning": "⚠ Hard 重設會永久捨棄你未提交的變更。",
+  "Dialog_Reset_Confirm": "重設",
+  "Dialog_Rebase_Title": "變基",
+  "Dialog_Rebase_Body": "要將目前分支變基到 {0} 嗎？這會重寫提交，可能造成衝突。",
+  "Dialog_Rebase_Confirm": "變基"
 }

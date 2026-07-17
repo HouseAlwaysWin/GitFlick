@@ -133,6 +133,15 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void OnCopySubjectClick(object? sender, RoutedEventArgs e)
+    {
+        if (Workspace is { SelectedCommit: { } commit } workspace && Clipboard is { } clipboard)
+        {
+            await clipboard.SetTextAsync(commit.Subject);
+            workspace.StatusText = Loc["Status_CopiedSubject"];
+        }
+    }
+
     /// <summary>The Commit column is click-to-copy: it copies the full SHA of the row it sits on.</summary>
     private async void OnCopyShaCellClick(object? sender, RoutedEventArgs e)
     {
@@ -453,6 +462,10 @@ public partial class MainWindow : Window
             _observedWorkspace.ConfirmDiscardFiles = ConfirmDiscardFilesAsync;
             _observedWorkspace.PromptPullSource = PromptPullSourceAsync;
             _observedWorkspace.PromptPushTarget = PromptPushTargetAsync;
+            _observedWorkspace.PromptTagName = () => PromptNameAsync(Loc["Dialog_AddTag_Title"], Loc["Dialog_TagName_Placeholder"]);
+            _observedWorkspace.PromptBranchName = () => PromptNameAsync(Loc["Dialog_CreateBranch_Title"], Loc["Branch_NewNamePlaceholder"]);
+            _observedWorkspace.PromptResetMode = PromptResetModeAsync;
+            _observedWorkspace.ConfirmRebase = ConfirmRebaseAsync;
         }
 
         UpdateTitle();
@@ -792,6 +805,167 @@ public partial class MainWindow : Window
                             TextWrapping = TextWrapping.Wrap,
                             Text = string.Format(Loc["Dialog_DirtyCheckout_Body"], target),
                         },
+                        new StackPanel
+                        {
+                            Orientation = Orientation.Horizontal,
+                            Spacing = 8,
+                            HorizontalAlignment = HorizontalAlignment.Right,
+                            Children = { cancel, proceed },
+                        },
+                    },
+                },
+            },
+        };
+
+        cancel.Click += (_, _) => dialog.Close(false);
+        proceed.Click += (_, _) => dialog.Close(true);
+
+        return await dialog.ShowDialog<bool>(this);
+    }
+
+    /// <summary>Shared name prompt for "Add tag" and "Create branch". Returns the trimmed name, or null.</summary>
+    private async Task<string?> PromptNameAsync(string title, string watermark)
+    {
+        var input = new TextBox
+        {
+            PlaceholderText = watermark,
+            MinWidth = 320,
+            VerticalContentAlignment = VerticalAlignment.Center,
+        };
+        var cancel = new Button { Content = Loc["Dialog_Cancel"], MinWidth = 92, HorizontalContentAlignment = HorizontalAlignment.Center };
+        var create = new Button { Content = Loc["Branch_Create"], MinWidth = 92, HorizontalContentAlignment = HorizontalAlignment.Center };
+        create.Classes.Add("primary");
+
+        var dialog = new Window
+        {
+            Title = title,
+            SizeToContent = SizeToContent.WidthAndHeight,
+            CanResize = false,
+            ShowInTaskbar = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Content = new Border
+            {
+                Padding = new Thickness(22),
+                Child = new StackPanel
+                {
+                    Spacing = 12,
+                    MinWidth = 320,
+                    Children =
+                    {
+                        input,
+                        new StackPanel
+                        {
+                            Orientation = Orientation.Horizontal,
+                            Spacing = 8,
+                            HorizontalAlignment = HorizontalAlignment.Right,
+                            Children = { cancel, create },
+                        },
+                    },
+                },
+            },
+        };
+
+        string? Result() => string.IsNullOrWhiteSpace(input.Text) ? null : input.Text!.Trim();
+        cancel.Click += (_, _) => dialog.Close(null);
+        create.Click += (_, _) => dialog.Close(Result());
+        input.KeyDown += (_, ev) =>
+        {
+            if (ev.Key == Key.Enter)
+            {
+                dialog.Close(Result());
+            }
+        };
+
+        return await dialog.ShowDialog<string?>(this);
+    }
+
+    /// <summary>Picks the reset mode (soft/mixed/hard), warning before a destructive hard reset. Null cancels.</summary>
+    private async Task<GitResetMode?> PromptResetModeAsync(string shortSha)
+    {
+        var combo = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch, SelectedIndex = 1 };
+        combo.Items.Add(new ComboBoxItem { Content = Loc["Dialog_Reset_Soft"] });
+        combo.Items.Add(new ComboBoxItem { Content = Loc["Dialog_Reset_Mixed"] });
+        combo.Items.Add(new ComboBoxItem { Content = Loc["Dialog_Reset_Hard"] });
+
+        var warning = new TextBlock
+        {
+            Text = Loc["Dialog_Reset_HardWarning"],
+            Foreground = new SolidColorBrush(Color.FromRgb(0xE5, 0x53, 0x4B)),
+            TextWrapping = TextWrapping.Wrap,
+            IsVisible = false,
+        };
+        combo.SelectionChanged += (_, _) => warning.IsVisible = combo.SelectedIndex == 2;
+
+        var cancel = new Button { Content = Loc["Dialog_Cancel"], MinWidth = 92, HorizontalContentAlignment = HorizontalAlignment.Center };
+        var reset = new Button { Content = Loc["Dialog_Reset_Confirm"], MinWidth = 92, HorizontalContentAlignment = HorizontalAlignment.Center };
+        reset.Classes.Add("primary");
+
+        var dialog = new Window
+        {
+            Title = Loc["Dialog_Reset_Title"],
+            SizeToContent = SizeToContent.WidthAndHeight,
+            CanResize = false,
+            ShowInTaskbar = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Content = new Border
+            {
+                Padding = new Thickness(22),
+                Child = new StackPanel
+                {
+                    Spacing = 12,
+                    MaxWidth = 380,
+                    Children =
+                    {
+                        new TextBlock { Text = string.Format(Loc["Dialog_Reset_Body"], shortSha), TextWrapping = TextWrapping.Wrap },
+                        combo,
+                        warning,
+                        new StackPanel
+                        {
+                            Orientation = Orientation.Horizontal,
+                            Spacing = 8,
+                            HorizontalAlignment = HorizontalAlignment.Right,
+                            Children = { cancel, reset },
+                        },
+                    },
+                },
+            },
+        };
+
+        cancel.Click += (_, _) => dialog.Close(null);
+        reset.Click += (_, _) => dialog.Close(combo.SelectedIndex switch
+        {
+            0 => GitResetMode.Soft,
+            2 => GitResetMode.Hard,
+            _ => GitResetMode.Mixed,
+        });
+
+        return await dialog.ShowDialog<GitResetMode?>(this);
+    }
+
+    /// <summary>Confirms a rebase (it rewrites history). Returns true to proceed.</summary>
+    private async Task<bool> ConfirmRebaseAsync(string shortSha)
+    {
+        var cancel = new Button { Content = Loc["Dialog_Cancel"], MinWidth = 92, HorizontalContentAlignment = HorizontalAlignment.Center };
+        var proceed = new Button { Content = Loc["Dialog_Rebase_Confirm"], MinWidth = 92, HorizontalContentAlignment = HorizontalAlignment.Center };
+        proceed.Classes.Add("primary");
+
+        var dialog = new Window
+        {
+            Title = Loc["Dialog_Rebase_Title"],
+            SizeToContent = SizeToContent.WidthAndHeight,
+            CanResize = false,
+            ShowInTaskbar = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Content = new Border
+            {
+                Padding = new Thickness(22),
+                Child = new StackPanel
+                {
+                    Spacing = 16,
+                    MaxWidth = 380,
+                    Children =
+                    {
+                        new TextBlock { Text = string.Format(Loc["Dialog_Rebase_Body"], shortSha), TextWrapping = TextWrapping.Wrap },
                         new StackPanel
                         {
                             Orientation = Orientation.Horizontal,

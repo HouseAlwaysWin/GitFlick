@@ -641,15 +641,24 @@
                                      SelectedItem="{Binding SelectedCommit}">
                                 <ListBox.ContextFlyout>
                                     <MenuFlyout>
+                                        <MenuItem Header="{loc:Tr History_Ctx_AddTag}" Command="{Binding AddTagCommand}" />
+                                        <MenuItem Header="{loc:Tr History_Ctx_CreateBranch}" Command="{Binding CreateBranchHereCommand}" />
+                                        <Separator />
                                         <MenuItem Header="{loc:Tr History_Ctx_Checkout}"
                                                   Command="{Binding CheckoutCommitCommand}"
                                                   ToolTip.Tip="{loc:Tr History_Ctx_Checkout_Tooltip}" />
                                         <MenuItem Header="{loc:Tr History_Ctx_CherryPick}"
                                                   Command="{Binding CherryPickCommand}"
                                                   ToolTip.Tip="{loc:Tr History_Ctx_CherryPick_Tooltip}" />
+                                        <MenuItem Header="{loc:Tr History_Ctx_Revert}" Command="{Binding RevertCommitCommand}" />
+                                        <Separator />
+                                        <MenuItem Header="{loc:Tr History_Ctx_Merge}" Command="{Binding MergeCommitCommand}" />
+                                        <MenuItem Header="{loc:Tr History_Ctx_Rebase}" Command="{Binding RebaseOntoCommand}" />
+                                        <MenuItem Header="{loc:Tr History_Ctx_Reset}" Command="{Binding ResetToCommitCommand}" />
                                         <Separator />
                                         <MenuItem Header="{loc:Tr History_Ctx_ViewMessage}" Click="OnViewCommitMessageClick" />
                                         <MenuItem Header="{loc:Tr History_Ctx_CopySha}" Click="OnCopyShaClick" />
+                                        <MenuItem Header="{loc:Tr History_Ctx_CopySubject}" Click="OnCopySubjectClick" />
                                     </MenuFlyout>
                                 </ListBox.ContextFlyout>
                                 <ListBox.Styles>

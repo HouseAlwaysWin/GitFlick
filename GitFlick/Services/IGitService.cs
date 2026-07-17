@@ -6,6 +6,19 @@ using GitFlick.Models;
 
 namespace GitFlick.Services;
 
+/// <summary>How <c>git reset</c> treats the index and working tree when moving the branch.</summary>
+public enum GitResetMode
+{
+    /// <summary>Move the branch only; keep the index and working tree (changes become staged).</summary>
+    Soft,
+
+    /// <summary>Move the branch and reset the index; keep the working tree (git's default).</summary>
+    Mixed,
+
+    /// <summary>Move the branch and discard all index and working-tree changes. Destructive.</summary>
+    Hard,
+}
+
 /// <summary>
 /// Thin async wrapper over the git CLI. git is the single source of truth (spec §3): every
 /// call names its own working directory, decodes UTF-8, and disables quotepath so CJK paths
@@ -129,6 +142,21 @@ public interface IGitService
 
     /// <summary>Replays one commit onto the current branch.</summary>
     Task<GitCommandResult> CherryPickAsync(string repoPath, string sha, CancellationToken cancellationToken = default);
+
+    /// <summary>Creates a lightweight tag pointing at a commit.</summary>
+    Task<GitCommandResult> CreateTagAsync(string repoPath, string name, string sha, CancellationToken cancellationToken = default);
+
+    /// <summary>Creates a branch at a specific commit without switching to it.</summary>
+    Task<GitCommandResult> CreateBranchAtAsync(string repoPath, string name, string sha, CancellationToken cancellationToken = default);
+
+    /// <summary>Reverts a commit, recording a new commit that undoes it.</summary>
+    Task<GitCommandResult> RevertAsync(string repoPath, string sha, CancellationToken cancellationToken = default);
+
+    /// <summary>Rebases the current branch onto a commit.</summary>
+    Task<GitCommandResult> RebaseOntoAsync(string repoPath, string sha, CancellationToken cancellationToken = default);
+
+    /// <summary>Moves the current branch to a commit (soft/mixed/hard).</summary>
+    Task<GitCommandResult> ResetToAsync(string repoPath, string sha, GitResetMode mode, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<StashEntry>> GetStashesAsync(string repoPath, CancellationToken cancellationToken = default);
 

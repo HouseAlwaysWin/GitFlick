@@ -80,6 +80,30 @@ internal sealed class FakeGitService : IGitService
     public Task<string> GetCommitMessageAsync(string repoPath, string sha, CancellationToken cancellationToken = default)
         => Task.FromResult(string.Empty);
 
+    /// <summary>Records the git operations the ViewModel asked for, so tests can assert on them.</summary>
+    public List<string> Operations { get; } = [];
+
+    private Task<GitCommandResult> Record(string op)
+    {
+        Operations.Add(op);
+        return Task.FromResult(Ok);
+    }
+
+    public Task<GitCommandResult> CreateTagAsync(string repoPath, string name, string sha, CancellationToken cancellationToken = default)
+        => Record($"tag {name} {sha}");
+
+    public Task<GitCommandResult> CreateBranchAtAsync(string repoPath, string name, string sha, CancellationToken cancellationToken = default)
+        => Record($"branch {name} {sha}");
+
+    public Task<GitCommandResult> RevertAsync(string repoPath, string sha, CancellationToken cancellationToken = default)
+        => Record($"revert {sha}");
+
+    public Task<GitCommandResult> RebaseOntoAsync(string repoPath, string sha, CancellationToken cancellationToken = default)
+        => Record($"rebase {sha}");
+
+    public Task<GitCommandResult> ResetToAsync(string repoPath, string sha, GitResetMode mode, CancellationToken cancellationToken = default)
+        => Record($"reset {mode} {sha}");
+
     public Task<IReadOnlyList<CommitFileEntry>> GetCommitFilesAsync(string repoPath, string sha, CancellationToken cancellationToken = default)
         => Task.FromResult<IReadOnlyList<CommitFileEntry>>([]);
 

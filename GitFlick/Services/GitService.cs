@@ -398,6 +398,26 @@ public sealed class GitService : IGitService
     public Task<GitCommandResult> CherryPickAsync(string repoPath, string sha, CancellationToken cancellationToken = default)
         => RunAsync(repoPath, ["cherry-pick", sha], null, cancellationToken);
 
+    public Task<GitCommandResult> CreateTagAsync(string repoPath, string name, string sha, CancellationToken cancellationToken = default)
+        => RunAsync(repoPath, ["tag", name, sha], null, cancellationToken);
+
+    public Task<GitCommandResult> CreateBranchAtAsync(string repoPath, string name, string sha, CancellationToken cancellationToken = default)
+        => RunAsync(repoPath, ["branch", name, sha], null, cancellationToken);
+
+    public Task<GitCommandResult> RevertAsync(string repoPath, string sha, CancellationToken cancellationToken = default)
+        => RunAsync(repoPath, ["revert", "--no-edit", sha], null, cancellationToken);
+
+    public Task<GitCommandResult> RebaseOntoAsync(string repoPath, string sha, CancellationToken cancellationToken = default)
+        => RunAsync(repoPath, ["rebase", sha], null, cancellationToken);
+
+    public Task<GitCommandResult> ResetToAsync(string repoPath, string sha, GitResetMode mode, CancellationToken cancellationToken = default)
+        => RunAsync(repoPath, ["reset", mode switch
+        {
+            GitResetMode.Soft => "--soft",
+            GitResetMode.Hard => "--hard",
+            _ => "--mixed",
+        }, sha], null, cancellationToken);
+
     public async Task<IReadOnlyList<StashEntry>> GetStashesAsync(string repoPath, CancellationToken cancellationToken = default)
     {
         // "stash@{0}\0<subject>" per line.
