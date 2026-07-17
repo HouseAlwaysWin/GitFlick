@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:GitFlick.ViewModels"
         xmlns:models="using:GitFlick.Models"
+        xmlns:services="using:GitFlick.Services"
         xmlns:views="using:GitFlick.Views"
         xmlns:conv="using:GitFlick.Converters"
         xmlns:edit="using:AvaloniaEdit"
@@ -731,20 +732,51 @@
                 <!-- ✨ AI: draft the message from the staged diff using the local Ollama model. -->
                 <Button Grid.Column="2" Content="✨ Generate" Margin="8,0,0,0"
                         Command="{Binding GenerateCommitMessageCommand}" IsEnabled="{Binding HasStagedFiles}"
-                        ToolTip.Tip="Draft a commit message from the staged diff (local Ollama — nothing leaves your machine)" />
+                        ToolTip.Tip="Draft a commit message from the staged diff (runs locally — nothing leaves your machine)" />
 
                 <!-- ⚙ Commit template + AI settings, edited in a flyout and saved immediately. -->
-                <Button Grid.Column="3" Content="⚙" Margin="4,0,0,0" ToolTip.Tip="Commit template &amp; AI (Ollama) settings">
+                <Button Grid.Column="3" Content="⚙" Margin="4,0,0,0" ToolTip.Tip="Commit template &amp; AI settings">
                     <Button.Flyout>
                         <Flyout Placement="Top">
-                            <StackPanel Width="360" Spacing="8" x:DataType="vm:WorkspaceViewModel">
+                            <StackPanel Width="380" Spacing="8" x:DataType="vm:WorkspaceViewModel">
                                 <TextBlock Text="COMMIT TEMPLATE" FontSize="10" Opacity="0.5" />
                                 <TextBox AcceptsReturn="True" TextWrapping="Wrap" MinHeight="70"
                                          PlaceholderText="Pre-filled into every new commit…"
                                          Text="{Binding CommitTemplate, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" />
                                 <Separator Margin="0,2" />
-                                <TextBlock Text="AI — LOCAL OLLAMA" FontSize="10" Opacity="0.5" />
-                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" RowDefinitions="Auto,Auto" RowSpacing="6">
+
+                                <TextBlock Text="AI ENGINE" FontSize="10" Opacity="0.5" />
+                                <ComboBox HorizontalAlignment="Stretch" SelectedIndex="{Binding AiEngineIndex, Mode=TwoWay}">
+                                    <ComboBoxItem Content="Built-in local model (no installs)" />
+                                    <ComboBoxItem Content="Ollama server" />
+                                </ComboBox>
+
+                                <!-- Built-in engine: pick a model from the catalog, download once, done. -->
+                                <StackPanel Spacing="8" IsVisible="{Binding UseBuiltinEngine}">
+                                    <ComboBox HorizontalAlignment="Stretch"
+                                              ItemsSource="{Binding BuiltinModels}"
+                                              SelectedItem="{Binding SelectedBuiltinModel, Mode=TwoWay}">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate x:DataType="services:CommitModelPreset">
+                                                <TextBlock Text="{Binding DisplayName}" />
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                        <TextBlock Grid.Column="0" Text="{Binding BuiltinModelStatus}"
+                                                   FontSize="12" Opacity="0.7" VerticalAlignment="Center" />
+                                        <Button Grid.Column="1" Classes="primary" Content="Download" FontSize="12" Padding="10,3"
+                                                IsVisible="{Binding NeedsModelDownload}"
+                                                Command="{Binding DownloadModelCommand}" />
+                                    </Grid>
+                                    <ProgressBar Minimum="0" Maximum="100" Height="6"
+                                                 Value="{Binding ModelDownloadProgress}"
+                                                 IsVisible="{Binding IsDownloadingModel}" />
+                                </StackPanel>
+
+                                <!-- Ollama engine: point at an existing server. -->
+                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" RowDefinitions="Auto,Auto" RowSpacing="6"
+                                      IsVisible="{Binding UseOllamaEngine}">
                                     <TextBlock Grid.Row="0" Grid.Column="0" Text="Server" FontSize="12" VerticalAlignment="Center" />
                                     <TextBox Grid.Row="0" Grid.Column="1" FontSize="12" Padding="6,3"
                                              Text="{Binding OllamaUrl, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" />
@@ -753,7 +785,8 @@
                                              PlaceholderText="e.g. llama3.2, qwen2.5-coder"
                                              Text="{Binding OllamaModel, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" />
                                 </Grid>
-                                <TextBlock Text="✨ Generate runs on this local model — nothing leaves your machine. Changes save automatically."
+
+                                <TextBlock Text="✨ Generate runs locally either way — nothing leaves your machine. Changes save automatically."
                                            FontSize="10" Opacity="0.4" TextWrapping="Wrap" />
                             </StackPanel>
                         </Flyout>

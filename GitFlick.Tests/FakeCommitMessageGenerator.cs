@@ -11,7 +11,7 @@ internal sealed class FakeCommitMessageGenerator : ICommitMessageGenerator
 
     public string? LastDiff { get; private set; }
 
-    public Task<string> GenerateAsync(string diff, string baseUrl, string model, CancellationToken cancellationToken = default)
+    public Task<string> GenerateAsync(string diff, CancellationToken cancellationToken = default)
     {
         LastDiff = diff;
         return Task.FromResult(Result);

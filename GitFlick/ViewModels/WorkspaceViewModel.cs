@@ -118,6 +118,105 @@ public partial class WorkspaceViewModel : ViewModelBase
         }
     }
 
+    /// <summary>Engine selector for the ⚙ combo: 0 = built-in model, 1 = Ollama server.</summary>
+    public int AiEngineIndex
+    {
+        get => _settings?.Current.AiEngine == CommitAiEngine.Ollama ? 1 : 0;
+        set
+        {
+            if (_settings is null)
+            {
+                return;
+            }
+
+            _settings.Current.AiEngine = value == 1 ? CommitAiEngine.Ollama : CommitAiEngine.Builtin;
+            _settings.Save();
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(UseBuiltinEngine));
+            OnPropertyChanged(nameof(UseOllamaEngine));
+        }
+    }
+
+    public bool UseBuiltinEngine => AiEngineIndex == 0;
+
+    public bool UseOllamaEngine => AiEngineIndex == 1;
+
+    /// <summary>The built-in model presets, for the ⚙ combo.</summary>
+    public IReadOnlyList<CommitModelPreset> BuiltinModels => CommitModelCatalog.Presets;
+
+    /// <summary>The selected built-in model preset. Persists immediately; updates the status line.</summary>
+    public CommitModelPreset SelectedBuiltinModel
+    {
+        get => CommitModelCatalog.Resolve(_settings?.Current.BuiltinModelId);
+        set
+        {
+            if (_settings is null || value is null)
+            {
+                return;
+            }
+
+            _settings.Current.BuiltinModelId = value.Id;
+            _settings.Save();
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(BuiltinModelStatus));
+            OnPropertyChanged(nameof(NeedsModelDownload));
+        }
+    }
+
+    /// <summary>"Downloaded ✓" or "Not downloaded (n GB)" for the selected built-in model.</summary>
+    public string BuiltinModelStatus =>
+        CommitModelCatalog.IsDownloaded(SelectedBuiltinModel)
+            ? "Downloaded ✓"
+            : $"Not downloaded ({SelectedBuiltinModel.SizeDisplay})";
+
+    public bool NeedsModelDownload => !CommitModelCatalog.IsDownloaded(SelectedBuiltinModel) && !IsDownloadingModel;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(NeedsModelDownload))]
+    public partial bool IsDownloadingModel { get; set; }
+
+    [ObservableProperty]
+    public partial double ModelDownloadProgress { get; set; }
+
+    /// <summary>Downloads the selected built-in GGUF with SHA-256 verification and live progress.</summary>
+    [RelayCommand]
+    private async Task DownloadModel()
+    {
+        if (IsDownloadingModel)
+        {
+            return;
+        }
+
+        var preset = SelectedBuiltinModel;
+        if (CommitModelCatalog.IsDownloaded(preset))
+        {
+            return;
+        }
+
+        IsDownloadingModel = true;
+        ModelDownloadProgress = 0;
+        StatusText = $"Downloading {preset.FileName}…";
+        try
+        {
+            var progress = new Progress<double>(fraction =>
+            {
+                ModelDownloadProgress = fraction * 100;
+            });
+            await new ModelDownloader().DownloadAsync(preset, progress);
+            StatusText = "Model downloaded — ✨ Generate is ready.";
+        }
+        catch (Exception ex)
+        {
+            StatusText = $"Download failed: {ex.Message}";
+        }
+        finally
+        {
+            IsDownloadingModel = false;
+            OnPropertyChanged(nameof(BuiltinModelStatus));
+            OnPropertyChanged(nameof(NeedsModelDownload));
+        }
+    }
+
     public ObservableCollection<GitStatusEntry> UnstagedFiles { get; } = [];
 
     public ObservableCollection<GitStatusEntry> StagedFiles { get; } = [];
@@ -1004,7 +1103,7 @@ public partial class WorkspaceViewModel : ViewModelBase
         try
         {
             var diff = await _git.GetStagedDiffAsync(Repository.Path);
-            var message = await _ai.GenerateAsync(diff, _settings.Current.OllamaUrl, _settings.Current.OllamaModel);
+            var message = await _ai.GenerateAsync(diff);
             if (string.IsNullOrWhiteSpace(message))
             {
                 StatusText = "The model returned an empty message.";

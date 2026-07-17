@@ -77,7 +77,7 @@ public partial class MainViewModel : ViewModelBase
     {
         _settings = settings;
         _git = git;
-        _ai = ai ?? new OllamaCommitMessageGenerator();
+        _ai = ai ?? new RoutingCommitMessageGenerator(settings);
         ReloadPinned();
     }
 

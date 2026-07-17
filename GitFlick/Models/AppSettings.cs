@@ -16,9 +16,25 @@ public sealed class AppSettings
     /// <summary>Pre-filled into the commit box for a fresh commit. Null/empty means none.</summary>
     public string? CommitTemplate { get; set; }
 
+    /// <summary>Which engine ✨ Generate uses: the built-in in-process model, or an Ollama server.</summary>
+    public CommitAiEngine AiEngine { get; set; } = CommitAiEngine.Builtin;
+
+    /// <summary>Catalog id of the built-in GGUF model (see CommitModelCatalog).</summary>
+    public string BuiltinModelId { get; set; } = "qwen3.5-2b";
+
     /// <summary>Base URL of the local Ollama server used to generate commit messages.</summary>
     public string OllamaUrl { get; set; } = "http://localhost:11434";
 
     /// <summary>Ollama model name for commit-message generation (must be pulled locally).</summary>
     public string OllamaModel { get; set; } = "llama3.2";
+}
+
+/// <summary>How commit messages are generated.</summary>
+public enum CommitAiEngine
+{
+    /// <summary>LLamaSharp running a downloaded GGUF model inside the app — no extra installs.</summary>
+    Builtin,
+
+    /// <summary>An external Ollama server (for users who already run one).</summary>
+    Ollama,
 }
