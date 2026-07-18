@@ -1,4 +1,15 @@
 {
+  "Tag_SelectAll_Tooltip": "Select all tags",
+
+  "Tag_Delete_Tooltip": "Delete the ticked tags locally",
+  "Tag_DeleteRemote_Tooltip": "Delete the ticked tags on the remote",
+
+  "Tag_OnRemote": "remote",
+  "Tag_LocalOnly": "local",
+  "Tag_SelectedHint": "{0} selected",
+  "Status_TagsDeleted": "Deleted {0} tag(s)",
+  "Status_RemoteTagsDeleted": "Deleted {0} tag(s) on {1}",
+
   "Toolbar_Tags": "Tags ▾",
   "Tag_Create": "Create tag…",
   "Tag_PushAll": "Push tags",

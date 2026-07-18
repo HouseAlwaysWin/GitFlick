@@ -465,14 +465,67 @@ public sealed class GitService : IGitService
         return tags;
     }
 
-    public Task<GitCommandResult> DeleteTagAsync(string repoPath, string name, CancellationToken cancellationToken = default)
-        => RunAsync(repoPath, ["tag", "-d", name], null, cancellationToken);
+    public Task<GitCommandResult> DeleteTagsAsync(string repoPath, IReadOnlyList<string> names, CancellationToken cancellationToken = default)
+    {
+        var args = new List<string> { "tag", "-d" };
+        args.AddRange(names);
+        return RunAsync(repoPath, args, null, cancellationToken);
+    }
 
-    public Task<GitCommandResult> DeleteRemoteTagAsync(string repoPath, string remote, string name, CancellationToken cancellationToken = default)
-        => RunAsync(repoPath, ["push", remote, "--delete", $"refs/tags/{name}"], null, cancellationToken);
+    public Task<GitCommandResult> DeleteRemoteTagsAsync(string repoPath, string remote, IReadOnlyList<string> names, CancellationToken cancellationToken = default)
+    {
+        var args = new List<string> { "push", remote, "--delete" };
+        foreach (var name in names)
+        {
+            args.Add($"refs/tags/{name}");
+        }
+        return RunAsync(repoPath, args, null, cancellationToken);
+    }
 
     public Task<GitCommandResult> PushTagsAsync(string repoPath, string remote, IProgress<string>? progress = null, CancellationToken cancellationToken = default)
         => RunAsync(repoPath, ["push", remote, "--tags", "--progress"], progress, cancellationToken);
+
+    public async Task<IReadOnlyCollection<string>> GetRemoteTagNamesAsync(string repoPath, string remote, CancellationToken cancellationToken = default)
+    {
+        // "<sha>\trefs/tags/<name>" per line, with a "^{}" peeled line for annotated tags.
+        var result = await RunAsync(repoPath, ["ls-remote", "--tags", remote], null, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (!result.Succeeded)
+        {
+            throw new GitException($"git ls-remote failed: {result.FailureMessage}");
+        }
+
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var raw in result.StandardOutput.Split('\n'))
+        {
+            var tab = raw.IndexOf('\t');
+            if (tab < 0)
+            {
+                continue;
+            }
+
+            var reference = raw[(tab + 1)..].Trim();
+            const string prefix = "refs/tags/";
+            if (!reference.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var name = reference[prefix.Length..];
+            if (name.EndsWith("^{}", StringComparison.Ordinal))
+            {
+                name = name[..^3];   // the peeled ref for an annotated tag — same name
+            }
+
+            if (name.Length > 0)
+            {
+                names.Add(name);
+            }
+        }
+
+        return names;
+    }
 
     public Task<GitCommandResult> CreateBranchAtAsync(string repoPath, string name, string sha, CancellationToken cancellationToken = default)
         => RunAsync(repoPath, ["branch", name, sha], null, cancellationToken);

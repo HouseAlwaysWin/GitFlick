@@ -1,4 +1,15 @@
 {
+  "Tag_SelectAll_Tooltip": "すべてのタグを選択",
+
+  "Tag_Delete_Tooltip": "選択したタグをローカルで削除",
+  "Tag_DeleteRemote_Tooltip": "選択したタグをリモートで削除",
+
+  "Tag_OnRemote": "リモート",
+  "Tag_LocalOnly": "ローカル",
+  "Tag_SelectedHint": "{0} 件選択",
+  "Status_TagsDeleted": "{0} 個のタグを削除しました",
+  "Status_RemoteTagsDeleted": "リモートの {0} 個のタグを削除しました（{1}）",
+
   "Toolbar_Tags": "タグ ▾",
   "Tag_Create": "タグを作成…",
   "Tag_PushAll": "タグをプッシュ",

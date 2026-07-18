@@ -45,6 +45,26 @@ public partial class FilterOption : ObservableObject
     public partial bool IsSelected { get; set; }
 }
 
+/// <summary>One tag in the Tags list — tickable for multi-delete, and marked by whether it's on the remote.</summary>
+public partial class TagItem : ObservableObject
+{
+    public TagItem(string name) => Name = name;
+
+    public string Name { get; }
+
+    [ObservableProperty]
+    public partial bool IsSelected { get; set; }
+
+    /// <summary>null = unknown (offline / not checked), true = on the remote, false = local-only.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsOnRemote))]
+    [NotifyPropertyChangedFor(nameof(IsLocalOnly))]
+    public partial bool? OnRemote { get; set; }
+
+    public bool IsOnRemote => OnRemote == true;
+    public bool IsLocalOnly => OnRemote == false;
+}
+
 /// <summary>
 /// The per-repository workspace: status split into staged/unstaged, the commit box, and the
 /// branch/remote/stash operations. Every git call funnels through <see cref="RunAsync"/> so
@@ -236,7 +256,10 @@ public partial class WorkspaceViewModel : ViewModelBase
 
     public ObservableCollection<StashEntry> Stashes { get; } = [];
 
-    public ObservableCollection<GitTag> Tags { get; } = [];
+    public ObservableCollection<TagItem> Tags { get; } = [];
+
+    /// <summary>Tag names known to exist on the remote; null until <see cref="RefreshRemoteTagsAsync"/> runs.</summary>
+    private HashSet<string>? _remoteTagNames;
 
     /// <summary>Snapshot of the git command log, filled when the log flyout opens.</summary>
     public ObservableCollection<GitCommandLogEntry> CommandLog { get; } = [];
@@ -329,6 +352,35 @@ public partial class WorkspaceViewModel : ViewModelBase
 
     [ObservableProperty]
     public partial bool HasTags { get; set; }
+
+    /// <summary>How many tags are ticked — drives the "Delete (N)" bulk actions.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSelectedTags))]
+    [NotifyPropertyChangedFor(nameof(AllTagsSelected))]
+    public partial int SelectedTagCount { get; set; }
+
+    public bool HasSelectedTags => SelectedTagCount > 0;
+
+    private bool _suppressTagRecalc;
+
+    /// <summary>The header "select all" tick: checked only when every tag is ticked; setting it ticks
+    /// or clears them all in one shot.</summary>
+    public bool AllTagsSelected
+    {
+        get => Tags.Count > 0 && SelectedTagCount == Tags.Count;
+        set
+        {
+            _suppressTagRecalc = true;
+            foreach (var tag in Tags)
+            {
+                tag.IsSelected = value;
+            }
+            _suppressTagRecalc = false;
+
+            SelectedTagCount = Tags.Count(t => t.IsSelected);
+            OnPropertyChanged();
+        }
+    }
 
     /// <summary>True for a repo with no pending changes, so the UI can say so plainly.</summary>
     [ObservableProperty]
@@ -1258,17 +1310,30 @@ public partial class WorkspaceViewModel : ViewModelBase
         await RunAsync(
             () => _git.CreateTagAsync(Repository.Path, name.Trim(), "HEAD"),
             string.Format(Loc["Status_Tagged"], name.Trim()));
+        await RefreshRemoteTagsAsync();   // the new tag shows as local-only until pushed
     }
 
+    /// <summary>Delete the ticked tags locally.</summary>
     [RelayCommand]
-    private Task DeleteTag(GitTag? tag) => tag is null
-        ? Task.CompletedTask
-        : RunAsync(() => _git.DeleteTagAsync(Repository.Path, tag.Name), string.Format(Loc["Status_TagDeleted"], tag.Name));
-
-    [RelayCommand]
-    private async Task DeleteRemoteTag(GitTag? tag)
+    private async Task DeleteSelectedTags()
     {
-        if (tag is null)
+        var names = Tags.Where(t => t.IsSelected).Select(t => t.Name).ToList();
+        if (names.Count == 0)
+        {
+            return;
+        }
+
+        await RunAsync(
+            () => _git.DeleteTagsAsync(Repository.Path, names),
+            string.Format(Loc["Status_TagsDeleted"], names.Count));
+    }
+
+    /// <summary>Delete the ticked tags on the remote.</summary>
+    [RelayCommand]
+    private async Task DeleteSelectedRemoteTags()
+    {
+        var names = Tags.Where(t => t.IsSelected).Select(t => t.Name).ToList();
+        if (names.Count == 0)
         {
             return;
         }
@@ -1280,8 +1345,9 @@ public partial class WorkspaceViewModel : ViewModelBase
         }
 
         await RunAsync(
-            () => _git.DeleteRemoteTagAsync(Repository.Path, remote, tag.Name),
-            string.Format(Loc["Status_RemoteTagDeleted"], tag.Name, remote));
+            () => _git.DeleteRemoteTagsAsync(Repository.Path, remote, names),
+            string.Format(Loc["Status_RemoteTagsDeleted"], names.Count, remote));
+        await RefreshRemoteTagsAsync();
     }
 
     [RelayCommand]
@@ -1301,6 +1367,7 @@ public partial class WorkspaceViewModel : ViewModelBase
         await RunAsync(
             () => _git.PushTagsAsync(Repository.Path, remote, Progress()),
             string.Format(Loc["Status_TagsPushed"], remote));
+        await RefreshRemoteTagsAsync();
     }
 
     // Tag remote ops target the first remote (origin in the common single-remote case). Reports and bails if none.
@@ -1501,12 +1568,69 @@ public partial class WorkspaceViewModel : ViewModelBase
             HasStashes = Stashes.Count > 0;
 
             var tags = await _git.GetTagsAsync(Repository.Path);
-            Replace(Tags, tags);
-            HasTags = Tags.Count > 0;
+            RebuildTags(tags);
         }
         catch (GitException ex)
         {
             StatusText = ex.Message;
+        }
+    }
+
+    // Rebuild the tag list as tickable TagItems, marking each with its last-known remote presence.
+    private void RebuildTags(IReadOnlyList<GitTag> tags)
+    {
+        foreach (var existing in Tags)
+        {
+            existing.PropertyChanged -= OnTagSelectionChanged;
+        }
+
+        Tags.Clear();
+        foreach (var tag in tags)
+        {
+            var item = new TagItem(tag.Name)
+            {
+                OnRemote = _remoteTagNames?.Contains(tag.Name),
+            };
+            item.PropertyChanged += OnTagSelectionChanged;
+            Tags.Add(item);
+        }
+
+        HasTags = Tags.Count > 0;
+        SelectedTagCount = 0;
+    }
+
+    private void OnTagSelectionChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (!_suppressTagRecalc && e.PropertyName == nameof(TagItem.IsSelected))
+        {
+            SelectedTagCount = Tags.Count(t => t.IsSelected);
+        }
+    }
+
+    // Best-effort: learn which tags are on the remote (git ls-remote) and mark the list. Leaves the
+    // markers unknown when offline / no remote, so nothing is wrongly labelled local-only.
+    private async Task RefreshRemoteTagsAsync()
+    {
+        try
+        {
+            var remotes = await _git.GetRemotesAsync(Repository.Path);
+            if (remotes.Count == 0)
+            {
+                _remoteTagNames = null;
+                return;
+            }
+
+            var names = await _git.GetRemoteTagNamesAsync(Repository.Path, remotes[0]);
+            _remoteTagNames = new HashSet<string>(names, StringComparer.Ordinal);
+
+            foreach (var tag in Tags)
+            {
+                tag.OnRemote = _remoteTagNames.Contains(tag.Name);
+            }
+        }
+        catch (GitException)
+        {
+            // Offline / auth — leave the markers as they were (unknown).
         }
     }
 
@@ -1556,6 +1680,9 @@ public partial class WorkspaceViewModel : ViewModelBase
         {
             IsCheckingRemote = false;
         }
+
+        // Mark which tags are already on the remote (best-effort; its own error handling).
+        await RefreshRemoteTagsAsync();
     }
 
     [RelayCommand]

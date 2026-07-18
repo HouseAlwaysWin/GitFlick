@@ -1,4 +1,15 @@
 {
+  "Tag_SelectAll_Tooltip": "全選標籤",
+
+  "Tag_Delete_Tooltip": "刪除勾選的標籤（本機）",
+  "Tag_DeleteRemote_Tooltip": "刪除勾選的標籤（遠端）",
+
+  "Tag_OnRemote": "遠端",
+  "Tag_LocalOnly": "本機",
+  "Tag_SelectedHint": "已選 {0} 個",
+  "Status_TagsDeleted": "已刪除 {0} 個標籤",
+  "Status_RemoteTagsDeleted": "已刪除 {0} 個遠端標籤（{1}）",
+
   "Toolbar_Tags": "標籤 ▾",
   "Tag_Create": "建立標籤…",
   "Tag_PushAll": "推送標籤",

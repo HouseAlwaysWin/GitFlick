@@ -153,14 +153,17 @@ public interface IGitService
     /// <summary>The repo's tags, newest first (<c>git tag --sort=-creatordate</c>).</summary>
     Task<IReadOnlyList<GitTag>> GetTagsAsync(string repoPath, CancellationToken cancellationToken = default);
 
-    /// <summary>Deletes a local tag (<c>git tag -d</c>).</summary>
-    Task<GitCommandResult> DeleteTagAsync(string repoPath, string name, CancellationToken cancellationToken = default);
+    /// <summary>Deletes one or more local tags (<c>git tag -d</c>).</summary>
+    Task<GitCommandResult> DeleteTagsAsync(string repoPath, IReadOnlyList<string> names, CancellationToken cancellationToken = default);
 
-    /// <summary>Deletes a tag on a remote (<c>git push &lt;remote&gt; --delete refs/tags/&lt;name&gt;</c>).</summary>
-    Task<GitCommandResult> DeleteRemoteTagAsync(string repoPath, string remote, string name, CancellationToken cancellationToken = default);
+    /// <summary>Deletes tags on a remote (<c>git push &lt;remote&gt; --delete refs/tags/…</c>).</summary>
+    Task<GitCommandResult> DeleteRemoteTagsAsync(string repoPath, string remote, IReadOnlyList<string> names, CancellationToken cancellationToken = default);
 
     /// <summary>Pushes all tags to a remote (<c>git push &lt;remote&gt; --tags</c>).</summary>
     Task<GitCommandResult> PushTagsAsync(string repoPath, string remote, IProgress<string>? progress = null, CancellationToken cancellationToken = default);
+
+    /// <summary>The tag names that exist on a remote (<c>git ls-remote --tags</c>), for the "on remote" marker.</summary>
+    Task<IReadOnlyCollection<string>> GetRemoteTagNamesAsync(string repoPath, string remote, CancellationToken cancellationToken = default);
 
     /// <summary>Creates a branch at a specific commit without switching to it.</summary>
     Task<GitCommandResult> CreateBranchAtAsync(string repoPath, string name, string sha, CancellationToken cancellationToken = default);

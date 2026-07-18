@@ -1,4 +1,15 @@
 {
+  "Tag_SelectAll_Tooltip": "全选标签",
+
+  "Tag_Delete_Tooltip": "删除勾选的标签（本地）",
+  "Tag_DeleteRemote_Tooltip": "删除勾选的标签（远端）",
+
+  "Tag_OnRemote": "远端",
+  "Tag_LocalOnly": "本地",
+  "Tag_SelectedHint": "已选 {0} 个",
+  "Status_TagsDeleted": "已删除 {0} 个标签",
+  "Status_RemoteTagsDeleted": "已删除 {0} 个远端标签（{1}）",
+
   "Toolbar_Tags": "标签 ▾",
   "Tag_Create": "创建标签…",
   "Tag_PushAll": "推送标签",

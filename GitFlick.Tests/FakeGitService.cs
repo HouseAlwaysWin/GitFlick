@@ -123,14 +123,20 @@ internal sealed class FakeGitService : IGitService
     public Task<IReadOnlyList<GitTag>> GetTagsAsync(string repoPath, CancellationToken cancellationToken = default)
         => Task.FromResult<IReadOnlyList<GitTag>>(StubTags.ToList());
 
-    public Task<GitCommandResult> DeleteTagAsync(string repoPath, string name, CancellationToken cancellationToken = default)
-        => Record($"tag -d {name}");
+    public Task<GitCommandResult> DeleteTagsAsync(string repoPath, IReadOnlyList<string> names, CancellationToken cancellationToken = default)
+        => Record($"tag -d {string.Join(' ', names)}");
 
-    public Task<GitCommandResult> DeleteRemoteTagAsync(string repoPath, string remote, string name, CancellationToken cancellationToken = default)
-        => Record($"push {remote} --delete {name}");
+    public Task<GitCommandResult> DeleteRemoteTagsAsync(string repoPath, string remote, IReadOnlyList<string> names, CancellationToken cancellationToken = default)
+        => Record($"push {remote} --delete {string.Join(' ', names)}");
 
     public Task<GitCommandResult> PushTagsAsync(string repoPath, string remote, IProgress<string>? progress = null, CancellationToken cancellationToken = default)
         => Record($"push {remote} --tags");
+
+    /// <summary>Tag names the fake reports as existing on the remote.</summary>
+    public List<string> StubRemoteTagNames { get; } = [];
+
+    public Task<IReadOnlyCollection<string>> GetRemoteTagNamesAsync(string repoPath, string remote, CancellationToken cancellationToken = default)
+        => Task.FromResult<IReadOnlyCollection<string>>(StubRemoteTagNames.ToList());
 
     public Task<GitCommandResult> CreateBranchAtAsync(string repoPath, string name, string sha, CancellationToken cancellationToken = default)
         => Record($"branch {name} {sha}");

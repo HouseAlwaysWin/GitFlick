@@ -443,7 +443,7 @@
                     <Button x:Name="TagsButton" Content="{loc:Tr Toolbar_Tags}">
                         <Button.Flyout>
                             <Flyout Placement="BottomEdgeAlignedRight">
-                                <StackPanel Width="320" Spacing="6" x:DataType="vm:WorkspaceViewModel">
+                                <StackPanel Width="330" Spacing="6" x:DataType="vm:WorkspaceViewModel">
                                     <!-- Create a tag at HEAD, or push all tags to the remote. -->
                                     <Grid ColumnDefinitions="*,*" ColumnSpacing="6">
                                         <Button Grid.Column="0" Content="{loc:Tr Tag_Create}" HorizontalAlignment="Stretch"
@@ -455,23 +455,36 @@
 
                                     <Separator Margin="0,2" />
 
-                                    <TextBlock Text="{loc:Tr Tag_ListHeader}" FontSize="10" Opacity="0.5" />
+                                    <!-- Header: a select-all tick, the label, then bulk-delete the selection. -->
+                                    <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="4">
+                                        <CheckBox Grid.Column="0" IsChecked="{Binding AllTagsSelected, Mode=TwoWay}"
+                                                  IsEnabled="{Binding HasTags}" Margin="0,0,6,0" VerticalAlignment="Center"
+                                                  ToolTip.Tip="{loc:Tr Tag_SelectAll_Tooltip}" />
+                                        <TextBlock Grid.Column="1" Text="{loc:Tr Tag_ListHeader}" FontSize="10" Opacity="0.5"
+                                                   VerticalAlignment="Center" />
+                                        <Button Grid.Column="2" Content="{loc:Tr Tag_Delete}" FontSize="11" Padding="8,2"
+                                                IsEnabled="{Binding HasSelectedTags}" Command="{Binding DeleteSelectedTagsCommand}"
+                                                ToolTip.Tip="{loc:Tr Tag_Delete_Tooltip}" />
+                                        <Button Grid.Column="3" Content="{loc:Tr Tag_DeleteRemote}" FontSize="11" Padding="8,2"
+                                                IsEnabled="{Binding HasSelectedTags}" Command="{Binding DeleteSelectedRemoteTagsCommand}"
+                                                ToolTip.Tip="{loc:Tr Tag_DeleteRemote_Tooltip}" />
+                                    </Grid>
 
-                                    <!-- Each tag: delete it locally or on the remote. -->
                                     <ListBox MaxHeight="220" ItemsSource="{Binding Tags}">
                                         <ListBox.ItemTemplate>
-                                            <DataTemplate x:DataType="models:GitTag">
-                                                <Grid ColumnDefinitions="*,Auto" ToolTip.Tip="{Binding Name}">
-                                                    <TextBlock Grid.Column="0" Text="{Binding Name}"
+                                            <DataTemplate x:DataType="vm:TagItem">
+                                                <Grid ColumnDefinitions="Auto,*,Auto" ToolTip.Tip="{Binding Name}">
+                                                    <CheckBox Grid.Column="0" IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                                              Margin="0,0,6,0" VerticalAlignment="Center" />
+                                                    <TextBlock Grid.Column="1" Text="{Binding Name}"
                                                                TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
-                                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2">
-                                                        <Button Classes="header" FontSize="11" Padding="6,1" Content="{loc:Tr Tag_Delete}"
-                                                                Command="{Binding $parent[ListBox].((vm:WorkspaceViewModel)DataContext).DeleteTagCommand}"
-                                                                CommandParameter="{Binding}" />
-                                                        <Button Classes="header" FontSize="11" Padding="6,1" Content="{loc:Tr Tag_DeleteRemote}"
-                                                                Command="{Binding $parent[ListBox].((vm:WorkspaceViewModel)DataContext).DeleteRemoteTagCommand}"
-                                                                CommandParameter="{Binding}" />
-                                                    </StackPanel>
+                                                    <!-- On the remote (synced) vs local-only (not pushed). -->
+                                                    <TextBlock Grid.Column="2" Text="{loc:Tr Tag_OnRemote}"
+                                                               IsVisible="{Binding IsOnRemote}" FontSize="10"
+                                                               VerticalAlignment="Center" Foreground="#4CAF50" />
+                                                    <TextBlock Grid.Column="2" Text="{loc:Tr Tag_LocalOnly}"
+                                                               IsVisible="{Binding IsLocalOnly}" FontSize="10"
+                                                               VerticalAlignment="Center" Opacity="0.5" />
                                                 </Grid>
                                             </DataTemplate>
                                         </ListBox.ItemTemplate>
