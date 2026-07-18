@@ -1,4 +1,14 @@
 {
+  "History_Search": "検索",
+
+  "History_SearchType_Message": "メッセージ",
+  "History_SearchType_File": "ファイル",
+  "History_SearchType_Tooltip": "コミットメッセージを検索、またはファイルで絞り込み",
+
+  "History_SearchMessages": "メッセージを検索…",
+  "History_ShowOnlyFile": "このファイルを変更したコミットのみ表示",
+  "History_FilePlaceholder": "パス、フォルダー、または *.拡張子",
+  "History_Apply": "適用",
   "Palette_SearchPlaceholder": "ピン留めしたリポジトリを検索…",
   "Palette_Open": "開く…",
   "Palette_Open_Tooltip": "新しいワークスペースで Git リポジトリを開く",

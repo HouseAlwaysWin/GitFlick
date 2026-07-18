@@ -501,7 +501,54 @@
                 <DockPanel Grid.Column="0" IsVisible="{Binding IsHistoryMode}">
                     <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,4">
                         <TextBlock Grid.Column="0" Text="{loc:Tr History_Header}" FontWeight="SemiBold" VerticalAlignment="Center" />
+
+                        <!-- Col 1 is just a spacer; every filter (search included) is a dropdown on the
+                             right, so nothing sits inline stealing width in a narrow History pane. -->
+
                         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                            <!-- Unified search: one dropdown holding the Message/File scope toggle, the
+                                 input, and (File scope) a click-to-pick list of matching paths. -->
+                            <Button x:Name="SearchDropdownButton" Classes="header" FontWeight="Normal"
+                                    Content="{Binding SearchFilterLabel}"
+                                    ToolTip.Tip="{loc:Tr History_SearchType_Tooltip}">
+                                <Button.Flyout>
+                                    <Flyout Placement="BottomEdgeAlignedRight">
+                                        <StackPanel Width="300" Spacing="8" x:DataType="vm:WorkspaceViewModel">
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10">
+                                                    <RadioButton GroupName="searchScope" FontSize="12"
+                                                                 Content="{loc:Tr History_SearchType_Message}"
+                                                                 IsChecked="{Binding IsMessageSearch, Mode=OneWay}"
+                                                                 Command="{Binding UseMessageSearchCommand}" />
+                                                    <RadioButton GroupName="searchScope" FontSize="12"
+                                                                 Content="{loc:Tr History_SearchType_File}"
+                                                                 IsChecked="{Binding IsFileSearch, Mode=OneWay}"
+                                                                 Command="{Binding UseFileSearchCommand}" />
+                                                </StackPanel>
+                                                <Button Grid.Column="1" Content="{loc:Tr History_Clear}" FontSize="11" Padding="8,2"
+                                                        IsEnabled="{Binding HasSearchFilter}"
+                                                        Command="{Binding ClearSearchCommand}" />
+                                            </Grid>
+                                            <TextBox x:Name="SearchInput"
+                                                     Text="{Binding SearchText}"
+                                                     PlaceholderText="{Binding SearchPlaceholder}"
+                                                     VerticalContentAlignment="Center"
+                                                     FontSize="12" Padding="6,4"
+                                                     KeyDown="OnSearchBoxKeyDown" />
+                                            <!-- File scope only: the fuzzy-matched historical paths. -->
+                                            <Border IsVisible="{Binding IsFileSearch}"
+                                                    BorderBrush="#30808080" BorderThickness="1" CornerRadius="3">
+                                                <ScrollViewer MaxHeight="240">
+                                                    <ListBox x:Name="PathList"
+                                                             ItemsSource="{Binding FilteredPathSuggestions}"
+                                                             SelectionChanged="OnPathSuggestionSelected"
+                                                             Background="Transparent" FontSize="12" />
+                                                </ScrollViewer>
+                                            </Border>
+                                        </StackPanel>
+                                    </Flyout>
+                                </Button.Flyout>
+                            </Button>
                             <Button Classes="header" FontWeight="Normal"
                                     Content="{Binding AuthorFilterLabel}"
                                     ToolTip.Tip="{loc:Tr History_AuthorFilter_Tooltip}">

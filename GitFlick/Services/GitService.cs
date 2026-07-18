@@ -203,6 +203,7 @@ public sealed class GitService : IGitService
         string repoPath,
         int maxCount = 300,
         bool firstParentOnly = false,
+        string? pathFilter = null,
         CancellationToken cancellationToken = default)
     {
         // A repo with no commits has an unborn HEAD, and `git log ... HEAD` then fails outright
@@ -245,6 +246,15 @@ public sealed class GitService : IGitService
             args.Add("HEAD");
         }
 
+        // Path filter (spec §5⑥/⑦): only commits that touched this pathspec. "--" separates it
+        // from revisions so a path that looks like a ref can't be misread. git's own pathspec
+        // rules apply, so a file, a folder, or a glob like *.cs all work.
+        if (!string.IsNullOrWhiteSpace(pathFilter))
+        {
+            args.Add("--");
+            args.Add(pathFilter);
+        }
+
         var result = await RunAsync(repoPath, args, null, cancellationToken).ConfigureAwait(false);
 
         if (!result.Succeeded)
@@ -253,6 +263,36 @@ public sealed class GitService : IGitService
         }
 
         return CommitLogParser.Parse(result.StandardOutput);
+    }
+
+    public async Task<IReadOnlyList<string>> GetAllPathsAsync(string repoPath, CancellationToken cancellationToken = default)
+    {
+        // Every path that ever appeared in history, across all refs — so a file that was later
+        // renamed or deleted still shows up (under the name it had at the time). Fuels the
+        // file-filter autocomplete. quotepath=false keeps CJK paths literal.
+        var result = await RunAsync(
+            repoPath,
+            ["log", "--all", "--no-show-signature", "--pretty=format:", "--name-only"],
+            null,
+            cancellationToken).ConfigureAwait(false);
+
+        if (!result.Succeeded)
+        {
+            return [];
+        }
+
+        var paths = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var raw in result.StandardOutput.Split('\n'))
+        {
+            var path = raw.TrimEnd('\r');
+            if (path.Length > 0)
+            {
+                paths.Add(path);
+            }
+        }
+
+        return new List<string>(paths);
     }
 
     public async Task<string> GetCommitDiffAsync(string repoPath, string sha, CancellationToken cancellationToken = default)

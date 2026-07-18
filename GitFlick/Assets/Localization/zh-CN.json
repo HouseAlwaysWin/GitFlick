@@ -1,4 +1,14 @@
 {
+  "History_Search": "搜索",
+
+  "History_SearchType_Message": "消息",
+  "History_SearchType_File": "文件",
+  "History_SearchType_Tooltip": "搜索提交消息，或按文件过滤",
+
+  "History_SearchMessages": "搜索消息…",
+  "History_ShowOnlyFile": "只显示改动过此文件的提交",
+  "History_FilePlaceholder": "路径、文件夹或 *.扩展名",
+  "History_Apply": "应用",
   "Palette_SearchPlaceholder": "搜索固定的仓库…",
   "Palette_Open": "打开…",
   "Palette_Open_Tooltip": "在新的工作区打开 Git 仓库",

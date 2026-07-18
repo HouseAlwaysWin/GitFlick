@@ -25,6 +25,14 @@ public enum HistorySortColumn
     Date,
 }
 
+/// <summary>What the unified History search box searches. Message runs the client-side fuzzy
+/// subject filter; File runs the git-level path filter (with all-history path autocomplete).</summary>
+public enum HistorySearchType
+{
+    Message,
+    File,
+}
+
 /// <summary>One tickable option in a history multi-select filter (an author or a branch).
 /// Toggling <see cref="IsSelected"/> re-filters the list.</summary>
 public partial class FilterOption : ObservableObject
@@ -388,7 +396,8 @@ public partial class WorkspaceViewModel : ViewModelBase
     /// for it; an author filter does not (an author's commits link through other people's), so it
     /// stays hidden there.
     /// </summary>
-    public bool ShowGraph => SortColumn == HistorySortColumn.Graph && !HasAuthorFilter;
+    public bool ShowGraph => SortColumn == HistorySortColumn.Graph
+        && !HasAuthorFilter && !HasMessageFilter && !HasFileFilter;
 
     // The active column wears an arrow; the rest show nothing.
     public string AuthorSortGlyph => GlyphFor(HistorySortColumn.Author);
@@ -438,6 +447,230 @@ public partial class WorkspaceViewModel : ViewModelBase
     partial void OnBranchFilterSearchChanged(string value) =>
         Narrow(BranchFilters, FilteredBranchFilters, value);
 
+    /// <summary>
+    /// Fuzzy filter on commit subjects — show only commits whose message matches. Applied
+    /// client-side over the loaded history, so it's instant; like the author filter it isn't a
+    /// parent-closed subset, so the lane graph steps aside while it's active.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SearchFilterLabel))]
+    public partial string MessageFilter { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowGraph))]
+    [NotifyPropertyChangedFor(nameof(SearchFilterLabel))]
+    [NotifyPropertyChangedFor(nameof(HasSearchFilter))]
+    public partial bool HasMessageFilter { get; set; }
+
+    partial void OnMessageFilterChanged(string value) => ApplyView();
+
+    /// <summary>
+    /// The applied file filter: show only commits that touched this pathspec. Unlike the others
+    /// this is a git-level filter (git decides which commits touched the file), so changing it
+    /// reloads the history. A path-filtered log isn't parent-closed either, so no graph. Set from
+    /// the unified search box's File scope (see <see cref="ApplySearch"/>).
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowGraph))]
+    [NotifyPropertyChangedFor(nameof(HasFileFilter))]
+    [NotifyPropertyChangedFor(nameof(SearchFilterLabel))]
+    [NotifyPropertyChangedFor(nameof(HasSearchFilter))]
+    public partial string FileFilter { get; set; } = string.Empty;
+
+    public bool HasFileFilter => FileFilter.Trim().Length > 0;
+
+    partial void OnFileFilterChanged(string value) => HistoryLoad = LoadHistoryAsync();
+
+    // ── Unified History search ──────────────────────────────────────────────────
+    // Message + File share one dropdown, styled like the Authors/Branches filters: a single
+    // "Search ▾" button opens a flyout holding the Message/File scope toggle, the text input, and —
+    // in File scope — a click-to-pick list of matching paths. Living in a flyout means it never
+    // competes with the filter buttons for width, so a narrow History pane can't make it overflow.
+    // The MessageFilter / FileFilter machinery above is unchanged; this just feeds it.
+
+    /// <summary>The active search scope. Switching it clears the input and drops the other scope's filter.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsFileSearch))]
+    [NotifyPropertyChangedFor(nameof(IsMessageSearch))]
+    [NotifyPropertyChangedFor(nameof(SearchPlaceholder))]
+    public partial HistorySearchType SearchType { get; set; } = HistorySearchType.Message;
+
+    public bool IsFileSearch => SearchType == HistorySearchType.File;
+    public bool IsMessageSearch => SearchType == HistorySearchType.Message;
+
+    public string SearchPlaceholder =>
+        IsFileSearch ? Loc["History_FilePlaceholder"] : Loc["History_SearchMessages"];
+
+    /// <summary>The dropdown button's label — echoes the active filter, the way "Authors (2) ▾" does.</summary>
+    public string SearchFilterLabel =>
+        HasMessageFilter ? $"“{MessageFilter.Trim()}” ▾"
+        : HasFileFilter ? $"{FileLeaf(FileFilter)} ▾"
+        : Loc["History_Search"] + " ▾";
+
+    public bool HasSearchFilter => HasMessageFilter || HasFileFilter;
+
+    /// <summary>What's typed in the search input. Message applies live; File narrows the pick list.</summary>
+    [ObservableProperty]
+    public partial string SearchText { get; set; } = string.Empty;
+
+    // Set while a pick echoes its path into the input — suppresses the re-narrow that would otherwise
+    // clear the suggestion list out from under the ListBox mid-selection (an index-out-of-range crash).
+    private bool _suppressPathNarrow;
+
+    partial void OnSearchTextChanged(string value)
+    {
+        // Message filters as you type (client-side, cheap). File narrows the suggestion list; the git
+        // reload waits for a pick (or Enter), since each path change reloads the whole log.
+        if (IsMessageSearch)
+        {
+            MessageFilter = value;
+        }
+        else if (!_suppressPathNarrow)
+        {
+            NarrowPathSuggestions(value);
+        }
+    }
+
+    /// <summary>Every path the repo has ever had (incl. deleted/renamed). Loaded once, lazily.</summary>
+    public ObservableCollection<string> PathSuggestions { get; } = [];
+
+    /// <summary>The paths matching the current input — what the File pick list shows.</summary>
+    public ObservableCollection<string> FilteredPathSuggestions { get; } = [];
+
+    private bool _pathsLoaded;
+
+    [RelayCommand]
+    private Task UseMessageSearchAsync() => SetSearchTypeAsync(HistorySearchType.Message);
+
+    [RelayCommand]
+    private Task UseFileSearchAsync() => SetSearchTypeAsync(HistorySearchType.File);
+
+    [RelayCommand]
+    private void ClearSearch()
+    {
+        SearchText = string.Empty;
+        MessageFilter = string.Empty;
+        if (HasFileFilter)
+        {
+            FileFilter = string.Empty;
+        }
+    }
+
+    private async Task SetSearchTypeAsync(HistorySearchType type)
+    {
+        if (SearchType == type)
+        {
+            return;
+        }
+
+        SearchType = type;
+
+        // A clean slate on every switch: drop the input and both scopes' applied filters, so the list
+        // is never left showing a stale filter from the scope we just left.
+        SearchText = string.Empty;
+        MessageFilter = string.Empty;
+        if (HasFileFilter)
+        {
+            FileFilter = string.Empty;   // reloads the full history
+        }
+
+        if (type == HistorySearchType.File)
+        {
+            await EnsurePathsLoadedAsync();
+            NarrowPathSuggestions(SearchText);
+        }
+    }
+
+    /// <summary>Enter in File scope: apply the typed pathspec directly, bypassing the pick list.</summary>
+    [RelayCommand]
+    private void ApplySearch()
+    {
+        if (IsFileSearch)
+        {
+            FileFilter = SearchText.Trim();
+        }
+    }
+
+    /// <summary>A path was picked from the File list — echo it in the input and apply it as the filter.</summary>
+    public void PickPath(string path)
+    {
+        _suppressPathNarrow = true;
+        SearchText = path;          // show the pick; the narrow is suppressed so the list stays put
+        _suppressPathNarrow = false;
+        FileFilter = path.Trim();
+    }
+
+    // Narrow the historical-path list to the query, best fuzzy matches first, capped so a huge repo
+    // doesn't render thousands of rows. An empty query shows the head of the (already sorted) list.
+    private void NarrowPathSuggestions(string query)
+    {
+        const int Max = 60;
+        FilteredPathSuggestions.Clear();
+
+        var q = query.Trim();
+        if (q.Length == 0)
+        {
+            var shown = 0;
+            foreach (var p in PathSuggestions)
+            {
+                FilteredPathSuggestions.Add(p);
+                if (++shown >= Max) break;
+            }
+            return;
+        }
+
+        var scored = new List<(string Path, int Score)>();
+        foreach (var p in PathSuggestions)
+        {
+            if (FuzzyMatcher.TryMatch(p, q, out var score))
+            {
+                scored.Add((p, score));
+            }
+        }
+        scored.Sort((a, b) => b.Score.CompareTo(a.Score));
+
+        for (var i = 0; i < scored.Count && i < Max; i++)
+        {
+            FilteredPathSuggestions.Add(scored[i].Path);
+        }
+    }
+
+    // Pulls every path the repo has ever seen for the File pick list. Lazy — a session that never
+    // opens File search never pays for it; a failure leaves the flag clear so a later switch retries.
+    private async Task EnsurePathsLoadedAsync()
+    {
+        if (_pathsLoaded)
+        {
+            return;
+        }
+
+        _pathsLoaded = true;
+        try
+        {
+            var paths = await _git.GetAllPathsAsync(Repository.Path);
+            var sorted = new List<string>(paths);
+            sorted.Sort(StringComparer.OrdinalIgnoreCase);
+
+            PathSuggestions.Clear();
+            foreach (var path in sorted)
+            {
+                PathSuggestions.Add(path);
+            }
+        }
+        catch
+        {
+            _pathsLoaded = false;
+        }
+    }
+
+    // The tail of a pathspec, for a compact button label ("src/App.cs" -> "App.cs", "*.cs" -> "*.cs").
+    private static string FileLeaf(string path)
+    {
+        var trimmed = path.Trim().TrimEnd('/', '\\');
+        var slash = trimmed.LastIndexOfAny(['/', '\\']);
+        return slash >= 0 && slash < trimmed.Length - 1 ? trimmed[(slash + 1)..] : trimmed;
+    }
+
     /// <summary>Suppresses per-item re-filtering while several ticks change at once.</summary>
     private bool _suppressFilterApply;
 
@@ -480,7 +713,8 @@ public partial class WorkspaceViewModel : ViewModelBase
         try
         {
             var commits = await _git.GetCommitsAsync(
-                Repository.Path, _commitLimit, FirstParentOnly);
+                Repository.Path, _commitLimit, FirstParentOnly,
+                HasFileFilter ? FileFilter.Trim() : null);
 
             _graphOrder = commits.ToList();
 
@@ -622,8 +856,10 @@ public partial class WorkspaceViewModel : ViewModelBase
     {
         var authors = AuthorFilters.Where(a => a.IsSelected).Select(a => a.Name).ToHashSet(StringComparer.Ordinal);
         var branches = BranchFilters.Where(b => b.IsSelected).Select(b => b.Name).ToHashSet(StringComparer.Ordinal);
+        var message = MessageFilter.Trim();
         HasAuthorFilter = authors.Count > 0;
         HasBranchFilter = branches.Count > 0;
+        HasMessageFilter = message.Length > 0;
 
         // Filter in git's order first. A branch filter keeps every ancestor of the tips, so the
         // result is still a parent-closed sub-DAG the graph can be drawn against.
@@ -638,6 +874,11 @@ public partial class WorkspaceViewModel : ViewModelBase
         if (HasAuthorFilter)
         {
             filtered = filtered.Where(c => authors.Contains(c.Author));
+        }
+
+        if (HasMessageFilter)
+        {
+            filtered = filtered.Where(c => FuzzyMatcher.TryMatch(c.Subject, message, out _));
         }
 
         var gitOrder = filtered.ToList();

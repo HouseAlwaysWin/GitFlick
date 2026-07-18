@@ -1,4 +1,14 @@
 {
+  "History_Search": "搜尋",
+
+  "History_SearchType_Message": "訊息",
+  "History_SearchType_File": "檔案",
+  "History_SearchType_Tooltip": "搜尋提交訊息，或依檔案過濾",
+
+  "History_SearchMessages": "搜尋訊息…",
+  "History_ShowOnlyFile": "只顯示更動過此檔案的提交",
+  "History_FilePlaceholder": "路徑、資料夾或 *.副檔名",
+  "History_Apply": "套用",
   "Palette_SearchPlaceholder": "搜尋釘選的儲存庫…",
   "Palette_Open": "開啟…",
   "Palette_Open_Tooltip": "在新的工作區開啟 Git 儲存庫",

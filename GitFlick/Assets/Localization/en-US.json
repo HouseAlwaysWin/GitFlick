@@ -1,4 +1,14 @@
 {
+  "History_Search": "Search",
+
+  "History_SearchType_Message": "Message",
+  "History_SearchType_File": "File",
+  "History_SearchType_Tooltip": "Search commit messages, or filter by file",
+
+  "History_SearchMessages": "Search messages…",
+  "History_ShowOnlyFile": "SHOW ONLY COMMITS TOUCHING",
+  "History_FilePlaceholder": "path, folder, or *.ext",
+  "History_Apply": "Apply",
   "Palette_SearchPlaceholder": "Search pinned repositories…",
   "Palette_Open": "Open…",
   "Palette_Open_Tooltip": "Open a Git repository in a new workspace",

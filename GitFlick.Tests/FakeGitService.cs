@@ -71,8 +71,20 @@ internal sealed class FakeGitService : IGitService
     /// <summary>Newest-first commits the fake serves; GetCommitsAsync honours maxCount like git log.</summary>
     public List<CommitInfo> StubCommits { get; } = [];
 
-    public Task<IReadOnlyList<CommitInfo>> GetCommitsAsync(string repoPath, int maxCount = 300, bool firstParentOnly = false, CancellationToken cancellationToken = default)
-        => Task.FromResult<IReadOnlyList<CommitInfo>>(StubCommits.Take(maxCount).ToList());
+    /// <summary>The last pathFilter GetCommitsAsync was called with, so tests can assert on it.</summary>
+    public string? LastPathFilter { get; private set; }
+
+    public Task<IReadOnlyList<CommitInfo>> GetCommitsAsync(string repoPath, int maxCount = 300, bool firstParentOnly = false, string? pathFilter = null, CancellationToken cancellationToken = default)
+    {
+        LastPathFilter = pathFilter;
+        return Task.FromResult<IReadOnlyList<CommitInfo>>(StubCommits.Take(maxCount).ToList());
+    }
+
+    /// <summary>Paths the fake offers for file-filter autocomplete.</summary>
+    public List<string> StubPaths { get; } = [];
+
+    public Task<IReadOnlyList<string>> GetAllPathsAsync(string repoPath, CancellationToken cancellationToken = default)
+        => Task.FromResult<IReadOnlyList<string>>(StubPaths.ToList());
 
     public Task<string> GetCommitDiffAsync(string repoPath, string sha, CancellationToken cancellationToken = default)
         => Task.FromResult(string.Empty);

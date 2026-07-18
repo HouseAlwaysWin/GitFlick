@@ -11,6 +11,7 @@ using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 using AvaloniaEdit.TextMate;
 using GitFlick.Models;
@@ -95,18 +96,69 @@ public partial class MainWindow : Window
         CommitList.AddHandler(PointerPressedEvent, OnCommitListPointerPressed, RoutingStrategies.Tunnel);
     }
 
+    // Enter in the search input. Message already filters live, so this only matters for File: it
+    // applies the typed pathspec directly (bypassing the pick list) and closes the dropdown.
+    private void OnSearchBoxKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter || Workspace is not { } workspace)
+        {
+            return;
+        }
+
+        if (workspace.IsFileSearch)
+        {
+            workspace.ApplySearchCommand.Execute(null);
+        }
+
+        SearchDropdownButton.Flyout?.Hide();
+        e.Handled = true;
+    }
+
+    // Clicking a path in the File pick list applies it and closes the dropdown. The work is deferred
+    // off the SelectionChanged event: applying a pick resets the selection and closes the flyout,
+    // and doing that mid-event re-enters the ListBox's selection handling.
+    private void OnPathSuggestionSelected(object? sender, SelectionChangedEventArgs e)
+    {
+        if (Workspace is not { } workspace || sender is not ListBox list)
+        {
+            return;
+        }
+
+        if (list.SelectedItem is string path && path.Length > 0)
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                workspace.PickPath(path);
+                list.SelectedItem = null;   // so re-picking the same path fires again
+                SearchDropdownButton.Flyout?.Hide();
+            });
+        }
+    }
+
+    // The real row height in DIPs — the ListBoxItem style pins it. The graph's row unit must match.
+    private const double CommitRowHeight = 26;
+
     private void OnCommitListScrolled(object? sender, ScrollChangedEventArgs e)
     {
-        if (e.Source is ScrollViewer scroller)
+        if (e.Source is not ScrollViewer scroller)
         {
-            GraphView.ScrollOffset = scroller.Offset.Y;
+            return;
+        }
 
-            // Match the graph's row height to the list's ACTUAL one. A nominal 26 drifts: layout
-            // rounding snaps each row to a whole device pixel (~26.4 at 125% scale), and over a
-            // few hundred commits that lag adds up to a row or two — the bottom dots fall off.
-            if (CommitList.ItemCount > 0 && scroller.Extent.Height > 0)
+        GraphView.ScrollOffset = scroller.Offset.Y;
+
+        // Match the graph's row height to the list's ACTUAL one. A nominal 26 drifts: layout rounding
+        // snaps each row to a whole device pixel (~26.4 at 125% scale), and over a few hundred commits
+        // that lag adds up to a row or two — the bottom dots fall off. Averaging the scroll extent
+        // recovers it. But when the list is shorter than the viewport, a resize (e.g. dragging the
+        // pane splitter) makes the ScrollViewer briefly report a viewport-sized extent, which would
+        // stretch every row and detach the dots — so only trust a value near the real row height.
+        if (CommitList.ItemCount > 0 && scroller.Extent.Height > 0)
+        {
+            var rowHeight = scroller.Extent.Height / CommitList.ItemCount;
+            if (rowHeight > CommitRowHeight * 0.75 && rowHeight < CommitRowHeight * 1.5)
             {
-                GraphView.RowHeight = scroller.Extent.Height / CommitList.ItemCount;
+                GraphView.RowHeight = rowHeight;
             }
         }
     }

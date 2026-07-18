@@ -116,7 +116,11 @@ public interface IGitService
         string repoPath,
         int maxCount = 300,
         bool firstParentOnly = false,
+        string? pathFilter = null,
         CancellationToken cancellationToken = default);
+
+    /// <summary>Every path that ever appeared in history (incl. renamed/deleted). For file-filter autocomplete.</summary>
+    Task<IReadOnlyList<string>> GetAllPathsAsync(string repoPath, CancellationToken cancellationToken = default);
 
     /// <summary>The full patch introduced by one commit.</summary>
     Task<string> GetCommitDiffAsync(string repoPath, string sha, CancellationToken cancellationToken = default);
