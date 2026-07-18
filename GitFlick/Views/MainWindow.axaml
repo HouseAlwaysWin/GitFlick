@@ -375,22 +375,62 @@
                         </Button.Flyout>
                     </Button>
 
-                    <Button Content="{loc:Tr Toolbar_Stash}">
+                    <Button x:Name="StashButton" Content="{loc:Tr Toolbar_Stash}">
                         <Button.Flyout>
                             <Flyout Placement="BottomEdgeAlignedRight">
-                                <StackPanel Width="260" Spacing="8" x:DataType="vm:WorkspaceViewModel">
+                                <StackPanel Width="340" Spacing="6" x:DataType="vm:WorkspaceViewModel">
+                                    <!-- Create a stash: tracked, incl. untracked, or index only. -->
+                                    <Button Content="{loc:Tr Stash_Changes}" HorizontalAlignment="Stretch"
+                                            HorizontalContentAlignment="Center" Command="{Binding StashPushCommand}" />
                                     <Grid ColumnDefinitions="*,*" ColumnSpacing="6">
-                                        <Button Grid.Column="0" Content="{loc:Tr Stash_Changes}" HorizontalAlignment="Stretch"
-                                                HorizontalContentAlignment="Center" Command="{Binding StashPushCommand}" />
-                                        <Button Grid.Column="1" Content="{loc:Tr Stash_PopLatest}" HorizontalAlignment="Stretch"
-                                                HorizontalContentAlignment="Center" Command="{Binding StashPopCommand}" />
+                                        <Button Grid.Column="0" Content="{loc:Tr Stash_Untracked}" HorizontalAlignment="Stretch"
+                                                HorizontalContentAlignment="Center" Command="{Binding StashUntrackedCommand}" />
+                                        <Button Grid.Column="1" Content="{loc:Tr Stash_Staged}" HorizontalAlignment="Stretch"
+                                                HorizontalContentAlignment="Center" Command="{Binding StashStagedCommand}" />
                                     </Grid>
-                                    <Separator Margin="0,4" />
-                                    <TextBlock Text="{loc:Tr Stash_ListHeader}" FontSize="10" Opacity="0.5" />
-                                    <ListBox MaxHeight="160" ItemsSource="{Binding Stashes}">
+
+                                    <Separator Margin="0,2" />
+
+                                    <!-- Act on the most recent stash. -->
+                                    <Grid ColumnDefinitions="*,*" ColumnSpacing="6">
+                                        <Button Grid.Column="0" Content="{loc:Tr Stash_ApplyLatest}" HorizontalAlignment="Stretch"
+                                                HorizontalContentAlignment="Center" IsEnabled="{Binding HasStashes}"
+                                                Command="{Binding ApplyLatestStashCommand}" />
+                                        <Button Grid.Column="1" Content="{loc:Tr Stash_PopLatest}" HorizontalAlignment="Stretch"
+                                                HorizontalContentAlignment="Center" IsEnabled="{Binding HasStashes}"
+                                                Command="{Binding StashPopCommand}" />
+                                    </Grid>
+
+                                    <Separator Margin="0,2" />
+
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Grid.Column="0" Text="{loc:Tr Stash_ListHeader}" FontSize="10" Opacity="0.5"
+                                                   VerticalAlignment="Center" />
+                                        <Button Grid.Column="1" Content="{loc:Tr Stash_DropAll}" FontSize="11" Padding="8,2"
+                                                IsEnabled="{Binding HasStashes}" Command="{Binding DropAllStashesCommand}" />
+                                    </Grid>
+
+                                    <!-- Each stash: view its patch, apply/pop it, or drop it. -->
+                                    <ListBox MaxHeight="220" ItemsSource="{Binding Stashes}">
                                         <ListBox.ItemTemplate>
                                             <DataTemplate x:DataType="models:StashEntry">
-                                                <TextBlock Text="{Binding Description}" TextTrimming="CharacterEllipsis" />
+                                                <Grid ColumnDefinitions="*,Auto" ToolTip.Tip="{Binding Description}">
+                                                    <TextBlock Grid.Column="0" Text="{Binding Description}"
+                                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2">
+                                                        <Button Classes="header" FontSize="11" Padding="6,1" Content="{loc:Tr Stash_View}"
+                                                                Click="OnViewStashClick" />
+                                                        <Button Classes="header" FontSize="11" Padding="6,1" Content="{loc:Tr Stash_Apply}"
+                                                                Command="{Binding $parent[ListBox].((vm:WorkspaceViewModel)DataContext).ApplyStashCommand}"
+                                                                CommandParameter="{Binding}" />
+                                                        <Button Classes="header" FontSize="11" Padding="6,1" Content="{loc:Tr Stash_Pop}"
+                                                                Command="{Binding $parent[ListBox].((vm:WorkspaceViewModel)DataContext).PopStashAtCommand}"
+                                                                CommandParameter="{Binding}" />
+                                                        <Button Classes="header" FontSize="11" Padding="6,1" Content="{loc:Tr Stash_Drop}"
+                                                                Command="{Binding $parent[ListBox].((vm:WorkspaceViewModel)DataContext).DropStashCommand}"
+                                                                CommandParameter="{Binding}" />
+                                                    </StackPanel>
+                                                </Grid>
                                             </DataTemplate>
                                         </ListBox.ItemTemplate>
                                     </ListBox>

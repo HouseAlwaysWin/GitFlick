@@ -138,6 +138,16 @@ public partial class MainWindow : Window
     // The real row height in DIPs — the ListBoxItem style pins it. The graph's row unit must match.
     private const double CommitRowHeight = 26;
 
+    // "View" on a stash loads its patch into the diff pane, so the flyout must close to reveal it.
+    private void OnViewStashClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Control { DataContext: StashEntry entry } && Workspace is { } workspace)
+        {
+            workspace.ViewStashCommand.Execute(entry);
+            StashButton.Flyout?.Hide();
+        }
+    }
+
     private void OnCommitListScrolled(object? sender, ScrollChangedEventArgs e)
     {
         if (e.Source is not ScrollViewer scroller)

@@ -148,10 +148,26 @@ internal sealed class FakeGitService : IGitService
 
     public Task<GitCommandResult> CherryPickAsync(string repoPath, string sha, CancellationToken cancellationToken = default) => Task.FromResult(Ok);
 
+    /// <summary>Stashes the fake serves.</summary>
+    public List<StashEntry> StubStashes { get; } = [];
+
     public Task<IReadOnlyList<StashEntry>> GetStashesAsync(string repoPath, CancellationToken cancellationToken = default)
-        => Task.FromResult<IReadOnlyList<StashEntry>>([]);
+        => Task.FromResult<IReadOnlyList<StashEntry>>(StubStashes.ToList());
 
-    public Task<GitCommandResult> StashPushAsync(string repoPath, string? message = null, CancellationToken cancellationToken = default) => Task.FromResult(Ok);
+    public Task<GitCommandResult> StashPushAsync(string repoPath, string? message = null, bool includeUntracked = false, bool stagedOnly = false, CancellationToken cancellationToken = default)
+    {
+        var flags = (includeUntracked ? " -u" : "") + (stagedOnly ? " --staged" : "");
+        return Record($"stash push{flags}");
+    }
 
-    public Task<GitCommandResult> StashPopAsync(string repoPath, int index = 0, CancellationToken cancellationToken = default) => Task.FromResult(Ok);
+    public Task<GitCommandResult> StashPopAsync(string repoPath, int index = 0, CancellationToken cancellationToken = default) => Record($"stash pop {index}");
+
+    public Task<GitCommandResult> StashApplyAsync(string repoPath, int index = 0, CancellationToken cancellationToken = default) => Record($"stash apply {index}");
+
+    public Task<GitCommandResult> StashDropAsync(string repoPath, int index, CancellationToken cancellationToken = default) => Record($"stash drop {index}");
+
+    public Task<GitCommandResult> StashClearAsync(string repoPath, CancellationToken cancellationToken = default) => Record("stash clear");
+
+    public Task<string> GetStashDiffAsync(string repoPath, int index, CancellationToken cancellationToken = default)
+        => Task.FromResult($"diff for stash {index}");
 }

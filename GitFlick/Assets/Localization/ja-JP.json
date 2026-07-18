@@ -1,4 +1,16 @@
 {
+"Stash_Untracked": "未追跡を含めてスタッシュ",
+"Stash_Staged": "ステージ済みのみスタッシュ",
+"Stash_ApplyLatest": "最新を適用",
+"Stash_DropAll": "すべて削除",
+"Stash_Apply": "適用",
+"Stash_Pop": "ポップ",
+"Stash_Drop": "削除",
+"Stash_View": "表示",
+"Status_StashApplied": "スタッシュを適用しました",
+"Status_StashDropped": "スタッシュを削除しました",
+  "Status_StashCleared": "すべてのスタッシュを消去しました",
+
   "Sync_PushReminder_Tooltip": "リモートに未反映のコミットが {0} 件あります。Push して同期してください。",
 
   "Sync_PullReminder": "Pull して同期 ↓{0}",

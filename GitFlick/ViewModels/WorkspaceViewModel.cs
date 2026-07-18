@@ -1884,18 +1884,74 @@ public partial class WorkspaceViewModel : ViewModelBase
         return RunAsync(() => _git.MergeAsync(Repository.Path, branch.Name), string.Format(Loc["Status_Merged"], branch.Name));
     }
 
+    // ── Stash: create ───────────────────────────────────────────────────────────
     [RelayCommand]
     private Task StashPush() => RunAsync(() => _git.StashPushAsync(Repository.Path), Loc["Status_Stashed"]);
 
     [RelayCommand]
-    private Task StashPop()
+    private Task StashUntracked() =>
+        RunAsync(() => _git.StashPushAsync(Repository.Path, includeUntracked: true), Loc["Status_Stashed"]);
+
+    [RelayCommand]
+    private Task StashStaged() =>
+        RunAsync(() => _git.StashPushAsync(Repository.Path, stagedOnly: true), Loc["Status_Stashed"]);
+
+    // ── Stash: act on the latest ──────────────────────────────────────────────────
+    [RelayCommand]
+    private Task ApplyLatestStash() => Stashes.Count == 0
+        ? Task.CompletedTask
+        : RunAsync(() => _git.StashApplyAsync(Repository.Path), Loc["Status_StashApplied"]);
+
+    [RelayCommand]
+    private Task StashPop() => Stashes.Count == 0
+        ? Task.CompletedTask
+        : RunAsync(() => _git.StashPopAsync(Repository.Path), Loc["Status_PoppedStash"]);
+
+    [RelayCommand]
+    private Task DropAllStashes() => Stashes.Count == 0
+        ? Task.CompletedTask
+        : RunAsync(() => _git.StashClearAsync(Repository.Path), Loc["Status_StashCleared"]);
+
+    // ── Stash: act on a specific entry (from the list's per-item actions) ─────────
+    [RelayCommand]
+    private Task ApplyStash(StashEntry? entry) => entry is null
+        ? Task.CompletedTask
+        : RunAsync(() => _git.StashApplyAsync(Repository.Path, entry.Index), Loc["Status_StashApplied"]);
+
+    [RelayCommand]
+    private Task PopStashAt(StashEntry? entry) => entry is null
+        ? Task.CompletedTask
+        : RunAsync(() => _git.StashPopAsync(Repository.Path, entry.Index), Loc["Status_PoppedStash"]);
+
+    [RelayCommand]
+    private Task DropStash(StashEntry? entry) => entry is null
+        ? Task.CompletedTask
+        : RunAsync(() => _git.StashDropAsync(Repository.Path, entry.Index), Loc["Status_StashDropped"]);
+
+    [RelayCommand]
+    private async Task ViewStash(StashEntry? entry)
     {
-        if (Stashes.Count == 0)
+        if (entry is null)
         {
-            return Task.CompletedTask;
+            return;
         }
 
-        return RunAsync(() => _git.StashPopAsync(Repository.Path), Loc["Status_PoppedStash"]);
+        // Drop any file/commit selection so the diff pane shows the stash's patch.
+        SelectedUnstagedFile = null;
+        SelectedStagedFile = null;
+        ClearDiff();
+        DiffPath = entry.Description;
+        DiffText = Loc["Diff_Loading"];
+
+        try
+        {
+            var diff = await _git.GetStashDiffAsync(Repository.Path, entry.Index);
+            DiffText = diff.Trim().Length == 0 ? Loc["Diff_NoTextualChanges"] : diff;
+        }
+        catch (GitException ex)
+        {
+            DiffText = ex.Message;
+        }
     }
 
     // Selecting in one list clears the other, so the diff always corresponds to exactly one file.

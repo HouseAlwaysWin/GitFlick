@@ -1,4 +1,16 @@
 {
+"Stash_Untracked": "Stash incl. untracked",
+"Stash_Staged": "Stash staged",
+"Stash_ApplyLatest": "Apply latest",
+"Stash_DropAll": "Drop all",
+"Stash_Apply": "Apply",
+"Stash_Pop": "Pop",
+"Stash_Drop": "Drop",
+"Stash_View": "View",
+"Status_StashApplied": "Applied stash",
+"Status_StashDropped": "Dropped stash",
+  "Status_StashCleared": "Cleared all stashes",
+
   "Sync_PushReminder_Tooltip": "You have {0} commit(s) not yet on the remote. Push to sync.",
 
   "Sync_PullReminder": "Pull to sync ↓{0}",

@@ -1,4 +1,16 @@
 {
+"Stash_Untracked": "贮藏（含未跟踪）",
+"Stash_Staged": "仅贮藏已暂存",
+"Stash_ApplyLatest": "应用最新",
+"Stash_DropAll": "全部删除",
+"Stash_Apply": "应用",
+"Stash_Pop": "弹出",
+"Stash_Drop": "删除",
+"Stash_View": "查看",
+"Status_StashApplied": "已应用贮藏",
+"Status_StashDropped": "已删除贮藏",
+  "Status_StashCleared": "已清空所有贮藏",
+
   "Sync_PushReminder_Tooltip": "你有 {0} 笔尚未推送到远端的提交，建议 Push 同步。",
 
   "Sync_PullReminder": "请先 Pull ↓{0}",

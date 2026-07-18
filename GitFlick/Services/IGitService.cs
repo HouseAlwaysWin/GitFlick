@@ -164,7 +164,24 @@ public interface IGitService
 
     Task<IReadOnlyList<StashEntry>> GetStashesAsync(string repoPath, CancellationToken cancellationToken = default);
 
-    Task<GitCommandResult> StashPushAsync(string repoPath, string? message = null, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Stash the working changes. <paramref name="includeUntracked"/> adds untracked files
+    /// (<c>--include-untracked</c>); <paramref name="stagedOnly"/> stashes just the index (<c>--staged</c>).
+    /// </summary>
+    Task<GitCommandResult> StashPushAsync(string repoPath, string? message = null, bool includeUntracked = false, bool stagedOnly = false, CancellationToken cancellationToken = default);
 
+    /// <summary>Restore a stash and remove it from the list (<c>stash pop</c>).</summary>
     Task<GitCommandResult> StashPopAsync(string repoPath, int index = 0, CancellationToken cancellationToken = default);
+
+    /// <summary>Restore a stash but keep it in the list (<c>stash apply</c>).</summary>
+    Task<GitCommandResult> StashApplyAsync(string repoPath, int index = 0, CancellationToken cancellationToken = default);
+
+    /// <summary>Delete one stash (<c>stash drop</c>).</summary>
+    Task<GitCommandResult> StashDropAsync(string repoPath, int index, CancellationToken cancellationToken = default);
+
+    /// <summary>Delete every stash (<c>stash clear</c>).</summary>
+    Task<GitCommandResult> StashClearAsync(string repoPath, CancellationToken cancellationToken = default);
+
+    /// <summary>The patch a stash holds (<c>stash show -p</c>), for the "view stash" diff.</summary>
+    Task<string> GetStashDiffAsync(string repoPath, int index, CancellationToken cancellationToken = default);
 }

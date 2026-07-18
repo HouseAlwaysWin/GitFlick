@@ -492,13 +492,52 @@ public sealed class GitService : IGitService
         return stashes;
     }
 
-    public Task<GitCommandResult> StashPushAsync(string repoPath, string? message = null, CancellationToken cancellationToken = default)
-        => string.IsNullOrEmpty(message)
-            ? RunAsync(repoPath, ["stash", "push"], null, cancellationToken)
-            : RunAsync(repoPath, ["stash", "push", "-m", message], null, cancellationToken);
+    public Task<GitCommandResult> StashPushAsync(
+        string repoPath,
+        string? message = null,
+        bool includeUntracked = false,
+        bool stagedOnly = false,
+        CancellationToken cancellationToken = default)
+    {
+        var args = new List<string> { "stash", "push" };
+        if (stagedOnly)
+        {
+            args.Add("--staged");        // only the index (git 2.35+)
+        }
+        if (includeUntracked)
+        {
+            args.Add("--include-untracked");
+        }
+        if (!string.IsNullOrEmpty(message))
+        {
+            args.Add("-m");
+            args.Add(message);
+        }
+        return RunAsync(repoPath, args, null, cancellationToken);
+    }
 
     public Task<GitCommandResult> StashPopAsync(string repoPath, int index = 0, CancellationToken cancellationToken = default)
         => RunAsync(repoPath, ["stash", "pop", $"stash@{{{index}}}"], null, cancellationToken);
+
+    public Task<GitCommandResult> StashApplyAsync(string repoPath, int index = 0, CancellationToken cancellationToken = default)
+        => RunAsync(repoPath, ["stash", "apply", $"stash@{{{index}}}"], null, cancellationToken);
+
+    public Task<GitCommandResult> StashDropAsync(string repoPath, int index, CancellationToken cancellationToken = default)
+        => RunAsync(repoPath, ["stash", "drop", $"stash@{{{index}}}"], null, cancellationToken);
+
+    public Task<GitCommandResult> StashClearAsync(string repoPath, CancellationToken cancellationToken = default)
+        => RunAsync(repoPath, ["stash", "clear"], null, cancellationToken);
+
+    public async Task<string> GetStashDiffAsync(string repoPath, int index, CancellationToken cancellationToken = default)
+    {
+        var result = await RunAsync(
+            repoPath,
+            ["stash", "show", "-p", "--include-untracked", $"stash@{{{index}}}"],
+            null,
+            cancellationToken).ConfigureAwait(false);
+
+        return result.Succeeded ? result.StandardOutput : result.FailureMessage;
+    }
 
     /// <summary>
     /// Every git invocation funnels through here. Prepends the two config overrides that make
