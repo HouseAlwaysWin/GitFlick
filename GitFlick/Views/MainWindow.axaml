@@ -368,6 +368,17 @@
                                         <Button Grid.Column="2" Classes="danger" Content="{loc:Tr Branch_Delete}" HorizontalAlignment="Stretch"
                                                 HorizontalContentAlignment="Center" Command="{Binding DeleteBranchCommand}" />
                                     </Grid>
+                                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="6">
+                                        <Button Grid.Column="0" Content="{loc:Tr Branch_Rename}" HorizontalAlignment="Stretch"
+                                                HorizontalContentAlignment="Center" Command="{Binding RenameBranchCommand}" />
+                                        <Button Grid.Column="1" Content="{loc:Tr Branch_SetUpstream}" HorizontalAlignment="Stretch"
+                                                HorizontalContentAlignment="Center" Command="{Binding SetUpstreamCommand}" />
+                                        <Button Grid.Column="2" Content="{loc:Tr Branch_UnsetUpstream}" HorizontalAlignment="Stretch"
+                                                HorizontalContentAlignment="Center" Command="{Binding UnsetUpstreamCommand}" />
+                                    </Grid>
+                                    <Button Content="{loc:Tr Branch_Compare}" HorizontalAlignment="Stretch"
+                                            HorizontalContentAlignment="Center" Click="OnCompareBranchClick"
+                                            ToolTip.Tip="{loc:Tr Branch_Compare_Tooltip}" />
                                     <TextBlock Text="{loc:Tr Branch_ActionsHint}"
                                                FontSize="10" Opacity="0.4" TextWrapping="Wrap" />
                                 </StackPanel>
@@ -499,6 +510,8 @@
                             Click="OnShowCommandLogClick"
                             ToolTip.Tip="{loc:Tr Toolbar_CommandLog_Tooltip}" />
 
+                    <Button Content="⟲" Click="OnShowReflogClick" ToolTip.Tip="{loc:Tr Toolbar_Reflog_Tooltip}" />
+
                     <Button Content="⟳" Command="{Binding RefreshCommand}" ToolTip.Tip="{loc:Tr Toolbar_Refresh_Tooltip}" />
                 </WrapPanel>
             </Grid>
@@ -542,6 +555,10 @@
                                             <MenuItem Header="{loc:Tr Changes_StageSelected}" Click="OnStageSelectedClick" />
                                             <Separator />
                                             <MenuItem Header="{loc:Tr Changes_DiscardChanges}" Click="OnDiscardSelectedClick" />
+                                            <Separator />
+                                            <MenuItem Header="{loc:Tr Changes_FileHistory}" Click="OnShowFileHistoryClick" />
+                                            <MenuItem Header="{loc:Tr Changes_Blame}" Click="OnShowBlameClick" />
+                                            <MenuItem Header="{loc:Tr Changes_OpenOnRemote}" Click="OnOpenFileOnRemoteClick" />
                                         </MenuFlyout>
                                     </ListBox.ContextFlyout>
                                     <ListBox.ItemTemplate>
@@ -579,6 +596,10 @@
                                     <ListBox.ContextFlyout>
                                         <MenuFlyout>
                                             <MenuItem Header="{loc:Tr Changes_UnstageSelected}" Click="OnUnstageSelectedClick" />
+                                            <Separator />
+                                            <MenuItem Header="{loc:Tr Changes_FileHistory}" Click="OnShowFileHistoryClick" />
+                                            <MenuItem Header="{loc:Tr Changes_Blame}" Click="OnShowBlameClick" />
+                                            <MenuItem Header="{loc:Tr Changes_OpenOnRemote}" Click="OnOpenFileOnRemoteClick" />
                                         </MenuFlyout>
                                     </ListBox.ContextFlyout>
                                     <ListBox.ItemTemplate>
@@ -609,6 +630,19 @@
                         <!-- Col 1 is just a spacer; every filter (search included) is a dropdown on the
                              right, so nothing sits inline stealing width in a narrow History pane. -->
 
+                        <!-- File-history scope chip: shows when History is scoped to one file, with a clear ✕. -->
+                        <Border Grid.Column="1" IsVisible="{Binding IsFileHistory}" Margin="10,0"
+                                Background="{DynamicResource AccentSolidBrush}" CornerRadius="3" Padding="6,1"
+                                HorizontalAlignment="Left" VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <TextBlock Text="{Binding FileHistoryLabel}" Foreground="White" FontSize="11"
+                                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="240" />
+                                <Button Classes="header" Content="✕" FontSize="10" Padding="4,0" Foreground="White"
+                                        Command="{Binding ClearFileHistoryCommand}"
+                                        ToolTip.Tip="{loc:Tr History_ClearScope_Tooltip}" />
+                            </StackPanel>
+                        </Border>
+
                         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                             <!-- Unified search: one dropdown holding the Message/File scope toggle, the
                                  input, and (File scope) a click-to-pick list of matching paths. -->
@@ -628,6 +662,10 @@
                                                                  Content="{loc:Tr History_SearchType_File}"
                                                                  IsChecked="{Binding IsFileSearch, Mode=OneWay}"
                                                                  Command="{Binding UseFileSearchCommand}" />
+                                                    <RadioButton GroupName="searchScope" FontSize="12"
+                                                                 Content="{loc:Tr History_SearchType_Content}"
+                                                                 IsChecked="{Binding IsContentSearch, Mode=OneWay}"
+                                                                 Command="{Binding UseContentSearchCommand}" />
                                                 </StackPanel>
                                                 <Button Grid.Column="1" Content="{loc:Tr History_Clear}" FontSize="11" Padding="8,2"
                                                         IsEnabled="{Binding HasSearchFilter}"
@@ -807,6 +845,11 @@
                                         <MenuItem Header="{loc:Tr History_Ctx_ViewMessage}" Click="OnViewCommitMessageClick" />
                                         <MenuItem Header="{loc:Tr History_Ctx_CopySha}" Click="OnCopyShaClick" />
                                         <MenuItem Header="{loc:Tr History_Ctx_CopySubject}" Click="OnCopySubjectClick" />
+                                        <Separator />
+                                        <MenuItem Header="{loc:Tr History_Ctx_OpenOnRemote}" Command="{Binding OpenCommitOnRemoteCommand}" />
+                                        <MenuItem Header="{loc:Tr History_Ctx_CopyLink}" Command="{Binding CopyCommitLinkCommand}" />
+                                        <Separator />
+                                        <MenuItem Header="{loc:Tr History_Ctx_CompareWith}" Click="OnCompareCommitClick" />
                                     </MenuFlyout>
                                 </ListBox.ContextFlyout>
                                 <ListBox.Styles>
@@ -855,6 +898,9 @@
                                                                         <MenuItem Header="{loc:Tr Ref_DeleteBranch}"
                                                                                   IsVisible="{Binding IsLocalBranch}"
                                                                                   Click="OnDeleteBranchClick" />
+                                                                        <MenuItem Header="{loc:Tr Ref_OpenOnRemote}"
+                                                                                  IsVisible="{Binding !IsTag}"
+                                                                                  Click="OnOpenRefOnRemoteClick" />
                                                                     </MenuFlyout>
                                                                 </Border.ContextFlyout>
                                                                 <TextBlock Text="{Binding Name}" FontSize="10"
@@ -934,6 +980,12 @@
                                      Background="Transparent"
                                      ItemsSource="{Binding CommitFiles}"
                                      SelectedItem="{Binding SelectedCommitFile}">
+                                <ListBox.ContextFlyout>
+                                    <MenuFlyout>
+                                        <MenuItem Header="{loc:Tr Changes_Blame}" Click="OnBlameCommitFileClick" />
+                                        <MenuItem Header="{loc:Tr Changes_FileHistory}" Click="OnShowCommitFileHistoryClick" />
+                                    </MenuFlyout>
+                                </ListBox.ContextFlyout>
                                 <ListBox.ItemTemplate>
                                     <DataTemplate x:DataType="models:CommitFileEntry">
                                         <Grid ColumnDefinitions="Auto,*">

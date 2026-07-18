@@ -31,6 +31,7 @@ public enum HistorySearchType
 {
     Message,
     File,
+    Content,
 }
 
 /// <summary>One tickable option in a history multi-select filter (an author or a branch).
@@ -273,6 +274,46 @@ public partial class WorkspaceViewModel : ViewModelBase
         OnPropertyChanged(nameof(HasCommandLog));
     }
 
+    /// <summary>Recent HEAD moves (git reflog), filled when the reflog window opens.</summary>
+    public ObservableCollection<ReflogEntry> Reflog { get; } = [];
+
+    public bool HasReflog => Reflog.Count > 0;
+
+    /// <summary>Load the reflog into the view (best-effort; never throws).</summary>
+    public async Task LoadReflogAsync()
+    {
+        try
+        {
+            Replace(Reflog, await _git.GetReflogAsync(Repository.Path));
+        }
+        catch (GitException ex)
+        {
+            StatusText = ex.Message;
+        }
+
+        OnPropertyChanged(nameof(HasReflog));
+    }
+
+    /// <summary>Reset HEAD to a reflog entry (soft/mixed/hard) — the recovery action.</summary>
+    [RelayCommand]
+    private async Task ResetToReflog(ReflogEntry? entry)
+    {
+        if (entry is null || PromptResetMode is null)
+        {
+            return;
+        }
+
+        var mode = await PromptResetMode(entry.ShortSha);
+        if (mode is null)
+        {
+            return;
+        }
+
+        await RunAsync(
+            () => _git.ResetToAsync(Repository.Path, entry.Sha, mode.Value),
+            string.Format(Loc["Status_Reset"], entry.ShortSha));
+    }
+
     [RelayCommand]
     private void ClearCommandLog()
     {
@@ -427,6 +468,17 @@ public partial class WorkspaceViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(FooterHint))]
     public partial bool IsHistoryMode { get; set; }
 
+    /// <summary>When non-empty, History shows just this file's commits (git log --follow), not the graph.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsFileHistory))]
+    [NotifyPropertyChangedFor(nameof(ShowGraph))]
+    [NotifyPropertyChangedFor(nameof(FileHistoryLabel))]
+    public partial string FileHistoryPath { get; set; } = string.Empty;
+
+    public bool IsFileHistory => FileHistoryPath.Length > 0;
+
+    public string FileHistoryLabel => string.Format(Loc["History_FileScope"], FileHistoryPath);
+
     public string DiffEmptyHint => IsHistoryMode
         ? Loc["Diff_SelectCommit"]
         : Loc["Diff_SelectFile"];
@@ -486,7 +538,7 @@ public partial class WorkspaceViewModel : ViewModelBase
     /// stays hidden there.
     /// </summary>
     public bool ShowGraph => SortColumn == HistorySortColumn.Graph
-        && !HasAuthorFilter && !HasMessageFilter && !HasFileFilter;
+        && !HasAuthorFilter && !HasMessageFilter && !HasFileFilter && !HasContentFilter && !IsFileHistory;
 
     // The active column wears an arrow; the rest show nothing.
     public string AuthorSortGlyph => GlyphFor(HistorySortColumn.Author);
@@ -570,6 +622,21 @@ public partial class WorkspaceViewModel : ViewModelBase
 
     partial void OnFileFilterChanged(string value) => HistoryLoad = LoadHistoryAsync();
 
+    /// <summary>
+    /// The applied pickaxe (content) filter: only commits that changed the number of occurrences of
+    /// this string (<c>git log -S</c>). Git-level like the file filter, so it reloads and hides the graph.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowGraph))]
+    [NotifyPropertyChangedFor(nameof(HasContentFilter))]
+    [NotifyPropertyChangedFor(nameof(SearchFilterLabel))]
+    [NotifyPropertyChangedFor(nameof(HasSearchFilter))]
+    public partial string ContentFilter { get; set; } = string.Empty;
+
+    public bool HasContentFilter => ContentFilter.Trim().Length > 0;
+
+    partial void OnContentFilterChanged(string value) => HistoryLoad = LoadHistoryAsync();
+
     // ── Unified History search ──────────────────────────────────────────────────
     // Message + File share one dropdown, styled like the Authors/Branches filters: a single
     // "Search ▾" button opens a flyout holding the Message/File scope toggle, the text input, and —
@@ -581,22 +648,29 @@ public partial class WorkspaceViewModel : ViewModelBase
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsFileSearch))]
     [NotifyPropertyChangedFor(nameof(IsMessageSearch))]
+    [NotifyPropertyChangedFor(nameof(IsContentSearch))]
     [NotifyPropertyChangedFor(nameof(SearchPlaceholder))]
     public partial HistorySearchType SearchType { get; set; } = HistorySearchType.Message;
 
     public bool IsFileSearch => SearchType == HistorySearchType.File;
     public bool IsMessageSearch => SearchType == HistorySearchType.Message;
+    public bool IsContentSearch => SearchType == HistorySearchType.Content;
 
-    public string SearchPlaceholder =>
-        IsFileSearch ? Loc["History_FilePlaceholder"] : Loc["History_SearchMessages"];
+    public string SearchPlaceholder => SearchType switch
+    {
+        HistorySearchType.File => Loc["History_FilePlaceholder"],
+        HistorySearchType.Content => Loc["History_ContentPlaceholder"],
+        _ => Loc["History_SearchMessages"],
+    };
 
     /// <summary>The dropdown button's label — echoes the active filter, the way "Authors (2) ▾" does.</summary>
     public string SearchFilterLabel =>
         HasMessageFilter ? $"“{MessageFilter.Trim()}” ▾"
         : HasFileFilter ? $"{FileLeaf(FileFilter)} ▾"
+        : HasContentFilter ? $"⌕ {ContentFilter.Trim()} ▾"
         : Loc["History_Search"] + " ▾";
 
-    public bool HasSearchFilter => HasMessageFilter || HasFileFilter;
+    public bool HasSearchFilter => HasMessageFilter || HasFileFilter || HasContentFilter;
 
     /// <summary>What's typed in the search input. Message applies live; File narrows the pick list.</summary>
     [ObservableProperty]
@@ -614,10 +688,11 @@ public partial class WorkspaceViewModel : ViewModelBase
         {
             MessageFilter = value;
         }
-        else if (!_suppressPathNarrow)
+        else if (IsFileSearch && !_suppressPathNarrow)
         {
             NarrowPathSuggestions(value);
         }
+        // Content scope waits for Enter/Apply (a git reload), like File's pathspec.
     }
 
     /// <summary>Every path the repo has ever had (incl. deleted/renamed). Loaded once, lazily.</summary>
@@ -635,6 +710,9 @@ public partial class WorkspaceViewModel : ViewModelBase
     private Task UseFileSearchAsync() => SetSearchTypeAsync(HistorySearchType.File);
 
     [RelayCommand]
+    private Task UseContentSearchAsync() => SetSearchTypeAsync(HistorySearchType.Content);
+
+    [RelayCommand]
     private void ClearSearch()
     {
         SearchText = string.Empty;
@@ -642,6 +720,10 @@ public partial class WorkspaceViewModel : ViewModelBase
         if (HasFileFilter)
         {
             FileFilter = string.Empty;
+        }
+        if (HasContentFilter)
+        {
+            ContentFilter = string.Empty;
         }
     }
 
@@ -654,13 +736,17 @@ public partial class WorkspaceViewModel : ViewModelBase
 
         SearchType = type;
 
-        // A clean slate on every switch: drop the input and both scopes' applied filters, so the list
+        // A clean slate on every switch: drop the input and every scope's applied filter, so the list
         // is never left showing a stale filter from the scope we just left.
         SearchText = string.Empty;
         MessageFilter = string.Empty;
         if (HasFileFilter)
         {
             FileFilter = string.Empty;   // reloads the full history
+        }
+        if (HasContentFilter)
+        {
+            ContentFilter = string.Empty;
         }
 
         if (type == HistorySearchType.File)
@@ -670,13 +756,17 @@ public partial class WorkspaceViewModel : ViewModelBase
         }
     }
 
-    /// <summary>Enter in File scope: apply the typed pathspec directly, bypassing the pick list.</summary>
+    /// <summary>Enter in File/Content scope: apply the typed value directly (git reload).</summary>
     [RelayCommand]
     private void ApplySearch()
     {
         if (IsFileSearch)
         {
             FileFilter = SearchText.Trim();
+        }
+        else if (IsContentSearch)
+        {
+            ContentFilter = SearchText.Trim();
         }
     }
 
@@ -801,9 +891,12 @@ public partial class WorkspaceViewModel : ViewModelBase
     {
         try
         {
-            var commits = await _git.GetCommitsAsync(
-                Repository.Path, _commitLimit, FirstParentOnly,
-                HasFileFilter ? FileFilter.Trim() : null);
+            var commits = IsFileHistory
+                ? await _git.GetFileHistoryAsync(Repository.Path, FileHistoryPath, _commitLimit)
+                : await _git.GetCommitsAsync(
+                    Repository.Path, _commitLimit, FirstParentOnly,
+                    HasFileFilter ? FileFilter.Trim() : null,
+                    HasContentFilter ? ContentFilter.Trim() : null);
 
             _graphOrder = commits.ToList();
 
@@ -859,10 +952,47 @@ public partial class WorkspaceViewModel : ViewModelBase
     [RelayCommand]
     private Task ShowHistory()
     {
+        FileHistoryPath = string.Empty;   // the toolbar History button always shows the full graph
         IsHistoryMode = true;
         HistoryLoad = LoadHistoryAsync();
         return HistoryLoad;
     }
+
+    /// <summary>Show just one file's history (following renames), reached from the file lists.</summary>
+    public Task ShowFileHistory(string path)
+    {
+        if (string.IsNullOrEmpty(path))
+        {
+            return Task.CompletedTask;
+        }
+
+        FileHistoryPath = path;
+        IsHistoryMode = true;
+        HistoryLoad = LoadHistoryAsync();
+        return HistoryLoad;
+    }
+
+    /// <summary>Clear the file-history scope, returning to the full graph.</summary>
+    [RelayCommand]
+    private Task ClearFileHistory()
+    {
+        if (!IsFileHistory)
+        {
+            return Task.CompletedTask;
+        }
+
+        FileHistoryPath = string.Empty;
+        HistoryLoad = LoadHistoryAsync();
+        return HistoryLoad;
+    }
+
+    /// <summary>Create a compare view for two refs (<c>base..compare</c>); the View opens it in a window.</summary>
+    public CompareViewModel CreateCompare(string baseRef, string compareRef) =>
+        new(_git, Repository.Path, baseRef, compareRef);
+
+    /// <summary>Create a blame view for a file (optionally as of <paramref name="rev"/>); the View opens it in a window.</summary>
+    public BlameViewModel CreateBlame(string path, string? rev = null) =>
+        new(_git, Repository.Path, path, rev);
 
     partial void OnFirstParentOnlyChanged(bool value)
     {
@@ -1219,6 +1349,16 @@ public partial class WorkspaceViewModel : ViewModelBase
     /// </summary>
     public Func<IReadOnlyList<string>, string, Task<string?>>? PromptPushTarget { get; set; }
 
+    /// <summary>Set by the View: opens a URL in the default browser (side-effect kept injectable for tests).</summary>
+    public Action<string>? OpenUrlInBrowser { get; set; }
+
+    /// <summary>Set by the View: copies text to the clipboard.</summary>
+    public Func<string, Task>? SetClipboardText { get; set; }
+
+    /// <summary>Set by the View: pick one item from a list (used by set-upstream and compare). Args are the
+    /// candidates and a localized prompt line. Returns the pick, or null to cancel.</summary>
+    public Func<IReadOnlyList<string>, string, Task<string?>>? PromptPickRef { get; set; }
+
     /// <summary>
     /// Deletes a local-branch badge right-clicked in the graph. The current branch is refused (git
     /// won't delete a checked-out branch); everything else confirms first (offering a force option
@@ -1381,6 +1521,90 @@ public partial class WorkspaceViewModel : ViewModelBase
         }
 
         return remotes[0];
+    }
+
+    // ── Open on remote (GitHub/GitLab) ────────────────────────────────────────────
+    // The first remote's URL, or null (with a status message) when there's no remote / no URL.
+    private async Task<string?> FirstRemoteUrlAsync()
+    {
+        var remote = await FirstRemoteOrReportAsync();
+        if (remote is null)
+        {
+            return null;
+        }
+
+        var url = await _git.GetRemoteUrlAsync(Repository.Path, remote);
+        if (string.IsNullOrEmpty(url))
+        {
+            StatusText = Loc["Status_NoRemoteUrl"];
+        }
+
+        return url;
+    }
+
+    // Build a web link with RemoteUrlBuilder, then open or copy it; reports if the URL can't be parsed.
+    private async Task LaunchOrCopyAsync(Func<string, string?> build, bool copy)
+    {
+        var remoteUrl = await FirstRemoteUrlAsync();
+        if (remoteUrl is null)
+        {
+            return;
+        }
+
+        var webUrl = build(remoteUrl);
+        if (webUrl is null)
+        {
+            StatusText = Loc["Status_RemoteUrlUnparsed"];
+            return;
+        }
+
+        if (copy)
+        {
+            if (SetClipboardText is not null)
+            {
+                await SetClipboardText(webUrl);
+            }
+            StatusText = Loc["Status_CopiedLink"];
+        }
+        else
+        {
+            OpenUrlInBrowser?.Invoke(webUrl);
+            StatusText = Loc["Status_OpenedRemote"];
+        }
+    }
+
+    [RelayCommand]
+    private Task OpenCommitOnRemote() => SelectedCommit is { } c
+        ? LaunchOrCopyAsync(url => RemoteUrlBuilder.Commit(url, c.Sha), copy: false)
+        : Task.CompletedTask;
+
+    [RelayCommand]
+    private Task CopyCommitLink() => SelectedCommit is { } c
+        ? LaunchOrCopyAsync(url => RemoteUrlBuilder.Commit(url, c.Sha), copy: true)
+        : Task.CompletedTask;
+
+    /// <summary>Open a ref (branch) badge on the remote.</summary>
+    [RelayCommand]
+    private Task OpenRefOnRemote(GitRef? reference) => reference is null
+        ? Task.CompletedTask
+        : LaunchOrCopyAsync(url => RemoteUrlBuilder.Branch(url, LeafRefName(reference)), copy: false);
+
+    /// <summary>Open a working-tree file on the remote at the current branch.</summary>
+    [RelayCommand]
+    private Task OpenFileOnRemote(string? path) => string.IsNullOrEmpty(path) || BranchName.Length == 0
+        ? Task.CompletedTask
+        : LaunchOrCopyAsync(url => RemoteUrlBuilder.File(url, BranchName, path), copy: false);
+
+    // Remote badges arrive as "origin/main"; the web /tree/ link wants just the branch part.
+    private static string LeafRefName(GitRef reference)
+    {
+        if (reference.Kind == GitRefKind.RemoteBranch)
+        {
+            var slash = reference.Name.IndexOf('/');
+            return slash >= 0 ? reference.Name[(slash + 1)..] : reference.Name;
+        }
+
+        return reference.Name;
     }
 
     /// <summary>Creates a branch at the selected commit (without switching) after prompting for a name.</summary>
@@ -2096,6 +2320,58 @@ public partial class WorkspaceViewModel : ViewModelBase
 
         return RunAsync(() => _git.MergeAsync(Repository.Path, branch.Name), string.Format(Loc["Status_Merged"], branch.Name));
     }
+
+    /// <summary>Rename the selected branch (current branch allowed) after prompting for a new name.</summary>
+    [RelayCommand]
+    private async Task RenameBranch()
+    {
+        if (SelectedBranch is not { } branch || PromptBranchName is null)
+        {
+            return;
+        }
+
+        var newName = await PromptBranchName();
+        if (string.IsNullOrWhiteSpace(newName))
+        {
+            return;
+        }
+
+        await RunAsync(
+            () => _git.RenameBranchAsync(Repository.Path, branch.Name, newName.Trim()),
+            string.Format(Loc["Status_RenamedBranch"], newName.Trim()));
+    }
+
+    /// <summary>Set the selected branch's upstream, picked from the remote-tracking branches.</summary>
+    [RelayCommand]
+    private async Task SetUpstream()
+    {
+        if (SelectedBranch is not { } branch || PromptPickRef is null)
+        {
+            return;
+        }
+
+        var remoteBranches = await _git.GetRemoteBranchesAsync(Repository.Path);
+        if (remoteBranches.Count == 0)
+        {
+            StatusText = Loc["Status_NoRemoteBranches"];
+            return;
+        }
+
+        var upstream = await PromptPickRef(remoteBranches, string.Format(Loc["Branch_SetUpstream_Prompt"], branch.Name));
+        if (string.IsNullOrEmpty(upstream))
+        {
+            return;
+        }
+
+        await RunAsync(
+            () => _git.SetUpstreamAsync(Repository.Path, branch.Name, upstream),
+            string.Format(Loc["Status_SetUpstream"], upstream));
+    }
+
+    [RelayCommand]
+    private Task UnsetUpstream() => SelectedBranch is { } branch
+        ? RunAsync(() => _git.UnsetUpstreamAsync(Repository.Path, branch.Name), Loc["Status_UnsetUpstream"])
+        : Task.CompletedTask;
 
     // ── Stash: create ───────────────────────────────────────────────────────────
     [RelayCommand]

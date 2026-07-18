@@ -1,0 +1,47 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:GitFlick.ViewModels"
+        xmlns:models="using:GitFlick.Models"
+        xmlns:loc="using:GitFlick.Markup"
+        x:Class="GitFlick.Views.ReflogWindow"
+        x:DataType="vm:WorkspaceViewModel"
+        Title="{loc:Tr Reflog_Title}"
+        Icon="/Assets/gitflick.ico"
+        Width="760" Height="500"
+        MinWidth="440" MinHeight="240"
+        WindowStartupLocation="CenterOwner">
+
+    <DockPanel Margin="14">
+        <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,10">
+            <TextBlock Grid.Column="0" Text="{loc:Tr Reflog_Header}" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <Button Grid.Column="1" Content="{loc:Tr Reflog_Refresh}" Click="OnRefreshClick" />
+        </Grid>
+
+        <Border BorderBrush="#30808080" BorderThickness="1" CornerRadius="4" ClipToBounds="True">
+            <Panel>
+                <ListBox x:Name="ReflogList" ItemsSource="{Binding Reflog}" Background="Transparent">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="models:ReflogEntry">
+                            <Grid ColumnDefinitions="150,72,*,Auto" Margin="4,3" ToolTip.Tip="{Binding Description}">
+                                <TextBlock Grid.Column="0" Text="{Binding Selector}" Opacity="0.7" FontSize="12"
+                                           FontFamily="Cascadia Mono,Consolas,monospace" VerticalAlignment="Center"
+                                           TextTrimming="CharacterEllipsis" />
+                                <TextBlock Grid.Column="1" Text="{Binding ShortSha}" FontSize="12"
+                                           FontFamily="Cascadia Mono,Consolas,monospace" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource FaintForeground}" />
+                                <TextBlock Grid.Column="2" Text="{Binding Description}" FontSize="12"
+                                           TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                <Button Grid.Column="3" Classes="header" FontSize="11" Padding="6,1"
+                                        Content="{loc:Tr Reflog_ResetHere}"
+                                        Command="{Binding $parent[ListBox].((vm:WorkspaceViewModel)DataContext).ResetToReflogCommand}"
+                                        CommandParameter="{Binding}" />
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+                <TextBlock Text="{loc:Tr Reflog_None}" IsVisible="{Binding !HasReflog}"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.4" />
+            </Panel>
+        </Border>
+    </DockPanel>
+</Window>

@@ -1,0 +1,92 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:GitFlick.ViewModels"
+        xmlns:models="using:GitFlick.Models"
+        xmlns:loc="using:GitFlick.Markup"
+        xmlns:edit="using:AvaloniaEdit"
+        x:Class="GitFlick.Views.CompareWindow"
+        x:DataType="vm:CompareViewModel"
+        Title="{Binding Title}"
+        Icon="/Assets/gitflick.ico"
+        Width="900" Height="640"
+        MinWidth="520" MinHeight="360"
+        WindowStartupLocation="CenterOwner">
+
+    <Grid Margin="14" RowDefinitions="Auto,*,Auto,2*">
+        <TextBlock Grid.Row="0" Text="{Binding Title}" FontWeight="SemiBold"
+                   TextTrimming="CharacterEllipsis" Margin="0,0,0,10" />
+
+        <!-- Commits that <compare> carries beyond <base>. -->
+        <DockPanel Grid.Row="1">
+            <TextBlock DockPanel.Dock="Top" Text="{loc:Tr Compare_Commits}"
+                       FontWeight="SemiBold" Opacity="0.7" Margin="0,0,0,4" />
+            <Border BorderBrush="#30808080" BorderThickness="1" CornerRadius="4" ClipToBounds="True">
+                <Panel>
+                    <ListBox ItemsSource="{Binding Commits}" Background="Transparent">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="models:CommitInfo">
+                                <Grid ColumnDefinitions="72,150,*" Margin="4,3" ToolTip.Tip="{Binding Subject}">
+                                    <TextBlock Grid.Column="0" Text="{Binding ShortSha}" FontSize="12"
+                                               FontFamily="Cascadia Mono,Consolas,monospace"
+                                               Foreground="{DynamicResource FaintForeground}" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="1" Text="{Binding Author}" FontSize="12" Opacity="0.7"
+                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="2" Text="{Binding Subject}" FontSize="12"
+                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                    <TextBlock Text="{loc:Tr Compare_NoCommits}" IsVisible="{Binding !HasCommits}"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                               Opacity="0.4" IsHitTestVisible="False" />
+                </Panel>
+            </Border>
+        </DockPanel>
+
+        <GridSplitter Grid.Row="2" Height="10" Background="Transparent"
+                      ResizeDirection="Rows" ResizeBehavior="PreviousAndNext"
+                      HorizontalAlignment="Stretch" />
+
+        <!-- Changed files (left) + the selected file's range diff (right). -->
+        <Grid Grid.Row="3" ColumnDefinitions="280,6,*">
+            <DockPanel Grid.Column="0">
+                <TextBlock DockPanel.Dock="Top" Text="{loc:Tr Compare_Files}"
+                           FontWeight="SemiBold" Opacity="0.7" Margin="0,0,0,4" />
+                <Border BorderBrush="#30808080" BorderThickness="1" CornerRadius="4" ClipToBounds="True">
+                    <ListBox ItemsSource="{Binding Files}" SelectedItem="{Binding SelectedFile}" Background="Transparent">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="models:CommitFileEntry">
+                                <Grid ColumnDefinitions="18,*" Margin="2,2" ToolTip.Tip="{Binding Path}">
+                                    <TextBlock Grid.Column="0" Text="{Binding Badge}"
+                                               FontWeight="SemiBold" FontFamily="Cascadia Mono,Consolas,monospace"
+                                               Foreground="{Binding Badge, Converter={StaticResource FileStatusBrush}}" />
+                                    <TextBlock Grid.Column="1" Text="{Binding Path}" TextTrimming="CharacterEllipsis" />
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Border>
+            </DockPanel>
+
+            <GridSplitter Grid.Column="1" Width="6" Background="Transparent"
+                          ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
+
+            <DockPanel Grid.Column="2">
+                <TextBlock DockPanel.Dock="Top" Margin="0,0,0,4" FontWeight="SemiBold"
+                           TextTrimming="CharacterEllipsis"
+                           Text="{Binding DiffPath, StringFormat='Diff — {0}'}" />
+                <Border BorderBrush="#30808080" BorderThickness="1" CornerRadius="4" ClipToBounds="True">
+                    <edit:TextEditor x:Name="DiffEditor"
+                                     IsReadOnly="True"
+                                     ShowLineNumbers="False"
+                                     FontFamily="Cascadia Mono,Consolas,Menlo,monospace"
+                                     FontSize="12"
+                                     Background="Transparent"
+                                     HorizontalScrollBarVisibility="Auto"
+                                     VerticalScrollBarVisibility="Auto" />
+                </Border>
+            </DockPanel>
+        </Grid>
+    </Grid>
+</Window>

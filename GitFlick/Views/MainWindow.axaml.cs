@@ -105,7 +105,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (workspace.IsFileSearch)
+        if (workspace.IsFileSearch || workspace.IsContentSearch)
         {
             workspace.ApplySearchCommand.Execute(null);
         }
@@ -317,6 +317,127 @@ public partial class MainWindow : Window
         }
     }
 
+    private ReflogWindow? _reflogWindow;
+
+    /// <summary>Opens the reflog in its own window (reusing one if it's already open), loading it fresh.</summary>
+    private void OnShowReflogClick(object? sender, RoutedEventArgs e)
+    {
+        if (Workspace is not { } workspace)
+        {
+            return;
+        }
+
+        _ = workspace.LoadReflogAsync();
+
+        if (_reflogWindow is null)
+        {
+            _reflogWindow = new ReflogWindow { DataContext = workspace };
+            _reflogWindow.Closed += (_, _) => _reflogWindow = null;
+            _reflogWindow.Show(this);
+        }
+        else
+        {
+            _reflogWindow.DataContext = workspace;
+            _reflogWindow.Activate();
+        }
+    }
+
+    private CompareWindow? _compareWindow;
+
+    /// <summary>Branch flyout "Compare with current": current branch (base) vs the selected branch.</summary>
+    private void OnCompareBranchClick(object? sender, RoutedEventArgs e)
+    {
+        if (Workspace is { SelectedBranch: { } branch } ws && !string.IsNullOrEmpty(ws.BranchName))
+        {
+            ShowCompare(ws.CreateCompare(ws.BranchName, branch.Name));
+        }
+    }
+
+    /// <summary>Commit context "Compare with…": a picked branch (base) vs the selected commit.</summary>
+    private async void OnCompareCommitClick(object? sender, RoutedEventArgs e)
+    {
+        if (Workspace is not { SelectedCommit: { } commit } ws)
+        {
+            return;
+        }
+
+        var candidates = ws.Branches.Select(b => b.Name).ToList();
+        var chosen = await PromptPickAsync(
+            candidates,
+            Loc["Dialog_PickRef_Title"],
+            string.Format(Loc["History_Ctx_CompareWith_Prompt"], commit.ShortSha));
+
+        if (!string.IsNullOrEmpty(chosen))
+        {
+            ShowCompare(ws.CreateCompare(chosen, commit.Sha));
+        }
+    }
+
+    /// <summary>Shows (or re-targets) the shared compare window and kicks off its load.</summary>
+    private void ShowCompare(CompareViewModel compare)
+    {
+        if (_compareWindow is null)
+        {
+            _compareWindow = new CompareWindow { DataContext = compare };
+            _compareWindow.Closed += (_, _) => _compareWindow = null;
+            _compareWindow.Show(this);
+        }
+        else
+        {
+            _compareWindow.DataContext = compare;
+            _compareWindow.Activate();
+        }
+
+        _ = compare.LoadAsync();
+    }
+
+    private BlameWindow? _blameWindow;
+
+    /// <summary>"Blame" on a working-tree file: blames the current working copy (rev=null).</summary>
+    private void OnShowBlameClick(object? sender, RoutedEventArgs e)
+    {
+        if (Workspace is { } ws && (ws.SelectedUnstagedFile ?? ws.SelectedStagedFile) is { } file)
+        {
+            ShowBlame(ws.CreateBlame(file.Path));
+        }
+    }
+
+    /// <summary>"Blame" on a file in a history commit: blames it as of that commit.</summary>
+    private void OnBlameCommitFileClick(object? sender, RoutedEventArgs e)
+    {
+        if (Workspace is { SelectedCommitFile: { } file, SelectedCommit: { } commit })
+        {
+            ShowBlame(Workspace.CreateBlame(file.Path, commit.Sha));
+        }
+    }
+
+    /// <summary>"File history" on a file in a history commit.</summary>
+    private void OnShowCommitFileHistoryClick(object? sender, RoutedEventArgs e)
+    {
+        if (Workspace is { SelectedCommitFile: { } file } ws)
+        {
+            _ = ws.ShowFileHistory(file.Path);
+        }
+    }
+
+    /// <summary>Shows (or re-targets) the shared blame window and kicks off its load.</summary>
+    private void ShowBlame(BlameViewModel blame)
+    {
+        if (_blameWindow is null)
+        {
+            _blameWindow = new BlameWindow { DataContext = blame };
+            _blameWindow.Closed += (_, _) => _blameWindow = null;
+            _blameWindow.Show(this);
+        }
+        else
+        {
+            _blameWindow.DataContext = blame;
+            _blameWindow.Activate();
+        }
+
+        _ = blame.LoadAsync();
+    }
+
     private SettingsWindow? _settingsWindow;
 
     /// <summary>Opens the global Settings window (language + theme) from the palette ⚙.</summary>
@@ -435,6 +556,30 @@ public partial class MainWindow : Window
         }
     }
 
+    private void OnOpenRefOnRemoteClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem { DataContext: GitRef reference } && Workspace is { } ws)
+        {
+            ws.OpenRefOnRemoteCommand.Execute(reference);
+        }
+    }
+
+    private void OnOpenFileOnRemoteClick(object? sender, RoutedEventArgs e)
+    {
+        if (Workspace is { } ws && (ws.SelectedUnstagedFile ?? ws.SelectedStagedFile) is { } file)
+        {
+            ws.OpenFileOnRemoteCommand.Execute(file.Path);
+        }
+    }
+
+    private void OnShowFileHistoryClick(object? sender, RoutedEventArgs e)
+    {
+        if (Workspace is { } ws && (ws.SelectedUnstagedFile ?? ws.SelectedStagedFile) is { } file)
+        {
+            _ = ws.ShowFileHistory(file.Path);
+        }
+    }
+
     private void OnStageSelectedClick(object? sender, RoutedEventArgs e) => StageSelectedFiles();
 
     private void OnUnstageSelectedClick(object? sender, RoutedEventArgs e) => UnstageSelectedFiles();
@@ -470,14 +615,7 @@ public partial class MainWindow : Window
     /// TextMate does the syntax colouring (spec §1: don't hand-roll a highlighter); the
     /// background renderer tints whole +/- lines on top of it.
     /// </summary>
-    private void SetUpDiffEditor()
-    {
-        DiffEditor.TextArea.TextView.BackgroundRenderers.Add(new DiffLineBackgroundRenderer());
-
-        var registryOptions = new RegistryOptions(ThemeName.DarkPlus);
-        var installation = DiffEditor.InstallTextMate(registryOptions);
-        installation.SetGrammar(registryOptions.GetScopeByLanguageId("diff"));
-    }
+    private void SetUpDiffEditor() => DiffEditorSetup.Apply(DiffEditor);
 
     // AvaloniaEdit's document isn't a good binding target, so the diff text is pushed into the
     // editor whenever the workspace reports a new one.
@@ -524,6 +662,9 @@ public partial class MainWindow : Window
             _observedWorkspace.ConfirmDiscardFiles = ConfirmDiscardFilesAsync;
             _observedWorkspace.PromptPullSource = PromptPullSourceAsync;
             _observedWorkspace.PromptPushTarget = PromptPushTargetAsync;
+            _observedWorkspace.OpenUrlInBrowser = BrowserLauncher.Open;
+            _observedWorkspace.SetClipboardText = text => Clipboard?.SetTextAsync(text) ?? Task.CompletedTask;
+            _observedWorkspace.PromptPickRef = (items, prompt) => PromptPickAsync(items, Loc["Dialog_PickRef_Title"], prompt);
             _observedWorkspace.PromptTagName = () => PromptNameAsync(Loc["Dialog_AddTag_Title"], Loc["Dialog_TagName_Placeholder"]);
             _observedWorkspace.PromptBranchName = () => PromptNameAsync(Loc["Dialog_CreateBranch_Title"], Loc["Branch_NewNamePlaceholder"]);
             _observedWorkspace.PromptResetMode = PromptResetModeAsync;
@@ -758,6 +899,60 @@ public partial class MainWindow : Window
 
         cancel.Click += (_, _) => dialog.Close(null);
         push.Click += (_, _) => dialog.Close(combo.SelectedItem as string);
+
+        return await dialog.ShowDialog<string?>(this);
+    }
+
+    /// <summary>Generic "pick one item from a list" dialog (set-upstream, compare). Returns null to cancel.</summary>
+    private async Task<string?> PromptPickAsync(IReadOnlyList<string> items, string title, string body)
+    {
+        if (items.Count == 0)
+        {
+            return null;
+        }
+
+        var combo = new ComboBox
+        {
+            ItemsSource = items,
+            SelectedIndex = 0,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+        };
+        var cancel = new Button { Content = Loc["Dialog_Cancel"], MinWidth = 92, HorizontalContentAlignment = HorizontalAlignment.Center };
+        var ok = new Button { Content = Loc["Dialog_OK"], MinWidth = 92, HorizontalContentAlignment = HorizontalAlignment.Center };
+        ok.Classes.Add("primary");
+
+        var dialog = new Window
+        {
+            Title = title,
+            SizeToContent = SizeToContent.WidthAndHeight,
+            CanResize = false,
+            ShowInTaskbar = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Content = new Border
+            {
+                Padding = new Thickness(22),
+                Child = new StackPanel
+                {
+                    Spacing = 14,
+                    MinWidth = 340,
+                    Children =
+                    {
+                        new TextBlock { TextWrapping = TextWrapping.Wrap, Text = body },
+                        combo,
+                        new StackPanel
+                        {
+                            Orientation = Orientation.Horizontal,
+                            Spacing = 8,
+                            HorizontalAlignment = HorizontalAlignment.Right,
+                            Children = { cancel, ok },
+                        },
+                    },
+                },
+            },
+        };
+
+        cancel.Click += (_, _) => dialog.Close(null);
+        ok.Click += (_, _) => dialog.Close(combo.SelectedItem as string);
 
         return await dialog.ShowDialog<string?>(this);
     }

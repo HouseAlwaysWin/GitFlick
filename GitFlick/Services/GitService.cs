@@ -199,11 +199,24 @@ public sealed class GitService : IGitService
         return result.StandardOutput.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
     }
 
+    public async Task<string?> GetRemoteUrlAsync(string repoPath, string remote, CancellationToken cancellationToken = default)
+    {
+        var result = await RunAsync(repoPath, ["remote", "get-url", remote], null, cancellationToken).ConfigureAwait(false);
+        if (!result.Succeeded)
+        {
+            return null;
+        }
+
+        var url = result.StandardOutput.Trim();
+        return url.Length > 0 ? url : null;
+    }
+
     public async Task<IReadOnlyList<CommitInfo>> GetCommitsAsync(
         string repoPath,
         int maxCount = 300,
         bool firstParentOnly = false,
         string? pathFilter = null,
+        string? contentSearch = null,
         CancellationToken cancellationToken = default)
     {
         // A repo with no commits has an unborn HEAD, and `git log ... HEAD` then fails outright
@@ -229,6 +242,12 @@ public sealed class GitService : IGitService
             "--format=" + CommitLogParser.Format,
             "--max-count=" + maxCount.ToString(CultureInfo.InvariantCulture),
         };
+
+        // Pickaxe: only commits that changed the number of occurrences of this string (git log -S).
+        if (!string.IsNullOrWhiteSpace(contentSearch))
+        {
+            args.Add("-S" + contentSearch);
+        }
 
         if (firstParentOnly)
         {
@@ -263,6 +282,58 @@ public sealed class GitService : IGitService
         }
 
         return CommitLogParser.Parse(result.StandardOutput);
+    }
+
+    public async Task<IReadOnlyList<CommitInfo>> GetFileHistoryAsync(string repoPath, string path, int maxCount = 300, CancellationToken cancellationToken = default)
+    {
+        var head = await RunAsync(repoPath, ["rev-parse", "--verify", "--quiet", "HEAD"], null, cancellationToken)
+            .ConfigureAwait(false);
+        if (!head.Succeeded)
+        {
+            return [];
+        }
+
+        // --follow tracks the file across renames (it takes exactly one pathspec, so this can't reuse
+        // the graph's multi-tip args). Linear per-file history, so the caller hides the lane graph.
+        var result = await RunAsync(
+            repoPath,
+            [
+                "log", "--no-show-signature", "--date-order", "--decorate=full", "--follow",
+                "--format=" + CommitLogParser.Format,
+                "--max-count=" + maxCount.ToString(CultureInfo.InvariantCulture),
+                "--", path,
+            ],
+            null,
+            cancellationToken).ConfigureAwait(false);
+
+        if (!result.Succeeded)
+        {
+            throw new GitException($"git log --follow failed: {result.FailureMessage}");
+        }
+
+        return CommitLogParser.Parse(result.StandardOutput);
+    }
+
+    public async Task<IReadOnlyList<BlameLine>> GetBlameAsync(string repoPath, string path, string? rev = null, CancellationToken cancellationToken = default)
+    {
+        // --porcelain gives per-line commit + author/summary; rev blames the file as of that commit,
+        // otherwise the working tree (uncommitted lines carry an all-zero sha).
+        var args = new List<string> { "blame", "--porcelain" };
+        if (!string.IsNullOrEmpty(rev))
+        {
+            args.Add(rev);
+        }
+        args.Add("--");
+        args.Add(path);
+
+        var result = await RunAsync(repoPath, args, null, cancellationToken).ConfigureAwait(false);
+
+        if (!result.Succeeded)
+        {
+            throw new GitException($"git blame failed: {result.FailureMessage}");
+        }
+
+        return BlameParser.Parse(result.StandardOutput);
     }
 
     public async Task<IReadOnlyList<string>> GetAllPathsAsync(string repoPath, CancellationToken cancellationToken = default)
@@ -340,10 +411,16 @@ public sealed class GitService : IGitService
             throw new GitException($"git show --name-status failed: {result.FailureMessage}");
         }
 
+        return ParseNameStatus(result.StandardOutput);
+    }
+
+    // "M\tpath" lines (one per changed file, --no-renames so a single tab), deduped.
+    private static List<CommitFileEntry> ParseNameStatus(string output)
+    {
         var files = new List<CommitFileEntry>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
 
-        foreach (var raw in result.StandardOutput.Split('\n'))
+        foreach (var raw in output.Split('\n'))
         {
             var line = raw.TrimEnd('\r');
             var tab = line.IndexOf('\t');
@@ -360,6 +437,55 @@ public sealed class GitService : IGitService
         }
 
         return files;
+    }
+
+    public async Task<IReadOnlyList<CommitInfo>> GetCommitsBetweenAsync(string repoPath, string baseRef, string compareRef, int maxCount = 300, CancellationToken cancellationToken = default)
+    {
+        // Commits reachable from compareRef but not baseRef ("what compare has that base doesn't").
+        var result = await RunAsync(
+            repoPath,
+            [
+                "log", "--no-show-signature", "--date-order", "--decorate=full",
+                "--format=" + CommitLogParser.Format,
+                "--max-count=" + maxCount.ToString(CultureInfo.InvariantCulture),
+                $"{baseRef}..{compareRef}",
+            ],
+            null,
+            cancellationToken).ConfigureAwait(false);
+
+        if (!result.Succeeded)
+        {
+            throw new GitException($"git log {baseRef}..{compareRef} failed: {result.FailureMessage}");
+        }
+
+        return CommitLogParser.Parse(result.StandardOutput);
+    }
+
+    public async Task<IReadOnlyList<CommitFileEntry>> GetDiffFilesAsync(string repoPath, string baseRef, string compareRef, CancellationToken cancellationToken = default)
+    {
+        var result = await RunAsync(
+            repoPath,
+            ["diff", "--name-status", "--no-renames", baseRef, compareRef],
+            null,
+            cancellationToken).ConfigureAwait(false);
+
+        if (!result.Succeeded)
+        {
+            throw new GitException($"git diff --name-status failed: {result.FailureMessage}");
+        }
+
+        return ParseNameStatus(result.StandardOutput);
+    }
+
+    public async Task<string> GetRefRangeFileDiffAsync(string repoPath, string baseRef, string compareRef, string path, CancellationToken cancellationToken = default)
+    {
+        var result = await RunAsync(
+            repoPath,
+            ["diff", baseRef, compareRef, "--", path],
+            null,
+            cancellationToken).ConfigureAwait(false);
+
+        return result.Succeeded ? result.StandardOutput : result.FailureMessage;
     }
 
     public async Task<string> GetCommitFileDiffAsync(string repoPath, string sha, string path, CancellationToken cancellationToken = default)
@@ -434,6 +560,37 @@ public sealed class GitService : IGitService
 
     public Task<GitCommandResult> MergeAsync(string repoPath, string branch, CancellationToken cancellationToken = default)
         => RunAsync(repoPath, ["merge", branch], null, cancellationToken);
+
+    public Task<GitCommandResult> RenameBranchAsync(string repoPath, string oldName, string newName, CancellationToken cancellationToken = default)
+        => RunAsync(repoPath, ["branch", "-m", oldName, newName], null, cancellationToken);
+
+    public Task<GitCommandResult> SetUpstreamAsync(string repoPath, string branch, string upstream, CancellationToken cancellationToken = default)
+        => RunAsync(repoPath, ["branch", "--set-upstream-to=" + upstream, branch], null, cancellationToken);
+
+    public Task<GitCommandResult> UnsetUpstreamAsync(string repoPath, string branch, CancellationToken cancellationToken = default)
+        => RunAsync(repoPath, ["branch", "--unset-upstream", branch], null, cancellationToken);
+
+    public async Task<IReadOnlyList<string>> GetRemoteBranchesAsync(string repoPath, CancellationToken cancellationToken = default)
+    {
+        var result = await RunAsync(repoPath, ["for-each-ref", "--format=%(refname:short)", "refs/remotes"], null, cancellationToken)
+            .ConfigureAwait(false);
+        if (!result.Succeeded)
+        {
+            return [];
+        }
+
+        var names = new List<string>();
+        foreach (var raw in result.StandardOutput.Split('\n'))
+        {
+            var name = raw.Trim();
+            if (name.Length > 0 && !name.EndsWith("/HEAD", StringComparison.Ordinal))
+            {
+                names.Add(name);
+            }
+        }
+
+        return names;
+    }
 
     public Task<GitCommandResult> CherryPickAsync(string repoPath, string sha, CancellationToken cancellationToken = default)
         => RunAsync(repoPath, ["cherry-pick", sha], null, cancellationToken);
@@ -623,6 +780,22 @@ public sealed class GitService : IGitService
             cancellationToken).ConfigureAwait(false);
 
         return result.Succeeded ? result.StandardOutput : result.FailureMessage;
+    }
+
+    public async Task<IReadOnlyList<ReflogEntry>> GetReflogAsync(string repoPath, int maxCount = 200, CancellationToken cancellationToken = default)
+    {
+        var result = await RunAsync(
+            repoPath,
+            ["reflog", "--no-show-signature", "--format=" + ReflogParser.Format, "--max-count=" + maxCount.ToString(CultureInfo.InvariantCulture)],
+            null,
+            cancellationToken).ConfigureAwait(false);
+
+        if (!result.Succeeded)
+        {
+            return [];
+        }
+
+        return ReflogParser.Parse(result.StandardOutput);
     }
 
     /// <summary>

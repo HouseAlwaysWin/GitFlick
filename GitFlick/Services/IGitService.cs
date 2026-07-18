@@ -107,6 +107,9 @@ public interface IGitService
     /// <summary>The names of the configured remotes (<c>git remote</c>), empty if none.</summary>
     Task<IReadOnlyList<string>> GetRemotesAsync(string repoPath, CancellationToken cancellationToken = default);
 
+    /// <summary>A remote's fetch URL (<c>git remote get-url</c>), for building web links. Null if unset.</summary>
+    Task<string?> GetRemoteUrlAsync(string repoPath, string remote, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// History for the graph. <paramref name="firstParentOnly"/> collapses merges to one row each
     /// (spec §5⑦'s "first-parent" view); otherwise every branch/remote/tag tip is included.
@@ -117,7 +120,14 @@ public interface IGitService
         int maxCount = 300,
         bool firstParentOnly = false,
         string? pathFilter = null,
+        string? contentSearch = null,
         CancellationToken cancellationToken = default);
+
+    /// <summary>One file's history, following renames (<c>git log --follow -- path</c>).</summary>
+    Task<IReadOnlyList<CommitInfo>> GetFileHistoryAsync(string repoPath, string path, int maxCount = 300, CancellationToken cancellationToken = default);
+
+    /// <summary>Per-line authorship of a file (<c>git blame --porcelain</c>), optionally as of <paramref name="rev"/>.</summary>
+    Task<IReadOnlyList<BlameLine>> GetBlameAsync(string repoPath, string path, string? rev = null, CancellationToken cancellationToken = default);
 
     /// <summary>Every path that ever appeared in history (incl. renamed/deleted). For file-filter autocomplete.</summary>
     Task<IReadOnlyList<string>> GetAllPathsAsync(string repoPath, CancellationToken cancellationToken = default);
@@ -131,6 +141,15 @@ public interface IGitService
     /// <summary>The files a commit changed (vs its first parent), so the diff can be split per file.</summary>
     Task<IReadOnlyList<CommitFileEntry>> GetCommitFilesAsync(string repoPath, string sha, CancellationToken cancellationToken = default);
 
+    /// <summary>Commits in <paramref name="compareRef"/> but not <paramref name="baseRef"/> (<c>log base..compare</c>).</summary>
+    Task<IReadOnlyList<CommitInfo>> GetCommitsBetweenAsync(string repoPath, string baseRef, string compareRef, int maxCount = 300, CancellationToken cancellationToken = default);
+
+    /// <summary>Files that differ between two refs (<c>git diff --name-status base compare</c>).</summary>
+    Task<IReadOnlyList<CommitFileEntry>> GetDiffFilesAsync(string repoPath, string baseRef, string compareRef, CancellationToken cancellationToken = default);
+
+    /// <summary>The patch for one file across a ref range (<c>git diff base compare -- path</c>).</summary>
+    Task<string> GetRefRangeFileDiffAsync(string repoPath, string baseRef, string compareRef, string path, CancellationToken cancellationToken = default);
+
     /// <summary>The patch a commit introduced for a single file.</summary>
     Task<string> GetCommitFileDiffAsync(string repoPath, string sha, string path, CancellationToken cancellationToken = default);
 
@@ -143,6 +162,18 @@ public interface IGitService
     Task<GitCommandResult> DeleteBranchAsync(string repoPath, string name, bool force = false, CancellationToken cancellationToken = default);
 
     Task<GitCommandResult> MergeAsync(string repoPath, string branch, CancellationToken cancellationToken = default);
+
+    /// <summary>Renames a branch (<c>git branch -m</c>).</summary>
+    Task<GitCommandResult> RenameBranchAsync(string repoPath, string oldName, string newName, CancellationToken cancellationToken = default);
+
+    /// <summary>Sets a branch's upstream (<c>git branch --set-upstream-to</c>).</summary>
+    Task<GitCommandResult> SetUpstreamAsync(string repoPath, string branch, string upstream, CancellationToken cancellationToken = default);
+
+    /// <summary>Clears a branch's upstream (<c>git branch --unset-upstream</c>).</summary>
+    Task<GitCommandResult> UnsetUpstreamAsync(string repoPath, string branch, CancellationToken cancellationToken = default);
+
+    /// <summary>Remote-tracking branch names (<c>refs/remotes</c>, minus <c>*/HEAD</c>) — upstream picker source.</summary>
+    Task<IReadOnlyList<string>> GetRemoteBranchesAsync(string repoPath, CancellationToken cancellationToken = default);
 
     /// <summary>Replays one commit onto the current branch.</summary>
     Task<GitCommandResult> CherryPickAsync(string repoPath, string sha, CancellationToken cancellationToken = default);
@@ -199,4 +230,7 @@ public interface IGitService
 
     /// <summary>The patch a stash holds (<c>stash show -p</c>), for the "view stash" diff.</summary>
     Task<string> GetStashDiffAsync(string repoPath, int index, CancellationToken cancellationToken = default);
+
+    /// <summary>Recent HEAD moves (<c>git reflog</c>) for the reflog view / recovery.</summary>
+    Task<IReadOnlyList<ReflogEntry>> GetReflogAsync(string repoPath, int maxCount = 200, CancellationToken cancellationToken = default);
 }
