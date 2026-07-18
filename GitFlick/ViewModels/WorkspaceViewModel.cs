@@ -236,6 +236,8 @@ public partial class WorkspaceViewModel : ViewModelBase
 
     public ObservableCollection<StashEntry> Stashes { get; } = [];
 
+    public ObservableCollection<GitTag> Tags { get; } = [];
+
     /// <summary>Snapshot of the git command log, filled when the log flyout opens.</summary>
     public ObservableCollection<GitCommandLogEntry> CommandLog { get; } = [];
 
@@ -324,6 +326,9 @@ public partial class WorkspaceViewModel : ViewModelBase
 
     [ObservableProperty]
     public partial bool HasStashes { get; set; }
+
+    [ObservableProperty]
+    public partial bool HasTags { get; set; }
 
     /// <summary>True for a repo with no pending changes, so the UI can say so plainly.</summary>
     [ObservableProperty]
@@ -1234,6 +1239,83 @@ public partial class WorkspaceViewModel : ViewModelBase
         await RunAsync(() => _git.CreateTagAsync(Repository.Path, name, commit.Sha), string.Format(Loc["Status_Tagged"], name));
     }
 
+    // ── Tags (toolbar) ────────────────────────────────────────────────────────────
+    /// <summary>Create a tag at HEAD (the current commit) after prompting for a name.</summary>
+    [RelayCommand]
+    private async Task CreateTag()
+    {
+        if (PromptTagName is null)
+        {
+            return;
+        }
+
+        var name = await PromptTagName();
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return;
+        }
+
+        await RunAsync(
+            () => _git.CreateTagAsync(Repository.Path, name.Trim(), "HEAD"),
+            string.Format(Loc["Status_Tagged"], name.Trim()));
+    }
+
+    [RelayCommand]
+    private Task DeleteTag(GitTag? tag) => tag is null
+        ? Task.CompletedTask
+        : RunAsync(() => _git.DeleteTagAsync(Repository.Path, tag.Name), string.Format(Loc["Status_TagDeleted"], tag.Name));
+
+    [RelayCommand]
+    private async Task DeleteRemoteTag(GitTag? tag)
+    {
+        if (tag is null)
+        {
+            return;
+        }
+
+        var remote = await FirstRemoteOrReportAsync();
+        if (remote is null)
+        {
+            return;
+        }
+
+        await RunAsync(
+            () => _git.DeleteRemoteTagAsync(Repository.Path, remote, tag.Name),
+            string.Format(Loc["Status_RemoteTagDeleted"], tag.Name, remote));
+    }
+
+    [RelayCommand]
+    private async Task PushTags()
+    {
+        if (Tags.Count == 0)
+        {
+            return;
+        }
+
+        var remote = await FirstRemoteOrReportAsync();
+        if (remote is null)
+        {
+            return;
+        }
+
+        await RunAsync(
+            () => _git.PushTagsAsync(Repository.Path, remote, Progress()),
+            string.Format(Loc["Status_TagsPushed"], remote));
+    }
+
+    // Tag remote ops target the first remote (origin in the common single-remote case). Reports and bails if none.
+    private async Task<string?> FirstRemoteOrReportAsync()
+    {
+        var remotes = await _git.GetRemotesAsync(Repository.Path);
+        if (remotes.Count == 0)
+        {
+            StatusText = Loc["Status_NoRemotes"];
+            return null;
+        }
+
+        return remotes[0];
+    }
+
     /// <summary>Creates a branch at the selected commit (without switching) after prompting for a name.</summary>
     [RelayCommand]
     private async Task CreateBranchHere()
@@ -1417,6 +1499,10 @@ public partial class WorkspaceViewModel : ViewModelBase
             var stashes = await _git.GetStashesAsync(Repository.Path);
             Replace(Stashes, stashes);
             HasStashes = Stashes.Count > 0;
+
+            var tags = await _git.GetTagsAsync(Repository.Path);
+            Replace(Tags, tags);
+            HasTags = Tags.Count > 0;
         }
         catch (GitException ex)
         {

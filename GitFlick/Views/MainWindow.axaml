@@ -440,6 +440,48 @@
                         </Button.Flyout>
                     </Button>
 
+                    <Button x:Name="TagsButton" Content="{loc:Tr Toolbar_Tags}">
+                        <Button.Flyout>
+                            <Flyout Placement="BottomEdgeAlignedRight">
+                                <StackPanel Width="320" Spacing="6" x:DataType="vm:WorkspaceViewModel">
+                                    <!-- Create a tag at HEAD, or push all tags to the remote. -->
+                                    <Grid ColumnDefinitions="*,*" ColumnSpacing="6">
+                                        <Button Grid.Column="0" Content="{loc:Tr Tag_Create}" HorizontalAlignment="Stretch"
+                                                HorizontalContentAlignment="Center" Command="{Binding CreateTagCommand}" />
+                                        <Button Grid.Column="1" Content="{loc:Tr Tag_PushAll}" HorizontalAlignment="Stretch"
+                                                HorizontalContentAlignment="Center" IsEnabled="{Binding HasTags}"
+                                                Command="{Binding PushTagsCommand}" />
+                                    </Grid>
+
+                                    <Separator Margin="0,2" />
+
+                                    <TextBlock Text="{loc:Tr Tag_ListHeader}" FontSize="10" Opacity="0.5" />
+
+                                    <!-- Each tag: delete it locally or on the remote. -->
+                                    <ListBox MaxHeight="220" ItemsSource="{Binding Tags}">
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate x:DataType="models:GitTag">
+                                                <Grid ColumnDefinitions="*,Auto" ToolTip.Tip="{Binding Name}">
+                                                    <TextBlock Grid.Column="0" Text="{Binding Name}"
+                                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2">
+                                                        <Button Classes="header" FontSize="11" Padding="6,1" Content="{loc:Tr Tag_Delete}"
+                                                                Command="{Binding $parent[ListBox].((vm:WorkspaceViewModel)DataContext).DeleteTagCommand}"
+                                                                CommandParameter="{Binding}" />
+                                                        <Button Classes="header" FontSize="11" Padding="6,1" Content="{loc:Tr Tag_DeleteRemote}"
+                                                                Command="{Binding $parent[ListBox].((vm:WorkspaceViewModel)DataContext).DeleteRemoteTagCommand}"
+                                                                CommandParameter="{Binding}" />
+                                                    </StackPanel>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                    <TextBlock Text="{loc:Tr Tag_None}" IsVisible="{Binding !HasTags}" Opacity="0.4" />
+                                </StackPanel>
+                            </Flyout>
+                        </Button.Flyout>
+                    </Button>
+
                     <Button Content="&gt;_" FontFamily="Cascadia Mono,Consolas,monospace"
                             Click="OnShowCommandLogClick"
                             ToolTip.Tip="{loc:Tr Toolbar_CommandLog_Tooltip}" />

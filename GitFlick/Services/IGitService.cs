@@ -147,8 +147,20 @@ public interface IGitService
     /// <summary>Replays one commit onto the current branch.</summary>
     Task<GitCommandResult> CherryPickAsync(string repoPath, string sha, CancellationToken cancellationToken = default);
 
-    /// <summary>Creates a lightweight tag pointing at a commit.</summary>
+    /// <summary>Creates a lightweight tag pointing at a commit (pass "HEAD" to tag the current commit).</summary>
     Task<GitCommandResult> CreateTagAsync(string repoPath, string name, string sha, CancellationToken cancellationToken = default);
+
+    /// <summary>The repo's tags, newest first (<c>git tag --sort=-creatordate</c>).</summary>
+    Task<IReadOnlyList<GitTag>> GetTagsAsync(string repoPath, CancellationToken cancellationToken = default);
+
+    /// <summary>Deletes a local tag (<c>git tag -d</c>).</summary>
+    Task<GitCommandResult> DeleteTagAsync(string repoPath, string name, CancellationToken cancellationToken = default);
+
+    /// <summary>Deletes a tag on a remote (<c>git push &lt;remote&gt; --delete refs/tags/&lt;name&gt;</c>).</summary>
+    Task<GitCommandResult> DeleteRemoteTagAsync(string repoPath, string remote, string name, CancellationToken cancellationToken = default);
+
+    /// <summary>Pushes all tags to a remote (<c>git push &lt;remote&gt; --tags</c>).</summary>
+    Task<GitCommandResult> PushTagsAsync(string repoPath, string remote, IProgress<string>? progress = null, CancellationToken cancellationToken = default);
 
     /// <summary>Creates a branch at a specific commit without switching to it.</summary>
     Task<GitCommandResult> CreateBranchAtAsync(string repoPath, string name, string sha, CancellationToken cancellationToken = default);

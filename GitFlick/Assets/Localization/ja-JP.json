@@ -1,4 +1,15 @@
 {
+  "Toolbar_Tags": "タグ ▾",
+  "Tag_Create": "タグを作成…",
+  "Tag_PushAll": "タグをプッシュ",
+  "Tag_ListHeader": "タグ",
+  "Tag_None": "タグなし",
+  "Tag_Delete": "削除",
+  "Tag_DeleteRemote": "リモート削除",
+  "Status_TagDeleted": "タグ {0} を削除しました",
+  "Status_RemoteTagDeleted": "リモートタグ {0}（{1}）を削除しました",
+  "Status_TagsPushed": "タグを {0} にプッシュしました",
+
 "Stash_Untracked": "未追跡を含めてスタッシュ",
 "Stash_Staged": "ステージ済みのみスタッシュ",
 "Stash_ApplyLatest": "最新を適用",

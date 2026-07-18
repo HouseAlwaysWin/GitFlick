@@ -117,6 +117,21 @@ internal sealed class FakeGitService : IGitService
     public Task<GitCommandResult> CreateTagAsync(string repoPath, string name, string sha, CancellationToken cancellationToken = default)
         => Record($"tag {name} {sha}");
 
+    /// <summary>Tags the fake serves.</summary>
+    public List<GitTag> StubTags { get; } = [];
+
+    public Task<IReadOnlyList<GitTag>> GetTagsAsync(string repoPath, CancellationToken cancellationToken = default)
+        => Task.FromResult<IReadOnlyList<GitTag>>(StubTags.ToList());
+
+    public Task<GitCommandResult> DeleteTagAsync(string repoPath, string name, CancellationToken cancellationToken = default)
+        => Record($"tag -d {name}");
+
+    public Task<GitCommandResult> DeleteRemoteTagAsync(string repoPath, string remote, string name, CancellationToken cancellationToken = default)
+        => Record($"push {remote} --delete {name}");
+
+    public Task<GitCommandResult> PushTagsAsync(string repoPath, string remote, IProgress<string>? progress = null, CancellationToken cancellationToken = default)
+        => Record($"push {remote} --tags");
+
     public Task<GitCommandResult> CreateBranchAtAsync(string repoPath, string name, string sha, CancellationToken cancellationToken = default)
         => Record($"branch {name} {sha}");
 

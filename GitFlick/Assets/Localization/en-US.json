@@ -1,4 +1,15 @@
 {
+  "Toolbar_Tags": "Tags ▾",
+  "Tag_Create": "Create tag…",
+  "Tag_PushAll": "Push tags",
+  "Tag_ListHeader": "TAGS",
+  "Tag_None": "No tags",
+  "Tag_Delete": "Delete",
+  "Tag_DeleteRemote": "Delete remote",
+  "Status_TagDeleted": "Deleted tag {0}",
+  "Status_RemoteTagDeleted": "Deleted remote tag {0} ({1})",
+  "Status_TagsPushed": "Pushed tags to {0}",
+
 "Stash_Untracked": "Stash incl. untracked",
 "Stash_Staged": "Stash staged",
 "Stash_ApplyLatest": "Apply latest",

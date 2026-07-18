@@ -441,6 +441,39 @@ public sealed class GitService : IGitService
     public Task<GitCommandResult> CreateTagAsync(string repoPath, string name, string sha, CancellationToken cancellationToken = default)
         => RunAsync(repoPath, ["tag", name, sha], null, cancellationToken);
 
+    public async Task<IReadOnlyList<GitTag>> GetTagsAsync(string repoPath, CancellationToken cancellationToken = default)
+    {
+        // Newest first, like most clients show them.
+        var result = await RunAsync(repoPath, ["tag", "--sort=-creatordate"], null, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (!result.Succeeded)
+        {
+            throw new GitException($"git tag failed: {result.FailureMessage}");
+        }
+
+        var tags = new List<GitTag>();
+        foreach (var raw in result.StandardOutput.Split('\n'))
+        {
+            var name = raw.Trim();
+            if (name.Length > 0)
+            {
+                tags.Add(new GitTag(name));
+            }
+        }
+
+        return tags;
+    }
+
+    public Task<GitCommandResult> DeleteTagAsync(string repoPath, string name, CancellationToken cancellationToken = default)
+        => RunAsync(repoPath, ["tag", "-d", name], null, cancellationToken);
+
+    public Task<GitCommandResult> DeleteRemoteTagAsync(string repoPath, string remote, string name, CancellationToken cancellationToken = default)
+        => RunAsync(repoPath, ["push", remote, "--delete", $"refs/tags/{name}"], null, cancellationToken);
+
+    public Task<GitCommandResult> PushTagsAsync(string repoPath, string remote, IProgress<string>? progress = null, CancellationToken cancellationToken = default)
+        => RunAsync(repoPath, ["push", remote, "--tags", "--progress"], progress, cancellationToken);
+
     public Task<GitCommandResult> CreateBranchAtAsync(string repoPath, string name, string sha, CancellationToken cancellationToken = default)
         => RunAsync(repoPath, ["branch", name, sha], null, cancellationToken);
 

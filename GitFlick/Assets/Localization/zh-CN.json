@@ -1,4 +1,15 @@
 {
+  "Toolbar_Tags": "标签 ▾",
+  "Tag_Create": "创建标签…",
+  "Tag_PushAll": "推送标签",
+  "Tag_ListHeader": "标签",
+  "Tag_None": "没有标签",
+  "Tag_Delete": "删除",
+  "Tag_DeleteRemote": "删除远端",
+  "Status_TagDeleted": "已删除标签 {0}",
+  "Status_RemoteTagDeleted": "已删除远端标签 {0}（{1}）",
+  "Status_TagsPushed": "已推送标签到 {0}",
+
 "Stash_Untracked": "贮藏（含未跟踪）",
 "Stash_Staged": "仅贮藏已暂存",
 "Stash_ApplyLatest": "应用最新",
