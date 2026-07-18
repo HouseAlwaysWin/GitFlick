@@ -1,4 +1,10 @@
 {
+  "Sync_PushReminder_Tooltip": "リモートに未反映のコミットが {0} 件あります。Push して同期してください。",
+
+  "Sync_PullReminder": "Pull して同期 ↓{0}",
+  "Sync_PullReminder_Tooltip": "リモートブランチに未取得のコミットが {0} 件あります。Pull して同期してください。",
+  "Sync_Checking": "リモートを確認中…",
+
   "History_Search": "検索",
 
   "History_SearchType_Message": "メッセージ",

@@ -261,6 +261,9 @@
                      left. Repo name and branch live in the OS title bar (see UpdateTitle). -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center"
                             Margin="10,0,0,0">
+                    <TextBlock VerticalAlignment="Center" Opacity="0.5" FontSize="12"
+                               Text="{loc:Tr Sync_Checking}"
+                               IsVisible="{Binding IsCheckingRemote}" />
                     <TextBlock VerticalAlignment="Center" Opacity="0.6" FontSize="12"
                                Text="{Binding Ahead, StringFormat='↑{0}'}"
                                IsVisible="{Binding Ahead}" />
@@ -303,8 +306,11 @@
                             </MenuFlyout>
                         </SplitButton.Flyout>
                     </SplitButton>
-                    <SplitButton Content="{loc:Tr Toolbar_Pull}" Command="{Binding PullCommand}"
-                                 ToolTip.Tip="{loc:Tr Toolbar_Pull_Tooltip}">
+                    <!-- Pull carries the "out of sync" nudge itself: it shows the behind count and
+                         wears the accent when the upstream is ahead, so there's no separate button. -->
+                    <SplitButton Content="{Binding PullLabel}" Command="{Binding PullCommand}"
+                                 Classes.primary="{Binding IsBehind}"
+                                 ToolTip.Tip="{Binding PullTooltip}">
                         <SplitButton.Flyout>
                             <MenuFlyout Placement="BottomEdgeAlignedRight">
                                 <MenuItem Header="{loc:Tr Toolbar_PullRebase}" Command="{Binding PullRebaseCommand}"
@@ -314,8 +320,11 @@
                             </MenuFlyout>
                         </SplitButton.Flyout>
                     </SplitButton>
-                    <SplitButton Content="{loc:Tr Toolbar_Push}" Command="{Binding PushCommand}"
-                                 ToolTip.Tip="{loc:Tr Toolbar_Push_Tooltip}">
+                    <!-- Push mirrors Pull: shows the ahead count and wears the accent when the local
+                         branch has commits the remote doesn't. -->
+                    <SplitButton Content="{Binding PushLabel}" Command="{Binding PushCommand}"
+                                 Classes.primary="{Binding IsAhead}"
+                                 ToolTip.Tip="{Binding PushTooltip}">
                         <SplitButton.Flyout>
                             <MenuFlyout Placement="BottomEdgeAlignedRight">
                                 <MenuItem Header="{loc:Tr Toolbar_PushTo}" Command="{Binding PushToCommand}"

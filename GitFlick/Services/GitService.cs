@@ -531,6 +531,10 @@ public sealed class GitService : IGitService
                 StandardErrorEncoding = Encoding.UTF8,
             };
 
+            // A GUI app must never block on git's interactive credential prompt — a background fetch
+            // would hang forever. Fail fast instead; the OS credential helper still serves cached creds.
+            startInfo.Environment["GIT_TERMINAL_PROMPT"] = "0";
+
             // §4.1: never octal-escape non-ASCII paths. §4.2: force UTF-8 for log/message output.
             startInfo.ArgumentList.Add("-c");
             startInfo.ArgumentList.Add("core.quotepath=false");

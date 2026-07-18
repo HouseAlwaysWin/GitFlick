@@ -142,6 +142,27 @@
             <Setter Property="Foreground" Value="{DynamicResource DisabledForeground}" />
         </Style>
 
+        <!-- Accent SplitButton — Pull wears this when the branch is behind its upstream. A SplitButton
+             is two inner buttons (primary + chevron), so reach each one's content presenter to paint
+             the whole control in the accent, matching Button.primary. -->
+        <Style Selector="SplitButton.primary">
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <Style Selector="SplitButton.primary /template/ Button /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AccentSolidBrush}" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <Style Selector="SplitButton.primary /template/ Button:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AccentSolidHoverBrush}" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="SplitButton.primary /template/ Button:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AccentSolidPressedBrush}" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+
         <!-- Success buttons: solid green. Constructive/positive actions (Commit). -->
         <Style Selector="Button.success">
             <Setter Property="Foreground" Value="White" />

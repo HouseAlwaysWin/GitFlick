@@ -24,8 +24,11 @@ internal sealed class FakeGitService : IGitService
     public Task<bool> IsRepositoryAsync(string path, CancellationToken cancellationToken = default)
         => Task.FromResult(true);
 
+    /// <summary>The status GetStatusAsync serves; tests set ahead/behind on it.</summary>
+    public GitStatus StubStatus { get; set; } = new();
+
     public Task<GitStatus> GetStatusAsync(string repoPath, CancellationToken cancellationToken = default)
-        => Task.FromResult(new GitStatus());
+        => Task.FromResult(StubStatus);
 
     public Task<string> GetDiffAsync(string repoPath, string path, bool staged, bool untracked = false, CancellationToken cancellationToken = default)
         => Task.FromResult(string.Empty);
@@ -50,7 +53,14 @@ internal sealed class FakeGitService : IGitService
 
     public Task<GitCommandResult> DiscardAllAsync(string repoPath, bool includeUntracked, CancellationToken cancellationToken = default) => Task.FromResult(Ok);
 
-    public Task<GitCommandResult> FetchAsync(string repoPath, IProgress<string>? progress = null, CancellationToken cancellationToken = default) => Task.FromResult(Ok);
+    /// <summary>How many times a plain fetch ran — lets tests assert the on-open remote check fired.</summary>
+    public int FetchCount { get; private set; }
+
+    public Task<GitCommandResult> FetchAsync(string repoPath, IProgress<string>? progress = null, CancellationToken cancellationToken = default)
+    {
+        FetchCount++;
+        return Task.FromResult(Ok);
+    }
 
     public Task<GitCommandResult> FetchPruneAsync(string repoPath, IProgress<string>? progress = null, CancellationToken cancellationToken = default) => Task.FromResult(Ok);
 
@@ -66,7 +76,10 @@ internal sealed class FakeGitService : IGitService
 
     public Task<GitCommandResult> PushToAsync(string repoPath, string remote, string branch, IProgress<string>? progress = null, CancellationToken cancellationToken = default) => Task.FromResult(Ok);
 
-    public Task<IReadOnlyList<string>> GetRemotesAsync(string repoPath, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<string>>([]);
+    /// <summary>Remotes GetRemotesAsync serves; the remote check bails out when empty.</summary>
+    public List<string> StubRemotes { get; } = [];
+
+    public Task<IReadOnlyList<string>> GetRemotesAsync(string repoPath, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<string>>(StubRemotes);
 
     /// <summary>Newest-first commits the fake serves; GetCommitsAsync honours maxCount like git log.</summary>
     public List<CommitInfo> StubCommits { get; } = [];

@@ -1,4 +1,10 @@
 {
+  "Sync_PushReminder_Tooltip": "你有 {0} 笔尚未推送到远端的提交，建议 Push 同步。",
+
+  "Sync_PullReminder": "请先 Pull ↓{0}",
+  "Sync_PullReminder_Tooltip": "远端分支有 {0} 笔你尚未取得的提交，建议先 Pull 同步。",
+  "Sync_Checking": "检查远端中…",
+
   "History_Search": "搜索",
 
   "History_SearchType_Message": "消息",

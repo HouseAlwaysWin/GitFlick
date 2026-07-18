@@ -217,7 +217,7 @@ public partial class MainViewModel : ViewModelBase
         RecordOpen(repo.Path);
         OpenRepo = repo;
         Workspace = new WorkspaceViewModel(_git, repo, _settings, _ai);
-        _ = Workspace.RefreshAsync();
+        _ = Workspace.OpenedAsync();
     }
 
     /// <summary>Bumps the repo's open count, persists it, and refreshes the frequent panel.</summary>

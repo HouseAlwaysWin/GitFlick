@@ -1,4 +1,10 @@
 {
+  "Sync_PushReminder_Tooltip": "You have {0} commit(s) not yet on the remote. Push to sync.",
+
+  "Sync_PullReminder": "Pull to sync ↓{0}",
+  "Sync_PullReminder_Tooltip": "The remote branch has {0} new commit(s) you don't have yet. Pull to sync.",
+  "Sync_Checking": "Checking remote…",
+
   "History_Search": "Search",
 
   "History_SearchType_Message": "Message",

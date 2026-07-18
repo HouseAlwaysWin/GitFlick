@@ -262,10 +262,42 @@ public partial class WorkspaceViewModel : ViewModelBase
     public partial string? Upstream { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsAhead))]
+    [NotifyPropertyChangedFor(nameof(PushLabel))]
+    [NotifyPropertyChangedFor(nameof(PushTooltip))]
     public partial int Ahead { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsBehind))]
+    [NotifyPropertyChangedFor(nameof(PullLabel))]
+    [NotifyPropertyChangedFor(nameof(PullTooltip))]
     public partial int Behind { get; set; }
+
+    /// <summary>Local branch is ahead of its upstream — there's something to push.</summary>
+    public bool IsAhead => Ahead > 0;
+
+    /// <summary>Upstream has commits we don't — the Pull button lights up to say "pull to sync".</summary>
+    public bool IsBehind => Behind > 0;
+
+    /// <summary>Pull button label — carries the behind count as a nudge when the upstream is ahead.</summary>
+    public string PullLabel => IsBehind ? $"{Loc["Toolbar_Pull"]} ↓{Behind}" : Loc["Toolbar_Pull"];
+
+    /// <summary>Pull button tooltip — spells out the "pull to sync" reminder while behind.</summary>
+    public string PullTooltip => IsBehind
+        ? string.Format(Loc["Sync_PullReminder_Tooltip"], Behind)
+        : Loc["Toolbar_Pull_Tooltip"];
+
+    /// <summary>Push button label — carries the ahead count as a nudge when there's something to push.</summary>
+    public string PushLabel => IsAhead ? $"{Loc["Toolbar_Push"]} ↑{Ahead}" : Loc["Toolbar_Push"];
+
+    /// <summary>Push button tooltip — spells out the "push to sync" reminder while ahead.</summary>
+    public string PushTooltip => IsAhead
+        ? string.Format(Loc["Sync_PushReminder_Tooltip"], Ahead)
+        : Loc["Toolbar_Push_Tooltip"];
+
+    /// <summary>A quiet background fetch is running to refresh the ahead/behind counts.</summary>
+    [ObservableProperty]
+    public partial bool IsCheckingRemote { get; set; }
 
     [ObservableProperty]
     public partial GitStatusEntry? SelectedUnstagedFile { get; set; }
@@ -1389,6 +1421,54 @@ public partial class WorkspaceViewModel : ViewModelBase
         catch (GitException ex)
         {
             StatusText = ex.Message;
+        }
+    }
+
+    /// <summary>
+    /// Opened flow: show the working tree immediately, then quietly fetch so the ahead/behind counts
+    /// (and the "pull first" reminder) reflect the real remote, not just what we last knew locally.
+    /// </summary>
+    public async Task OpenedAsync()
+    {
+        await RefreshAsync();
+        await CheckRemoteAsync();
+    }
+
+    /// <summary>
+    /// A best-effort background fetch that refreshes just the sync counts. It never blocks the toolbar
+    /// (no <see cref="IsBusy"/>) and swallows failures — offline, no upstream, or uncached credentials
+    /// simply leave the last-known counts in place (GIT_TERMINAL_PROMPT=0 stops it hanging on a prompt).
+    /// </summary>
+    public async Task CheckRemoteAsync()
+    {
+        if (IsCheckingRemote)
+        {
+            return;
+        }
+
+        try
+        {
+            var remotes = await _git.GetRemotesAsync(Repository.Path);
+            if (remotes.Count == 0)
+            {
+                return;   // nothing to sync against
+            }
+
+            IsCheckingRemote = true;
+            await _git.FetchAsync(Repository.Path);
+
+            var status = await _git.GetStatusAsync(Repository.Path);
+            Ahead = status.Ahead;
+            Behind = status.Behind;
+            Upstream = status.Upstream;
+        }
+        catch (GitException)
+        {
+            // Offline / auth / no upstream — keep whatever we already knew.
+        }
+        finally
+        {
+            IsCheckingRemote = false;
         }
     }
 
