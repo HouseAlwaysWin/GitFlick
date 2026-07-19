@@ -368,17 +368,21 @@
                                         <Button Grid.Column="2" Classes="danger" Content="{loc:Tr Branch_Delete}" HorizontalAlignment="Stretch"
                                                 HorizontalContentAlignment="Center" Command="{Binding DeleteBranchCommand}" />
                                     </Grid>
-                                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="6">
-                                        <Button Grid.Column="0" Content="{loc:Tr Branch_Rename}" HorizontalAlignment="Stretch"
-                                                HorizontalContentAlignment="Center" Command="{Binding RenameBranchCommand}" />
-                                        <Button Grid.Column="1" Content="{loc:Tr Branch_SetUpstream}" HorizontalAlignment="Stretch"
+                                    <!-- Upstream actions get their own 2-col row: "Set/Unset upstream" are too
+                                         wide to sit three-across in a 300px flyout without truncating. -->
+                                    <Grid ColumnDefinitions="*,*" ColumnSpacing="6">
+                                        <Button Grid.Column="0" Content="{loc:Tr Branch_SetUpstream}" HorizontalAlignment="Stretch"
                                                 HorizontalContentAlignment="Center" Command="{Binding SetUpstreamCommand}" />
-                                        <Button Grid.Column="2" Content="{loc:Tr Branch_UnsetUpstream}" HorizontalAlignment="Stretch"
+                                        <Button Grid.Column="1" Content="{loc:Tr Branch_UnsetUpstream}" HorizontalAlignment="Stretch"
                                                 HorizontalContentAlignment="Center" Command="{Binding UnsetUpstreamCommand}" />
                                     </Grid>
-                                    <Button Content="{loc:Tr Branch_Compare}" HorizontalAlignment="Stretch"
-                                            HorizontalContentAlignment="Center" Click="OnCompareBranchClick"
-                                            ToolTip.Tip="{loc:Tr Branch_Compare_Tooltip}" />
+                                    <Grid ColumnDefinitions="*,*" ColumnSpacing="6">
+                                        <Button Grid.Column="0" Content="{loc:Tr Branch_Rename}" HorizontalAlignment="Stretch"
+                                                HorizontalContentAlignment="Center" Command="{Binding RenameBranchCommand}" />
+                                        <Button Grid.Column="1" Content="{loc:Tr Branch_Compare}" HorizontalAlignment="Stretch"
+                                                HorizontalContentAlignment="Center" Click="OnCompareBranchClick"
+                                                ToolTip.Tip="{loc:Tr Branch_Compare_Tooltip}" />
+                                    </Grid>
                                     <TextBlock Text="{loc:Tr Branch_ActionsHint}"
                                                FontSize="10" Opacity="0.4" TextWrapping="Wrap" />
                                 </StackPanel>
@@ -628,20 +632,8 @@
                         <TextBlock Grid.Column="0" Text="{loc:Tr History_Header}" FontWeight="SemiBold" VerticalAlignment="Center" />
 
                         <!-- Col 1 is just a spacer; every filter (search included) is a dropdown on the
-                             right, so nothing sits inline stealing width in a narrow History pane. -->
-
-                        <!-- File-history scope chip: shows when History is scoped to one file, with a clear ✕. -->
-                        <Border Grid.Column="1" IsVisible="{Binding IsFileHistory}" Margin="10,0"
-                                Background="{DynamicResource AccentSolidBrush}" CornerRadius="3" Padding="6,1"
-                                HorizontalAlignment="Left" VerticalAlignment="Center">
-                            <StackPanel Orientation="Horizontal" Spacing="4">
-                                <TextBlock Text="{Binding FileHistoryLabel}" Foreground="White" FontSize="11"
-                                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="240" />
-                                <Button Classes="header" Content="✕" FontSize="10" Padding="4,0" Foreground="White"
-                                        Command="{Binding ClearFileHistoryCommand}"
-                                        ToolTip.Tip="{loc:Tr History_ClearScope_Tooltip}" />
-                            </StackPanel>
-                        </Border>
+                             right, so nothing sits inline stealing width in a narrow History pane. The
+                             File scope (incl. right-click "File history") shows in the Search ▾ label. -->
 
                         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                             <!-- Unified search: one dropdown holding the Message/File scope toggle, the

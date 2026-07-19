@@ -102,15 +102,6 @@ internal sealed class FakeGitService : IGitService
         return Task.FromResult<IReadOnlyList<CommitInfo>>(StubCommits.Take(maxCount).ToList());
     }
 
-    /// <summary>The last path GetFileHistoryAsync was called with.</summary>
-    public string? LastFileHistoryPath { get; private set; }
-
-    public Task<IReadOnlyList<CommitInfo>> GetFileHistoryAsync(string repoPath, string path, int maxCount = 300, CancellationToken cancellationToken = default)
-    {
-        LastFileHistoryPath = path;
-        return Task.FromResult<IReadOnlyList<CommitInfo>>(StubCommits.Take(maxCount).ToList());
-    }
-
     /// <summary>Blame lines the fake hands back.</summary>
     public List<BlameLine> StubBlame { get; } = [];
 

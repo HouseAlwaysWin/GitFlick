@@ -468,17 +468,6 @@ public partial class WorkspaceViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(FooterHint))]
     public partial bool IsHistoryMode { get; set; }
 
-    /// <summary>When non-empty, History shows just this file's commits (git log --follow), not the graph.</summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsFileHistory))]
-    [NotifyPropertyChangedFor(nameof(ShowGraph))]
-    [NotifyPropertyChangedFor(nameof(FileHistoryLabel))]
-    public partial string FileHistoryPath { get; set; } = string.Empty;
-
-    public bool IsFileHistory => FileHistoryPath.Length > 0;
-
-    public string FileHistoryLabel => string.Format(Loc["History_FileScope"], FileHistoryPath);
-
     public string DiffEmptyHint => IsHistoryMode
         ? Loc["Diff_SelectCommit"]
         : Loc["Diff_SelectFile"];
@@ -538,7 +527,7 @@ public partial class WorkspaceViewModel : ViewModelBase
     /// stays hidden there.
     /// </summary>
     public bool ShowGraph => SortColumn == HistorySortColumn.Graph
-        && !HasAuthorFilter && !HasMessageFilter && !HasFileFilter && !HasContentFilter && !IsFileHistory;
+        && !HasAuthorFilter && !HasMessageFilter && !HasFileFilter && !HasContentFilter;
 
     // The active column wears an arrow; the rest show nothing.
     public string AuthorSortGlyph => GlyphFor(HistorySortColumn.Author);
@@ -891,12 +880,10 @@ public partial class WorkspaceViewModel : ViewModelBase
     {
         try
         {
-            var commits = IsFileHistory
-                ? await _git.GetFileHistoryAsync(Repository.Path, FileHistoryPath, _commitLimit)
-                : await _git.GetCommitsAsync(
-                    Repository.Path, _commitLimit, FirstParentOnly,
-                    HasFileFilter ? FileFilter.Trim() : null,
-                    HasContentFilter ? ContentFilter.Trim() : null);
+            var commits = await _git.GetCommitsAsync(
+                Repository.Path, _commitLimit, FirstParentOnly,
+                HasFileFilter ? FileFilter.Trim() : null,
+                HasContentFilter ? ContentFilter.Trim() : null);
 
             _graphOrder = commits.ToList();
 
@@ -952,13 +939,16 @@ public partial class WorkspaceViewModel : ViewModelBase
     [RelayCommand]
     private Task ShowHistory()
     {
-        FileHistoryPath = string.Empty;   // the toolbar History button always shows the full graph
         IsHistoryMode = true;
         HistoryLoad = LoadHistoryAsync();
         return HistoryLoad;
     }
 
-    /// <summary>Show just one file's history (following renames), reached from the file lists.</summary>
+    /// <summary>
+    /// Scope History to one file, reached from the file lists. This is just the search box's File
+    /// filter driven programmatically — same mechanism, same "path ▾" chip — so there's one way to
+    /// view a file's history, not two.
+    /// </summary>
     public Task ShowFileHistory(string path)
     {
         if (string.IsNullOrEmpty(path))
@@ -966,23 +956,21 @@ public partial class WorkspaceViewModel : ViewModelBase
             return Task.CompletedTask;
         }
 
-        FileHistoryPath = path;
-        IsHistoryMode = true;
-        HistoryLoad = LoadHistoryAsync();
-        return HistoryLoad;
-    }
+        IsHistoryMode = true;                     // jump to History if invoked from the Changes tab
+        SearchType = HistorySearchType.File;      // so the search dropdown reflects the File scope
+        _ = EnsurePathsLoadedAsync();             // ready the pick list in case the dropdown is opened
+        SearchText = path;                        // echo the path into the search input
 
-    /// <summary>Clear the file-history scope, returning to the full graph.</summary>
-    [RelayCommand]
-    private Task ClearFileHistory()
-    {
-        if (!IsFileHistory)
+        if (FileFilter == path)
         {
-            return Task.CompletedTask;
+            // Same file re-picked: the setter won't fire OnFileFilterChanged, so reload ourselves.
+            HistoryLoad = LoadHistoryAsync();
+        }
+        else
+        {
+            FileFilter = path;                    // OnFileFilterChanged triggers the reload
         }
 
-        FileHistoryPath = string.Empty;
-        HistoryLoad = LoadHistoryAsync();
         return HistoryLoad;
     }
 

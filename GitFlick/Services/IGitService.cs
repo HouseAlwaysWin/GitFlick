@@ -123,9 +123,6 @@ public interface IGitService
         string? contentSearch = null,
         CancellationToken cancellationToken = default);
 
-    /// <summary>One file's history, following renames (<c>git log --follow -- path</c>).</summary>
-    Task<IReadOnlyList<CommitInfo>> GetFileHistoryAsync(string repoPath, string path, int maxCount = 300, CancellationToken cancellationToken = default);
-
     /// <summary>Per-line authorship of a file (<c>git blame --porcelain</c>), optionally as of <paramref name="rev"/>.</summary>
     Task<IReadOnlyList<BlameLine>> GetBlameAsync(string repoPath, string path, string? rev = null, CancellationToken cancellationToken = default);
 

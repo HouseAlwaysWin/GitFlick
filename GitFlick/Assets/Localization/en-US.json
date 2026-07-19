@@ -3,7 +3,7 @@
   "Blame_Title": "Blame — {0}",
   "Blame_Loading": "Loading blame…",
   "Blame_Uncommitted": "Not committed yet",
-  "Branch_Compare": "Compare with current",
+  "Branch_Compare": "Compare…",
   "Branch_Compare_Tooltip": "Compare the selected branch against the current branch",
   "History_Ctx_CompareWith": "Compare with…",
   "History_Ctx_CompareWith_Prompt": "Compare commit {0} against which branch?",
@@ -19,8 +19,6 @@
   "Reflog_None": "No reflog entries",
 
   "Changes_FileHistory": "File history",
-  "History_FileScope": "History: {0}",
-  "History_ClearScope_Tooltip": "Show the full history",
 
   "History_SearchType_Content": "Content",
   "History_ContentPlaceholder": "text added or removed…",

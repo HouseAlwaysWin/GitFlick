@@ -284,36 +284,6 @@ public sealed class GitService : IGitService
         return CommitLogParser.Parse(result.StandardOutput);
     }
 
-    public async Task<IReadOnlyList<CommitInfo>> GetFileHistoryAsync(string repoPath, string path, int maxCount = 300, CancellationToken cancellationToken = default)
-    {
-        var head = await RunAsync(repoPath, ["rev-parse", "--verify", "--quiet", "HEAD"], null, cancellationToken)
-            .ConfigureAwait(false);
-        if (!head.Succeeded)
-        {
-            return [];
-        }
-
-        // --follow tracks the file across renames (it takes exactly one pathspec, so this can't reuse
-        // the graph's multi-tip args). Linear per-file history, so the caller hides the lane graph.
-        var result = await RunAsync(
-            repoPath,
-            [
-                "log", "--no-show-signature", "--date-order", "--decorate=full", "--follow",
-                "--format=" + CommitLogParser.Format,
-                "--max-count=" + maxCount.ToString(CultureInfo.InvariantCulture),
-                "--", path,
-            ],
-            null,
-            cancellationToken).ConfigureAwait(false);
-
-        if (!result.Succeeded)
-        {
-            throw new GitException($"git log --follow failed: {result.FailureMessage}");
-        }
-
-        return CommitLogParser.Parse(result.StandardOutput);
-    }
-
     public async Task<IReadOnlyList<BlameLine>> GetBlameAsync(string repoPath, string path, string? rev = null, CancellationToken cancellationToken = default)
     {
         // --porcelain gives per-line commit + author/summary; rev blames the file as of that commit,

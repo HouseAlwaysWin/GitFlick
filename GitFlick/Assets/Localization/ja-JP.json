@@ -3,7 +3,7 @@
   "Blame_Title": "Blame — {0}",
   "Blame_Loading": "blame を読み込み中…",
   "Blame_Uncommitted": "未コミット",
-  "Branch_Compare": "現在のブランチと比較",
+  "Branch_Compare": "比較…",
   "Branch_Compare_Tooltip": "選択したブランチを現在のブランチと比較します",
   "History_Ctx_CompareWith": "ブランチと比較…",
   "History_Ctx_CompareWith_Prompt": "コミット {0} をどのブランチと比較しますか？",
@@ -19,8 +19,6 @@
   "Reflog_None": "reflog がありません",
 
   "Changes_FileHistory": "ファイル履歴",
-  "History_FileScope": "履歴：{0}",
-  "History_ClearScope_Tooltip": "全履歴を表示",
 
   "History_SearchType_Content": "内容",
   "History_ContentPlaceholder": "追加または削除された文字…",

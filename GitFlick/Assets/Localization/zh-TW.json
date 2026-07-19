@@ -3,7 +3,7 @@
   "Blame_Title": "逐行追溯 — {0}",
   "Blame_Loading": "正在載入 blame…",
   "Blame_Uncommitted": "尚未提交",
-  "Branch_Compare": "與目前分支比較",
+  "Branch_Compare": "比較…",
   "Branch_Compare_Tooltip": "比較選取的分支與目前分支的差異",
   "History_Ctx_CompareWith": "與分支比較…",
   "History_Ctx_CompareWith_Prompt": "要用哪個分支與提交 {0} 比較？",
@@ -19,8 +19,6 @@
   "Reflog_None": "沒有 reflog 記錄",
 
   "Changes_FileHistory": "檔案歷史",
-  "History_FileScope": "歷史：{0}",
-  "History_ClearScope_Tooltip": "顯示完整歷史",
 
   "History_SearchType_Content": "內容",
   "History_ContentPlaceholder": "新增或刪除的文字…",
