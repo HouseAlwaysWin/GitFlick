@@ -1,4 +1,6 @@
 {
+  "History_MergesOnly": "只顯示合併",
+  "History_MergesOnly_Tooltip": "只列出合併提交 — 看哪些合併/PR 進來了",
   "Changes_Blame": "逐行追溯 (Blame)",
   "Blame_Title": "逐行追溯 — {0}",
   "Blame_Loading": "正在載入 blame…",

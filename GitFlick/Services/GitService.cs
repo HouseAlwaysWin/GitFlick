@@ -217,6 +217,7 @@ public sealed class GitService : IGitService
         bool firstParentOnly = false,
         string? pathFilter = null,
         string? contentSearch = null,
+        bool mergesOnly = false,
         CancellationToken cancellationToken = default)
     {
         // A repo with no commits has an unborn HEAD, and `git log ... HEAD` then fails outright
@@ -249,6 +250,13 @@ public sealed class GitService : IGitService
             args.Add("-S" + contentSearch);
         }
 
+        // Merges only: just the merge commits — "what merges/PRs landed", the complement of
+        // --first-parent's collapse. Not parent-closed, so the caller hides the lane graph.
+        if (mergesOnly)
+        {
+            args.Add("--merges");
+        }
+
         if (firstParentOnly)
         {
             // One row per merge: the collapsed "what landed on this branch" view.
@@ -270,6 +278,9 @@ public sealed class GitService : IGitService
         // rules apply, so a file, a folder, or a glob like *.cs all work.
         if (!string.IsNullOrWhiteSpace(pathFilter))
         {
+            // --full-history keeps merge commits that touched the file, which git's default history
+            // simplification would otherwise prune — so a file's merges show up, not just linear edits.
+            args.Add("--full-history");
             args.Add("--");
             args.Add(pathFilter);
         }

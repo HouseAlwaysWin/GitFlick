@@ -1,4 +1,6 @@
 {
+  "History_MergesOnly": "Merges only",
+  "History_MergesOnly_Tooltip": "Show only merge commits — what merges/PRs landed",
   "Changes_Blame": "Blame",
   "Blame_Title": "Blame — {0}",
   "Blame_Loading": "Loading blame…",

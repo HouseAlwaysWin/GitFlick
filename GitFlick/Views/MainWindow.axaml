@@ -752,6 +752,10 @@
                                       FontSize="11"
                                       IsChecked="{Binding FirstParentOnly}"
                                       ToolTip.Tip="{loc:Tr History_FirstParentOnly_Tooltip}" />
+                            <CheckBox Content="{loc:Tr History_MergesOnly}"
+                                      FontSize="11"
+                                      IsChecked="{Binding MergesOnly}"
+                                      ToolTip.Tip="{loc:Tr History_MergesOnly_Tooltip}" />
                         </StackPanel>
                     </Grid>
 

@@ -113,7 +113,8 @@ public interface IGitService
     /// <summary>
     /// History for the graph. <paramref name="firstParentOnly"/> collapses merges to one row each
     /// (spec §5⑦'s "first-parent" view); otherwise every branch/remote/tag tip is included.
-    /// Always date-ordered, so a parent never precedes its child — the graph builder depends on it.
+    /// <paramref name="mergesOnly"/> lists just the merge commits. Always date-ordered, so a parent
+    /// never precedes its child — the graph builder depends on it.
     /// </summary>
     Task<IReadOnlyList<CommitInfo>> GetCommitsAsync(
         string repoPath,
@@ -121,6 +122,7 @@ public interface IGitService
         bool firstParentOnly = false,
         string? pathFilter = null,
         string? contentSearch = null,
+        bool mergesOnly = false,
         CancellationToken cancellationToken = default);
 
     /// <summary>Per-line authorship of a file (<c>git blame --porcelain</c>), optionally as of <paramref name="rev"/>.</summary>

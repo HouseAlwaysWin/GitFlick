@@ -95,10 +95,16 @@ internal sealed class FakeGitService : IGitService
     /// <summary>The last contentSearch (pickaxe) GetCommitsAsync was called with.</summary>
     public string? LastContentSearch { get; private set; }
 
-    public Task<IReadOnlyList<CommitInfo>> GetCommitsAsync(string repoPath, int maxCount = 300, bool firstParentOnly = false, string? pathFilter = null, string? contentSearch = null, CancellationToken cancellationToken = default)
+    /// <summary>The last firstParentOnly / mergesOnly flags GetCommitsAsync was called with.</summary>
+    public bool LastFirstParentOnly { get; private set; }
+    public bool LastMergesOnly { get; private set; }
+
+    public Task<IReadOnlyList<CommitInfo>> GetCommitsAsync(string repoPath, int maxCount = 300, bool firstParentOnly = false, string? pathFilter = null, string? contentSearch = null, bool mergesOnly = false, CancellationToken cancellationToken = default)
     {
         LastPathFilter = pathFilter;
         LastContentSearch = contentSearch;
+        LastFirstParentOnly = firstParentOnly;
+        LastMergesOnly = mergesOnly;
         return Task.FromResult<IReadOnlyList<CommitInfo>>(StubCommits.Take(maxCount).ToList());
     }
 

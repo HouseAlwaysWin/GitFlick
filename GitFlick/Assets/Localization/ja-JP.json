@@ -1,4 +1,6 @@
 {
+  "History_MergesOnly": "マージのみ",
+  "History_MergesOnly_Tooltip": "マージコミットのみ表示 — どのマージ/PR が入ったか",
   "Changes_Blame": "Blame (行ごとの履歴)",
   "Blame_Title": "Blame — {0}",
   "Blame_Loading": "blame を読み込み中…",

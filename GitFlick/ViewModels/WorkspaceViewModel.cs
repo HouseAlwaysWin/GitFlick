@@ -505,6 +505,12 @@ public partial class WorkspaceViewModel : ViewModelBase
     [ObservableProperty]
     public partial bool FirstParentOnly { get; set; }
 
+    /// <summary>Show only merge commits (<c>git log --merges</c>) — the complement of first-parent.
+    /// Not a parent-closed subset, so the lane graph steps aside while it's on.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowGraph))]
+    public partial bool MergesOnly { get; set; }
+
     [ObservableProperty]
     public partial bool HasCommits { get; set; }
 
@@ -527,7 +533,7 @@ public partial class WorkspaceViewModel : ViewModelBase
     /// stays hidden there.
     /// </summary>
     public bool ShowGraph => SortColumn == HistorySortColumn.Graph
-        && !HasAuthorFilter && !HasMessageFilter && !HasFileFilter && !HasContentFilter;
+        && !HasAuthorFilter && !HasMessageFilter && !HasFileFilter && !HasContentFilter && !MergesOnly;
 
     // The active column wears an arrow; the rest show nothing.
     public string AuthorSortGlyph => GlyphFor(HistorySortColumn.Author);
@@ -883,7 +889,8 @@ public partial class WorkspaceViewModel : ViewModelBase
             var commits = await _git.GetCommitsAsync(
                 Repository.Path, _commitLimit, FirstParentOnly,
                 HasFileFilter ? FileFilter.Trim() : null,
-                HasContentFilter ? ContentFilter.Trim() : null);
+                HasContentFilter ? ContentFilter.Trim() : null,
+                MergesOnly);
 
             _graphOrder = commits.ToList();
 
@@ -983,6 +990,14 @@ public partial class WorkspaceViewModel : ViewModelBase
         new(_git, Repository.Path, path, rev);
 
     partial void OnFirstParentOnlyChanged(bool value)
+    {
+        if (IsHistoryMode)
+        {
+            HistoryLoad = LoadHistoryAsync();
+        }
+    }
+
+    partial void OnMergesOnlyChanged(bool value)
     {
         if (IsHistoryMode)
         {
