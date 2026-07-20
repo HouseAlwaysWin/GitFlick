@@ -99,6 +99,9 @@ public partial class MainWindow : Window
         // cursor rather than whatever was left-clicked last (or nothing).
         UnstagedList.AddHandler(PointerPressedEvent, OnFileListPointerPressed, RoutingStrategies.Tunnel);
         StagedList.AddHandler(PointerPressedEvent, OnFileListPointerPressed, RoutingStrategies.Tunnel);
+
+        // ...and the History commit's file list, so its "Open file" targets the right file.
+        CommitFilesList.AddHandler(PointerPressedEvent, OnCommitFileListPointerPressed, RoutingStrategies.Tunnel);
     }
 
     // Enter in the search input. Message already filters live, so this only matters for File: it
@@ -212,6 +215,25 @@ public partial class MainWindow : Window
         {
             list.SelectedItems.Clear();
             list.SelectedItems.Add(entry);
+        }
+    }
+
+    /// <summary>
+    /// Right-click selects the History commit-file under the cursor. This list is single-select and bound
+    /// to <see cref="WorkspaceViewModel.SelectedCommitFile"/>, so — like the Changes lists — a right-click
+    /// must set that selection first, otherwise "Open file" has no target and appears to do nothing.
+    /// </summary>
+    private void OnCommitFileListPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (!e.GetCurrentPoint(CommitFilesList).Properties.IsRightButtonPressed)
+        {
+            return;
+        }
+
+        if ((e.Source as Visual)?.FindAncestorOfType<ListBoxItem>()?.DataContext is CommitFileEntry file
+            && Workspace is { } ws)
+        {
+            ws.SelectedCommitFile = file;
         }
     }
 
