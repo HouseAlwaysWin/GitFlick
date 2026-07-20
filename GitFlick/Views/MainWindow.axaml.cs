@@ -590,18 +590,46 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>Opens the working-tree copy of a repo-relative path in the OS default application.</summary>
+    /// <summary>
+    /// Opens the working-tree copy of a repo-relative path. Tries the default application first; if the
+    /// file type has no association (ShellExecute would otherwise just throw), falls back to the OS
+    /// "Open with…" chooser so the click always does something visible.
+    /// </summary>
     private static void OpenWorkingFile(WorkspaceViewModel ws, string relativePath)
     {
-        var full = System.IO.Path.Combine(ws.Repository.Path, relativePath);
+        // GetFullPath also normalises the forward slashes git uses into the platform separator.
+        var full = System.IO.Path.GetFullPath(System.IO.Path.Combine(ws.Repository.Path, relativePath));
 
-        try
+        if (!System.IO.File.Exists(full))
         {
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(full) { UseShellExecute = true });
+            ws.StatusText = string.Format(Loc["Status_FileNotFound"], relativePath);
+            return;
         }
-        catch (Exception ex)
+
+        if (TryShellOpen(full, verb: null) || TryShellOpen(full, verb: "openas"))
         {
-            ws.StatusText = ex.Message;   // e.g. the file no longer exists, or has no association
+            return;
+        }
+
+        ws.StatusText = string.Format(Loc["Status_OpenFileFailed"], relativePath);
+
+        static bool TryShellOpen(string path, string? verb)
+        {
+            try
+            {
+                var info = new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true };
+                if (verb is not null)
+                {
+                    info.Verb = verb;
+                }
+
+                System.Diagnostics.Process.Start(info);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
     }
 

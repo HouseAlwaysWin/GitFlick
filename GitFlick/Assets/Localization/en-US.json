@@ -343,6 +343,8 @@
   "Status_Rebased": "Rebased onto {0}",
   "Status_Reset": "Reset to {0}",
   "Status_CopiedSubject": "Copied commit subject",
+  "Status_FileNotFound": "File not found: {0}",
+  "Status_OpenFileFailed": "Couldn't open {0}",
   "Status_CherryPicked": "Cherry-picked {0}",
 
   "Dialog_AddTag_Title": "Add tag",

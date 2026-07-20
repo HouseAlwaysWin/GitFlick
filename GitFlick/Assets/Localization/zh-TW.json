@@ -343,6 +343,8 @@
   "Status_Rebased": "已變基到 {0}",
   "Status_Reset": "已重設到 {0}",
   "Status_CopiedSubject": "已複製提交標題",
+  "Status_FileNotFound": "找不到檔案：{0}",
+  "Status_OpenFileFailed": "無法開啟 {0}",
   "Status_CherryPicked": "已揀選 {0}",
 
   "Dialog_AddTag_Title": "新增標籤",

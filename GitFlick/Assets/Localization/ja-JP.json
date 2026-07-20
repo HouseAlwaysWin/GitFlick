@@ -343,6 +343,8 @@
   "Status_Rebased": "{0} にリベースしました",
   "Status_Reset": "{0} にリセットしました",
   "Status_CopiedSubject": "コミットの件名をコピーしました",
+  "Status_FileNotFound": "ファイルが見つかりません: {0}",
+  "Status_OpenFileFailed": "{0} を開けませんでした",
   "Status_CherryPicked": "{0} をチェリーピックしました",
 
   "Dialog_AddTag_Title": "タグを追加",
