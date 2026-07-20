@@ -178,16 +178,30 @@ public partial class MainViewModel : ViewModelBase
         OpenSelected();
     }
 
+    /// <summary>Ctrl+D — un-pins the highlighted repo.</summary>
     public void RemoveSelected()
     {
-        if (SelectedRepo is not { } selected)
+        if (SelectedRepo is { } selected)
         {
-            return;
+            Remove(selected);
         }
+    }
 
+    /// <summary>The per-row ✕ button — un-pins a specific repo.</summary>
+    [RelayCommand]
+    private void RemoveRepo(RepositoryItem? repo)
+    {
+        if (repo is not null)
+        {
+            Remove(repo);
+        }
+    }
+
+    private void Remove(RepositoryItem repo)
+    {
         _settings.Current.PinnedRepos.RemoveAll(
-            p => string.Equals(p, selected.Path, StringComparison.OrdinalIgnoreCase));
-        _settings.Current.RepoOpenCounts.Remove(selected.Path);
+            p => string.Equals(p, repo.Path, StringComparison.OrdinalIgnoreCase));
+        _settings.Current.RepoOpenCounts.Remove(repo.Path);
         _settings.Save();
 
         StatusMessage = string.Empty;

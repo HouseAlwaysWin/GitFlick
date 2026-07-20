@@ -105,6 +105,7 @@
   "Palette_Hints": "↑↓ 選択 · Enter／ダブルクリックで開く · Ctrl+O 追加 · Ctrl+D 削除 · Esc 閉じる",
   "Palette_Frequent_Header": "よく使うプロジェクト",
   "Palette_Frequent_Empty": "よく開くプロジェクトがここに表示されます。",
+  "Palette_Remove_Tooltip": "リストから削除（Ctrl+D）",
 
   "Toolbar_Back": "← 戻る",
   "Toolbar_Back_Tooltip": "リポジトリ一覧に戻る（Esc）",

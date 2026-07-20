@@ -260,6 +260,20 @@ public class MainViewModelTests : IDisposable
         Assert.False(vm.HasFrequentRepos);
     }
 
+    [Fact]
+    public void RemoveRepo_command_unpins_the_given_repo()
+    {
+        var vm = NewViewModel(out var settings);
+        vm.AddRepository(_repoA);
+        vm.AddRepository(_repoB);
+
+        vm.RemoveRepoCommand.Execute(vm.Repos.First(r => r.Path == _repoA));
+
+        Assert.DoesNotContain(vm.Repos, r => r.Path == _repoA);
+        Assert.Contains(vm.Repos, r => r.Path == _repoB);
+        Assert.DoesNotContain(_repoA, settings.Current.PinnedRepos);
+    }
+
     private static void Open(MainViewModel vm, string path)
     {
         vm.SelectedRepo = vm.Repos.First(r => r.Path == path);

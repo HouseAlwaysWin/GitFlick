@@ -100,6 +100,28 @@
             <Setter Property="Background" Value="{DynamicResource AccentSubtlePressedBrush}" />
             <Setter Property="BorderThickness" Value="0" />
         </Style>
+
+        <!-- Per-row remove (✕) on the pinned list: quiet by default, red when hovered. -->
+        <Style Selector="Button.repodelete">
+            <Setter Property="Opacity" Value="0.35" />
+            <Setter Property="Padding" Value="7,3" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
+        <Style Selector="Button.repodelete /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <Style Selector="Button.repodelete:pointerover">
+            <Setter Property="Opacity" Value="1" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="Button.repodelete:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource RedBrush}" />
+        </Style>
+        <Style Selector="Button.repodelete:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource RedPressedBrush}" />
+        </Style>
     </Window.Styles>
 
     <DockPanel Margin="16">
@@ -179,10 +201,17 @@
                          BorderThickness="0">
                     <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="models:RepositoryItem">
-                            <StackPanel Spacing="1" Margin="0,2">
-                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
-                                <TextBlock Text="{Binding Path}" Opacity="0.55" FontSize="11" TextTrimming="CharacterEllipsis" />
-                            </StackPanel>
+                            <Grid ColumnDefinitions="*,Auto" Margin="0,2">
+                                <StackPanel Grid.Column="0" Spacing="1" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                                    <TextBlock Text="{Binding Path}" Opacity="0.55" FontSize="11" TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                                <Button Grid.Column="1" Classes="repodelete" Content="✕"
+                                        VerticalAlignment="Center"
+                                        Command="{Binding $parent[ListBox].((vm:MainViewModel)DataContext).RemoveRepoCommand}"
+                                        CommandParameter="{Binding}"
+                                        ToolTip.Tip="{loc:Tr Palette_Remove_Tooltip}" />
+                            </Grid>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>

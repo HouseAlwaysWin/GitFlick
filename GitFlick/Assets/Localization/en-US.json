@@ -105,6 +105,7 @@
   "Palette_Hints": "↑↓ select · Enter / double-click open · Ctrl+O add · Ctrl+D remove · Esc close",
   "Palette_Frequent_Header": "Frequent projects",
   "Palette_Frequent_Empty": "Projects you open often show up here.",
+  "Palette_Remove_Tooltip": "Remove from list (Ctrl+D)",
 
   "Toolbar_Back": "← Back",
   "Toolbar_Back_Tooltip": "Back to repositories (Esc)",

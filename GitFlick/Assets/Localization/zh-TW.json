@@ -105,6 +105,7 @@
   "Palette_Hints": "↑↓ 選擇 · Enter／雙擊開啟 · Ctrl+O 新增 · Ctrl+D 移除 · Esc 關閉",
   "Palette_Frequent_Header": "常用專案",
   "Palette_Frequent_Empty": "常開的專案會出現在這裡。",
+  "Palette_Remove_Tooltip": "從清單移除（Ctrl+D）",
 
   "Toolbar_Back": "← 返回",
   "Toolbar_Back_Tooltip": "返回儲存庫列表（Esc）",
