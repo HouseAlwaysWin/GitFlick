@@ -94,6 +94,11 @@ public partial class MainWindow : Window
         // Right-click doesn't select in a ListBox, but the context menu acts on the selection —
         // so make the commit under the pointer the selected one before the menu opens.
         CommitList.AddHandler(PointerPressedEvent, OnCommitListPointerPressed, RoutingStrategies.Tunnel);
+
+        // Same for the Changes lists, so "Open file" / Discard / Blame target the file under the
+        // cursor rather than whatever was left-clicked last (or nothing).
+        UnstagedList.AddHandler(PointerPressedEvent, OnFileListPointerPressed, RoutingStrategies.Tunnel);
+        StagedList.AddHandler(PointerPressedEvent, OnFileListPointerPressed, RoutingStrategies.Tunnel);
     }
 
     // Enter in the search input. Message already filters live, so this only matters for File: it
@@ -184,6 +189,29 @@ public partial class MainWindow : Window
             && Workspace is { } workspace)
         {
             workspace.SelectedCommit = commit;
+        }
+    }
+
+    /// <summary>
+    /// Right-click on a Changes file selects it (so the context menu targets it), unless it's already
+    /// part of a multi-selection — then the selection is kept so "Stage selected" still covers them all.
+    /// </summary>
+    private void OnFileListPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (sender is not ListBox list || !e.GetCurrentPoint(list).Properties.IsRightButtonPressed)
+        {
+            return;
+        }
+
+        if ((e.Source as Visual)?.FindAncestorOfType<ListBoxItem>()?.DataContext is not GitStatusEntry entry)
+        {
+            return;
+        }
+
+        if (!list.SelectedItems!.Contains(entry))
+        {
+            list.SelectedItems.Clear();
+            list.SelectedItems.Add(entry);
         }
     }
 
