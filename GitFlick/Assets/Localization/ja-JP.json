@@ -186,6 +186,12 @@
 
   "Diff_NoFilesChanged": "変更されたファイルはありません",
   "Diff_Header": "差分",
+  "Changes_OpenFile": "ファイルを開く",
+  "Diff_SideBySide": "⇄ 並べて表示",
+  "Diff_SideBySide_Tooltip": "この差分を左右に並べて表示します",
+  "SideBySide_Title": "並べて差分表示",
+  "SideBySide_Old": "変更前",
+  "SideBySide_New": "変更後",
 
   "Commit_MessagePlaceholder": "コミットメッセージ",
   "Commit_Commit": "コミット",

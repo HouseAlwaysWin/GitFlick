@@ -186,6 +186,12 @@
 
   "Diff_NoFilesChanged": "No files changed",
   "Diff_Header": "Diff",
+  "Changes_OpenFile": "Open file",
+  "Diff_SideBySide": "⇄ Side-by-side",
+  "Diff_SideBySide_Tooltip": "Open a side-by-side view of this diff",
+  "SideBySide_Title": "Side-by-side diff",
+  "SideBySide_Old": "Old",
+  "SideBySide_New": "New",
 
   "Commit_MessagePlaceholder": "Commit message",
   "Commit_Commit": "Commit",

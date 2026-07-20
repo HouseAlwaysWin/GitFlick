@@ -186,6 +186,12 @@
 
   "Diff_NoFilesChanged": "沒有檔案變更",
   "Diff_Header": "差異",
+  "Changes_OpenFile": "開啟檔案",
+  "Diff_SideBySide": "⇄ 並排檢視",
+  "Diff_SideBySide_Tooltip": "以並排方式檢視這個差異",
+  "SideBySide_Title": "並排差異",
+  "SideBySide_Old": "舊",
+  "SideBySide_New": "新",
 
   "Commit_MessagePlaceholder": "提交訊息",
   "Commit_Commit": "提交",

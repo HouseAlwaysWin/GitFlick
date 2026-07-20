@@ -585,6 +585,8 @@
                                          SelectedItem="{Binding SelectedUnstagedFile}">
                                     <ListBox.ContextFlyout>
                                         <MenuFlyout>
+                                            <MenuItem Header="{loc:Tr Changes_OpenFile}" Click="OnOpenFileClick" />
+                                            <Separator />
                                             <MenuItem Header="{loc:Tr Changes_StageSelected}" Click="OnStageSelectedClick" />
                                             <Separator />
                                             <MenuItem Header="{loc:Tr Changes_DiscardChanges}" Click="OnDiscardSelectedClick" />
@@ -628,6 +630,8 @@
                                          SelectedItem="{Binding SelectedStagedFile}">
                                     <ListBox.ContextFlyout>
                                         <MenuFlyout>
+                                            <MenuItem Header="{loc:Tr Changes_OpenFile}" Click="OnOpenFileClick" />
+                                            <Separator />
                                             <MenuItem Header="{loc:Tr Changes_UnstageSelected}" Click="OnUnstageSelectedClick" />
                                             <Separator />
                                             <MenuItem Header="{loc:Tr Changes_FileHistory}" Click="OnShowFileHistoryClick" />
@@ -1035,12 +1039,18 @@
                                   IsVisible="{Binding IsHistoryMode}" />
 
                     <DockPanel Grid.Row="2">
-                        <TextBlock DockPanel.Dock="Top"
-                                   Margin="0,0,0,4"
-                                   FontWeight="SemiBold"
-                                   TextTrimming="CharacterEllipsis"
-                                   Text="{Binding DiffPath, StringFormat='Diff — {0}'}"
-                                   IsVisible="{Binding HasDiff}" />
+                        <Grid DockPanel.Dock="Top" Margin="0,0,0,4" ColumnDefinitions="*,Auto"
+                              IsVisible="{Binding HasDiff}">
+                            <TextBlock Grid.Column="0"
+                                       FontWeight="SemiBold"
+                                       VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis"
+                                       Text="{Binding DiffPath, StringFormat='Diff — {0}'}" />
+                            <Button Grid.Column="1" Classes="header"
+                                    Content="{loc:Tr Diff_SideBySide}"
+                                    Click="OnCompareClick"
+                                    ToolTip.Tip="{loc:Tr Diff_SideBySide_Tooltip}" />
+                        </Grid>
                         <TextBlock DockPanel.Dock="Top"
                                    Margin="0,0,0,4"
                                    FontWeight="SemiBold"

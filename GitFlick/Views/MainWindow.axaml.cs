@@ -572,6 +572,35 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>Context-menu "Open file": opens the working copy in the OS default application.</summary>
+    private void OnOpenFileClick(object? sender, RoutedEventArgs e)
+    {
+        if (Workspace is not { } ws || (ws.SelectedUnstagedFile ?? ws.SelectedStagedFile) is not { } file)
+        {
+            return;
+        }
+
+        var full = System.IO.Path.Combine(ws.Repository.Path, file.Path);
+
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(full) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            ws.StatusText = ex.Message;   // e.g. the file no longer exists, or has no association
+        }
+    }
+
+    /// <summary>The diff header's side-by-side button: opens the current diff in a split view.</summary>
+    private void OnCompareClick(object? sender, RoutedEventArgs e)
+    {
+        if (Workspace is { HasDiff: true } ws)
+        {
+            new SideBySideWindow(ws.DiffPath ?? string.Empty, ws.DiffText).Show(this);
+        }
+    }
+
     private void OnShowFileHistoryClick(object? sender, RoutedEventArgs e)
     {
         if (Workspace is { } ws && (ws.SelectedUnstagedFile ?? ws.SelectedStagedFile) is { } file)
