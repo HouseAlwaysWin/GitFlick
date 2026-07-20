@@ -83,6 +83,11 @@
             <Setter Property="Background" Value="{DynamicResource HoverStrongBrush}" />
         </Style>
 
+        <!-- History column-resize grips: invisible until hovered, then a faint bar shows they're draggable. -->
+        <Style Selector="Border.colgrip:pointerover">
+            <Setter Property="Background" Value="{DynamicResource HoverStrongBrush}" />
+        </Style>
+
         <!-- Frequent-projects rows: flat like list items (not the accent chip), with a hover highlight. -->
         <Style Selector="Button.frequent">
             <Setter Property="Padding" Value="8,6" />
@@ -850,16 +855,16 @@
                                          header and every row share these widths. The Message|Author
                                          grip borrows from Message (the flexible column), so every
                                          column — Message and Commit included — is resizable. -->
-                                    <Border Grid.Column="1" Tag="MsgAuthor" Width="8" HorizontalAlignment="Left"
-                                            Background="Transparent" Cursor="SizeWestEast"
+                                    <Border Grid.Column="1" Tag="MsgAuthor" Classes="colgrip" Width="12" Margin="-6,0,0,0"
+                                            HorizontalAlignment="Left" Background="Transparent" Cursor="SizeWestEast"
                                             PointerPressed="OnColumnGripPressed" PointerMoved="OnColumnGripMoved"
                                             PointerReleased="OnColumnGripReleased" />
-                                    <Border Grid.Column="2" Tag="AuthorDate" Width="8" HorizontalAlignment="Left"
-                                            Background="Transparent" Cursor="SizeWestEast"
+                                    <Border Grid.Column="2" Tag="AuthorDate" Classes="colgrip" Width="12" Margin="-6,0,0,0"
+                                            HorizontalAlignment="Left" Background="Transparent" Cursor="SizeWestEast"
                                             PointerPressed="OnColumnGripPressed" PointerMoved="OnColumnGripMoved"
                                             PointerReleased="OnColumnGripReleased" />
-                                    <Border Grid.Column="3" Tag="DateCommit" Width="8" HorizontalAlignment="Left"
-                                            Background="Transparent" Cursor="SizeWestEast"
+                                    <Border Grid.Column="3" Tag="DateCommit" Classes="colgrip" Width="12" Margin="-6,0,0,0"
+                                            HorizontalAlignment="Left" Background="Transparent" Cursor="SizeWestEast"
                                             PointerPressed="OnColumnGripPressed" PointerMoved="OnColumnGripMoved"
                                             PointerReleased="OnColumnGripReleased" />
                                 </Grid>
