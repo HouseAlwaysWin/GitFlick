@@ -39,6 +39,9 @@ public sealed class AppSettings
 
     /// <summary>Accent colour hex (drives the primary buttons and selection highlight).</summary>
     public string AccentColorHex { get; set; } = "#588CF0";
+
+    /// <summary>Check GitHub for a newer release on launch (silent). Off by default.</summary>
+    public bool AutoCheckUpdates { get; set; }
 }
 
 /// <summary>How commit messages are generated.</summary>

@@ -8,6 +8,7 @@ using Avalonia.Platform;
 using Avalonia.Threading;
 using GitFlick.Services;
 using GitFlick.Services.Interop;
+using GitFlick.Services.Updates;
 using GitFlick.ViewModels;
 using GitFlick.Views;
 
@@ -20,6 +21,7 @@ public partial class App : Application
     private ISettingsService? _settings;
     private IGlobalHotkeyService? _hotkeys;
     private IGitService? _gitService;
+    private UpdateService? _updateService;
     private TrayIcon? _trayIcon;
 
     private bool _isExiting;
@@ -37,6 +39,11 @@ public partial class App : Application
             // shuts down as soon as the last window closes.
             desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
+            // If a self-update was just applied, finalize it (verify the running exe + version match what
+            // was promised, then clear the pending marker) before anything else comes up.
+            UpdateService.VerifyPendingUpdateOnStartup(
+                AppVersionInfo.CurrentVersion, RuntimePathProvider.GetExecutablePath());
+
             _settings = new SettingsService();
             _settings.Load();
 
@@ -47,7 +54,8 @@ public partial class App : Application
             LocalizationService.Instance.CurrentLanguage = _settings.Current.Language;
 
             _gitService = new GitService(_settings.Current.GitExecutablePath);
-            _viewModel = new MainViewModel(_settings, _gitService);
+            _updateService = new UpdateService(AppVersionInfo.CurrentVersion);
+            _viewModel = new MainViewModel(_settings, _gitService) { UpdateService = _updateService };
 
             // Built eagerly so summoning it costs a Show(), not a XAML parse. Deliberately
             // NOT assigned to desktop.MainWindow -- that would auto-show it during startup.
@@ -65,6 +73,12 @@ public partial class App : Application
             // taskbar, and only goes to the tray when you actually dismiss it (X, Esc, hotkey).
             // Losing focus does NOT hide it.
             ShowWindow();
+
+            // Opt-in silent update check. Best-effort: it never blocks or disrupts startup.
+            if (_settings.Current.AutoCheckUpdates)
+            {
+                _ = CheckForUpdatesOnStartupAsync();
+            }
         }
 
         base.OnFrameworkInitializationCompleted();
@@ -82,6 +96,27 @@ public partial class App : Application
         {
             Dispatcher.UIThread.Post(() => _viewModel?.ReportGitMissing(
                 "Git was not found. Install Git and add it to PATH, or set \"GitExecutablePath\" in settings.json."));
+        }
+    }
+
+    /// <summary>
+    /// Opt-in startup check: if GitHub has a newer release, show the palette banner nudging the user to
+    /// ⚙ Settings → Updates. Silent on no-update / error — it must never get in the way of launching.
+    /// </summary>
+    private async Task CheckForUpdatesOnStartupAsync()
+    {
+        try
+        {
+            var release = await _updateService!.CheckForUpdateAsync().ConfigureAwait(false);
+            if (release is not null)
+            {
+                Dispatcher.UIThread.Post(() => _viewModel?.ReportUpdateAvailable(
+                    string.Format(LocalizationService.Instance["Update_BannerAvailable"], release.TagName)));
+            }
+        }
+        catch
+        {
+            // Best-effort only.
         }
     }
 

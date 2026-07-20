@@ -37,6 +37,13 @@ public partial class MainViewModel : ViewModelBase
     [ObservableProperty]
     public partial bool HasGitWarning { get; set; }
 
+    /// <summary>Set by App's startup auto-check when a newer release is available. Empty means none.</summary>
+    [ObservableProperty]
+    public partial string UpdateBanner { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial bool HasUpdateBanner { get; set; }
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasStatusMessage))]
     public partial string StatusMessage { get; set; } = string.Empty;
@@ -94,6 +101,9 @@ public partial class MainViewModel : ViewModelBase
     /// <summary>The settings store — used by the palette ⚙ to build a <see cref="SettingsViewModel"/>.</summary>
     public ISettingsService Settings => _settings;
 
+    /// <summary>The self-update service. Set by <c>App</c> at startup; used by the palette ⚙.</summary>
+    public Services.Updates.UpdateService? UpdateService { get; set; }
+
     public void ReportHotkeyFailure(string message)
     {
         HotkeyStatus = message;
@@ -104,6 +114,13 @@ public partial class MainViewModel : ViewModelBase
     {
         GitWarning = message;
         HasGitWarning = true;
+    }
+
+    /// <summary>Shows the palette banner nudging the user to open ⚙ → Updates. Set by App's auto-check.</summary>
+    public void ReportUpdateAvailable(string message)
+    {
+        UpdateBanner = message;
+        HasUpdateBanner = true;
     }
 
     /// <summary>

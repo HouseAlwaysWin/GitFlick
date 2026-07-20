@@ -148,6 +148,20 @@
             <TextBlock Text="{Binding GitWarning}" TextWrapping="Wrap" />
         </Border>
 
+        <!-- Startup auto-check nudge; clicking it opens ⚙ Settings → Updates. -->
+        <Border DockPanel.Dock="Top"
+                IsVisible="{Binding HasUpdateBanner}"
+                Background="#4058C0F0"
+                BorderBrush="#588CF0"
+                BorderThickness="1"
+                CornerRadius="4"
+                Padding="10,8"
+                Margin="0,0,0,12"
+                Cursor="Hand"
+                Tapped="OnUpdateBannerClick">
+            <TextBlock Text="{Binding UpdateBanner}" TextWrapping="Wrap" />
+        </Border>
+
         <!-- Palette and workspace share the fill area; they're mutually exclusive via IsVisible.
              This wrapper fills as the DockPanel's last child so the palette can be centred within it. -->
         <Panel>

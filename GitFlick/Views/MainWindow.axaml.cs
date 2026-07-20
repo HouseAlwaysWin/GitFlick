@@ -490,17 +490,32 @@ public partial class MainWindow : Window
 
     private SettingsWindow? _settingsWindow;
 
+    /// <summary>The palette's "update available" banner opens ⚙ Settings → Updates when clicked.</summary>
+    private void OnUpdateBannerClick(object? sender, Avalonia.Input.TappedEventArgs e)
+    {
+        if (DataContext is MainViewModel vm)
+        {
+            vm.HasUpdateBanner = false;
+        }
+
+        OnOpenSettingsClick(sender, e);
+    }
+
     /// <summary>Opens the global Settings window (language + theme) from the palette ⚙.</summary>
     private void OnOpenSettingsClick(object? sender, RoutedEventArgs e)
     {
-        if ((DataContext as MainViewModel)?.Settings is not { } settings)
+        if (DataContext is not MainViewModel { Settings: { } settings } mainVm)
         {
             return;
         }
 
+        // App wires a shared UpdateService; fall back to a fresh one so settings still opens if it didn't.
+        var updater = mainVm.UpdateService
+            ?? new Services.Updates.UpdateService(Services.Updates.AppVersionInfo.CurrentVersion);
+
         if (_settingsWindow is null)
         {
-            _settingsWindow = new SettingsWindow { DataContext = new SettingsViewModel(settings) };
+            _settingsWindow = new SettingsWindow { DataContext = new SettingsViewModel(settings, updater) };
             _settingsWindow.Closed += (_, _) => _settingsWindow = null;
             _settingsWindow.Show(this);
         }
