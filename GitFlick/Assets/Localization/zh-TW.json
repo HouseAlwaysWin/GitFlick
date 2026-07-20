@@ -136,6 +136,7 @@
   "Branch_NewNamePlaceholder": "新分支名稱",
   "Branch_Create": "建立",
   "Branch_ListHeader": "分支",
+  "Branch_Search": "搜尋分支…",
   "Branch_Current": "目前",
   "Branch_Checkout": "簽出",
   "Branch_Merge": "合併",

@@ -390,8 +390,10 @@
                                     <Separator Margin="0,4" />
 
                                     <TextBlock Text="{loc:Tr Branch_ListHeader}" FontSize="10" Opacity="0.5" />
+                                    <TextBox Text="{Binding BranchSearch}" PlaceholderText="{loc:Tr Branch_Search}"
+                                             VerticalContentAlignment="Center" FontSize="12" />
                                     <ListBox MaxHeight="200"
-                                             ItemsSource="{Binding Branches}"
+                                             ItemsSource="{Binding FilteredBranches}"
                                              SelectedItem="{Binding SelectedBranch}">
                                         <ListBox.ItemTemplate>
                                             <DataTemplate x:DataType="models:GitBranch">

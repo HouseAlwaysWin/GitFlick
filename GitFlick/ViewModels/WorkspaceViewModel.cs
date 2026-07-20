@@ -377,6 +377,37 @@ public partial class WorkspaceViewModel : ViewModelBase
     [ObservableProperty]
     public partial string NewBranchName { get; set; } = string.Empty;
 
+    /// <summary>Fuzzy query that narrows the Branch-flyout list, so a repo with many branches stays findable.</summary>
+    [ObservableProperty]
+    public partial string BranchSearch { get; set; } = string.Empty;
+
+    partial void OnBranchSearchChanged(string value) => NarrowBranches();
+
+    /// <summary>Branches matching <see cref="BranchSearch"/> — what the Branch flyout list actually shows.</summary>
+    public ObservableCollection<GitBranch> FilteredBranches { get; } = [];
+
+    // Copies the fuzzy-matching branches (all when the query is empty) into FilteredBranches, keeping the
+    // current selection if it still matches so the action buttons stay pointed at the same branch.
+    private void NarrowBranches()
+    {
+        var query = BranchSearch.Trim();
+        var keep = SelectedBranch;
+        FilteredBranches.Clear();
+
+        foreach (var branch in Branches)
+        {
+            if (query.Length == 0 || FuzzyMatcher.TryMatch(branch.Name, query, out _))
+            {
+                FilteredBranches.Add(branch);
+            }
+        }
+
+        if (keep is not null && FilteredBranches.Contains(keep))
+        {
+            SelectedBranch = keep;
+        }
+    }
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanCommit))]
     public partial string CommitMessage { get; set; } = string.Empty;
@@ -1823,6 +1854,7 @@ public partial class WorkspaceViewModel : ViewModelBase
             Replace(Branches, branches);
             SelectedBranch = Branches.FirstOrDefault(b => b.Name == branchName)
                 ?? Branches.FirstOrDefault(b => b.IsCurrent);
+            NarrowBranches();   // keep the Branch-flyout's filtered view in sync with the refreshed list
 
             var stashes = await _git.GetStashesAsync(Repository.Path);
             Replace(Stashes, stashes);

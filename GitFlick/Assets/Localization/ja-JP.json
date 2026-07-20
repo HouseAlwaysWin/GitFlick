@@ -136,6 +136,7 @@
   "Branch_NewNamePlaceholder": "新しいブランチ名",
   "Branch_Create": "作成",
   "Branch_ListHeader": "ブランチ",
+  "Branch_Search": "ブランチを検索…",
   "Branch_Current": "現在",
   "Branch_Checkout": "チェックアウト",
   "Branch_Merge": "マージ",

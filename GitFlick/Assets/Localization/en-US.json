@@ -136,6 +136,7 @@
   "Branch_NewNamePlaceholder": "new branch name",
   "Branch_Create": "Create",
   "Branch_ListHeader": "BRANCHES",
+  "Branch_Search": "Search branches…",
   "Branch_Current": "current",
   "Branch_Checkout": "Checkout",
   "Branch_Merge": "Merge",
