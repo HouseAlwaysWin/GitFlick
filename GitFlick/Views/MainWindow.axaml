@@ -1015,6 +1015,36 @@
                                     PointerReleased="OnGraphGripReleased"
                                     ToolTip.Tip="{loc:Tr History_GraphDivider_Tooltip}" />
 
+                            <!-- Full-height column dividers: the 24px header grips are a tiny target, so
+                                 mirror them down the whole list — a boundary can be grabbed anywhere. The
+                                 grid has no background, so only the 12px grips catch clicks; the rest of a
+                                 row falls through to the list for selection. Columns/margin match the header
+                                 so the grips line up with it and the rows. -->
+                            <Grid Margin="{Binding HistoryHeaderMargin}" VerticalAlignment="Stretch"
+                                  IsVisible="{Binding HasCommits}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="{Binding AuthorColumnWidth}" />
+                                    <ColumnDefinition Width="{Binding DateColumnWidth}" />
+                                    <ColumnDefinition Width="{Binding CommitColumnWidth}" />
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="1" Tag="MsgAuthor" Classes="colgrip" Width="12" Margin="-6,0,0,0"
+                                        HorizontalAlignment="Left" VerticalAlignment="Stretch"
+                                        Background="Transparent" Cursor="SizeWestEast"
+                                        PointerPressed="OnColumnGripPressed" PointerMoved="OnColumnGripMoved"
+                                        PointerReleased="OnColumnGripReleased" />
+                                <Border Grid.Column="2" Tag="AuthorDate" Classes="colgrip" Width="12" Margin="-6,0,0,0"
+                                        HorizontalAlignment="Left" VerticalAlignment="Stretch"
+                                        Background="Transparent" Cursor="SizeWestEast"
+                                        PointerPressed="OnColumnGripPressed" PointerMoved="OnColumnGripMoved"
+                                        PointerReleased="OnColumnGripReleased" />
+                                <Border Grid.Column="3" Tag="DateCommit" Classes="colgrip" Width="12" Margin="-6,0,0,0"
+                                        HorizontalAlignment="Left" VerticalAlignment="Stretch"
+                                        Background="Transparent" Cursor="SizeWestEast"
+                                        PointerPressed="OnColumnGripPressed" PointerMoved="OnColumnGripMoved"
+                                        PointerReleased="OnColumnGripReleased" />
+                            </Grid>
+
                             <TextBlock Text="{loc:Tr History_NoCommits}"
                                        IsVisible="{Binding !HasCommits}"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"
