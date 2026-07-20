@@ -183,6 +183,13 @@
   "History_LoadMore": "さらにコミットを読み込む",
   "History_GraphDivider_Tooltip": "ドラッグしてグラフの幅を調整 — 狭めると切り取り、広げるとより多くのレーンを表示",
   "History_HideDiff_Tooltip": "差分ペインを隠す(コミット一覧を広げる)",
+  "History_Hover_Commit": "コミット {0}",
+  "History_Hover_Loading": "ブランチ情報を読み込み中…",
+  "History_Hover_InHead": "✓ HEAD に含まれています",
+  "History_Hover_NotInHead": "✗ HEAD に含まれていません",
+  "History_Hover_Branches": "ブランチ: {0}",
+  "History_Hover_NoBranches": "このコミットを含むブランチはありません",
+  "History_Hover_MoreBranches": " (他 {0} 件)",
 
   "Ref_CheckOut": "チェックアウト",
   "Ref_DeleteBranch": "ブランチを削除",

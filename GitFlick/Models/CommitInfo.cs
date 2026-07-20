@@ -52,6 +52,15 @@ public sealed record CommitInfo
     public override string ToString() => Subject;
 }
 
+/// <summary>
+/// Where a commit sits relative to the current work: whether it's reachable from HEAD, and which
+/// branches (local + remote) contain it. Loaded on demand for the commit's hover popup.
+/// </summary>
+public sealed record CommitContainment(bool InHead, IReadOnlyList<string> Branches)
+{
+    public static readonly CommitContainment Empty = new(false, []);
+}
+
 /// <summary>One file touched by a commit, for the History view's per-file diff list.</summary>
 public sealed record CommitFileEntry(string Path, string Status)
 {

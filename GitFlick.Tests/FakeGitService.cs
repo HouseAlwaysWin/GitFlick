@@ -182,6 +182,9 @@ internal sealed class FakeGitService : IGitService
     public Task<IReadOnlyList<CommitFileEntry>> GetCommitFilesAsync(string repoPath, string sha, CancellationToken cancellationToken = default)
         => Task.FromResult<IReadOnlyList<CommitFileEntry>>([]);
 
+    public Task<CommitContainment> GetCommitContainmentAsync(string repoPath, string sha, CancellationToken cancellationToken = default)
+        => Task.FromResult(CommitContainment.Empty);
+
     /// <summary>Commits/files the fake serves for compare, and the last refs it was asked about.</summary>
     public List<CommitInfo> StubCompareCommits { get; } = [];
     public List<CommitFileEntry> StubCompareFiles { get; } = [];

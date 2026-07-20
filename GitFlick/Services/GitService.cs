@@ -395,6 +395,48 @@ public sealed class GitService : IGitService
         return ParseNameStatus(result.StandardOutput);
     }
 
+    public async Task<CommitContainment> GetCommitContainmentAsync(string repoPath, string sha, CancellationToken cancellationToken = default)
+    {
+        // Branches (local + remote) whose tip can reach this commit. Full refnames so the "<remote>/HEAD"
+        // symbolic alias is easy to drop; then shorten refs/heads/x -> x and refs/remotes/x -> x.
+        var branchesResult = await RunAsync(
+            repoPath,
+            ["branch", "--all", "--contains", sha, "--format=%(refname)"],
+            null,
+            cancellationToken).ConfigureAwait(false);
+
+        var branches = new List<string>();
+        if (branchesResult.Succeeded)
+        {
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var raw in branchesResult.StandardOutput.Split('\n'))
+            {
+                var refName = raw.Trim();
+                if (refName.Length == 0 || refName.EndsWith("/HEAD", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                var name = refName.StartsWith("refs/heads/", StringComparison.Ordinal)
+                    ? refName["refs/heads/".Length..]
+                    : refName.StartsWith("refs/remotes/", StringComparison.Ordinal)
+                        ? refName["refs/remotes/".Length..]
+                        : refName;
+
+                if (name.Length > 0 && seen.Add(name))
+                {
+                    branches.Add(name);
+                }
+            }
+        }
+
+        // Reachable from HEAD? --is-ancestor exits 0 when yes (a commit is its own ancestor), 1 when no.
+        var ancestor = await RunAsync(
+            repoPath, ["merge-base", "--is-ancestor", sha, "HEAD"], null, cancellationToken).ConfigureAwait(false);
+
+        return new CommitContainment(ancestor.Succeeded, branches);
+    }
+
     // "M\tpath" lines (one per changed file, --no-renames so a single tab), deduped.
     private static List<CommitFileEntry> ParseNameStatus(string output)
     {

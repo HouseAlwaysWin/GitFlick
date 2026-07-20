@@ -549,6 +549,72 @@ public partial class WorkspaceViewModel : ViewModelBase
     [ObservableProperty]
     public partial CommitInfo? SelectedCommit { get; set; }
 
+    // ── Commit hover popup: SHA + whether it's in HEAD + the branches that contain it ──────────
+    private readonly Dictionary<string, CommitContainment> _containmentCache = new(StringComparer.Ordinal);
+    private CommitInfo? _hoverTarget;
+
+    /// <summary>Text shown in a commit row's hover popup. Filled instantly, then enriched once git answers.</summary>
+    [ObservableProperty]
+    public partial string HoverCommitInfo { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Called when the pointer enters a commit row: shows the SHA immediately, then (once git reports
+    /// which branches contain it and whether it's reachable from HEAD) fills the rest in-place.
+    /// </summary>
+    public async void ShowCommitHoverInfo(CommitInfo commit)
+    {
+        _hoverTarget = commit;
+        HoverCommitInfo = FormatHover(commit, null);
+
+        if (!_containmentCache.TryGetValue(commit.Sha, out var containment))
+        {
+            try
+            {
+                containment = await _git.GetCommitContainmentAsync(Repository.Path, commit.Sha);
+            }
+            catch
+            {
+                containment = CommitContainment.Empty;
+            }
+
+            _containmentCache[commit.Sha] = containment;
+        }
+
+        // A slow lookup must not overwrite the popup for a row the pointer has since moved to.
+        if (ReferenceEquals(_hoverTarget, commit))
+        {
+            HoverCommitInfo = FormatHover(commit, containment);
+        }
+    }
+
+    private string FormatHover(CommitInfo commit, CommitContainment? containment)
+    {
+        var head = string.Format(Loc["History_Hover_Commit"], commit.ShortSha);
+        if (containment is null)
+        {
+            return head + "\n" + Loc["History_Hover_Loading"];
+        }
+
+        var headLine = containment.InHead ? Loc["History_Hover_InHead"] : Loc["History_Hover_NotInHead"];
+
+        string branchLine;
+        if (containment.Branches.Count == 0)
+        {
+            branchLine = Loc["History_Hover_NoBranches"];
+        }
+        else
+        {
+            const int max = 8;   // an old commit is contained by everything; keep the popup readable
+            var names = containment.Branches.Count <= max
+                ? string.Join(", ", containment.Branches)
+                : string.Join(", ", containment.Branches.Take(max))
+                    + string.Format(Loc["History_Hover_MoreBranches"], containment.Branches.Count - max);
+            branchLine = string.Format(Loc["History_Hover_Branches"], names);
+        }
+
+        return head + "\n" + headLine + "\n" + branchLine;
+    }
+
     /// <summary>The files the selected commit changed; picking one shows just that file's diff.</summary>
     public ObservableCollection<CommitFileEntry> CommitFiles { get; } = [];
 
@@ -1855,6 +1921,7 @@ public partial class WorkspaceViewModel : ViewModelBase
             SelectedBranch = Branches.FirstOrDefault(b => b.Name == branchName)
                 ?? Branches.FirstOrDefault(b => b.IsCurrent);
             NarrowBranches();   // keep the Branch-flyout's filtered view in sync with the refreshed list
+            _containmentCache.Clear();   // branch tips / HEAD moved, so cached commit-containment is stale
 
             var stashes = await _git.GetStashesAsync(Repository.Path);
             Replace(Stashes, stashes);

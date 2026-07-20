@@ -914,7 +914,10 @@
                                 </ListBox.Styles>
                                 <ListBox.ItemTemplate>
                                     <DataTemplate x:DataType="models:CommitInfo">
-                                        <Grid VerticalAlignment="Center">
+                                        <Grid VerticalAlignment="Center"
+                                              PointerEntered="OnCommitRowPointerEntered"
+                                              ToolTip.Placement="Pointer"
+                                              ToolTip.Tip="{Binding $parent[ListBox].((vm:WorkspaceViewModel)DataContext).HoverCommitInfo}">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*" />
                                                 <ColumnDefinition Width="{Binding $parent[ListBox].((vm:WorkspaceViewModel)DataContext).AuthorColumnWidth}" />

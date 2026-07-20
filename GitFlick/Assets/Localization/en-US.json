@@ -183,6 +183,13 @@
   "History_LoadMore": "Load more commits",
   "History_GraphDivider_Tooltip": "Drag to resize the graph — narrower clips it, wider shows more lanes",
   "History_HideDiff_Tooltip": "Hide the diff pane (widens the commit list)",
+  "History_Hover_Commit": "Commit {0}",
+  "History_Hover_Loading": "Loading branch info…",
+  "History_Hover_InHead": "✓ Included in HEAD",
+  "History_Hover_NotInHead": "✗ Not included in HEAD",
+  "History_Hover_Branches": "Branches: {0}",
+  "History_Hover_NoBranches": "No branch contains this commit",
+  "History_Hover_MoreBranches": " (+{0} more)",
 
   "Ref_CheckOut": "Check out",
   "Ref_DeleteBranch": "Delete branch",

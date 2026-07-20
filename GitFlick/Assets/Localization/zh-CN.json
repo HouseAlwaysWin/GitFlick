@@ -183,6 +183,13 @@
   "History_LoadMore": "加载更多提交",
   "History_GraphDivider_Tooltip": "拖动调整树状图宽度 — 拉窄会裁切、拉宽显示更多线",
   "History_HideDiff_Tooltip": "隐藏差异面板(让提交列表变宽)",
+  "History_Hover_Commit": "提交 {0}",
+  "History_Hover_Loading": "正在加载分支信息…",
+  "History_Hover_InHead": "✓ 已包含在 HEAD",
+  "History_Hover_NotInHead": "✗ 尚未包含在 HEAD",
+  "History_Hover_Branches": "分支:{0}",
+  "History_Hover_NoBranches": "没有分支包含此提交",
+  "History_Hover_MoreBranches": " (还有 {0} 个)",
 
   "Ref_CheckOut": "检出",
   "Ref_DeleteBranch": "删除分支",

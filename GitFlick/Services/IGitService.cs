@@ -140,6 +140,9 @@ public interface IGitService
     /// <summary>The files a commit changed (vs its first parent), so the diff can be split per file.</summary>
     Task<IReadOnlyList<CommitFileEntry>> GetCommitFilesAsync(string repoPath, string sha, CancellationToken cancellationToken = default);
 
+    /// <summary>Whether a commit is reachable from HEAD, and which branches contain it (for the commit hover popup).</summary>
+    Task<CommitContainment> GetCommitContainmentAsync(string repoPath, string sha, CancellationToken cancellationToken = default);
+
     /// <summary>Commits in <paramref name="compareRef"/> but not <paramref name="baseRef"/> (<c>log base..compare</c>).</summary>
     Task<IReadOnlyList<CommitInfo>> GetCommitsBetweenAsync(string repoPath, string baseRef, string compareRef, int maxCount = 300, CancellationToken cancellationToken = default);
 
