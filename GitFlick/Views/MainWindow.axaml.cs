@@ -572,15 +572,28 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>Context-menu "Open file": opens the working copy in the OS default application.</summary>
+    /// <summary>Context-menu "Open file" on the Changes lists: opens the working copy.</summary>
     private void OnOpenFileClick(object? sender, RoutedEventArgs e)
     {
-        if (Workspace is not { } ws || (ws.SelectedUnstagedFile ?? ws.SelectedStagedFile) is not { } file)
+        if (Workspace is { } ws && (ws.SelectedUnstagedFile ?? ws.SelectedStagedFile) is { } file)
         {
-            return;
+            OpenWorkingFile(ws, file.Path);
         }
+    }
 
-        var full = System.IO.Path.Combine(ws.Repository.Path, file.Path);
+    /// <summary>Context-menu "Open file" on a History commit's file list: opens the working copy.</summary>
+    private void OnOpenCommitFileClick(object? sender, RoutedEventArgs e)
+    {
+        if (Workspace is { SelectedCommitFile: { } file } ws)
+        {
+            OpenWorkingFile(ws, file.Path);
+        }
+    }
+
+    /// <summary>Opens the working-tree copy of a repo-relative path in the OS default application.</summary>
+    private static void OpenWorkingFile(WorkspaceViewModel ws, string relativePath)
+    {
+        var full = System.IO.Path.Combine(ws.Repository.Path, relativePath);
 
         try
         {

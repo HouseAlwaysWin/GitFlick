@@ -1011,6 +1011,8 @@
                                      SelectedItem="{Binding SelectedCommitFile}">
                                 <ListBox.ContextFlyout>
                                     <MenuFlyout>
+                                        <MenuItem Header="{loc:Tr Changes_OpenFile}" Click="OnOpenCommitFileClick" />
+                                        <Separator />
                                         <MenuItem Header="{loc:Tr Changes_Blame}" Click="OnBlameCommitFileClick" />
                                         <MenuItem Header="{loc:Tr Changes_FileHistory}" Click="OnShowCommitFileHistoryClick" />
                                     </MenuFlyout>
