@@ -180,6 +180,8 @@
   "History_Sha_Tooltip": "クリックして完全な SHA をコピー",
   "History_NoCommits": "コミットはまだありません。",
   "History_LoadMore": "さらにコミットを読み込む",
+  "History_GraphDivider_Tooltip": "ドラッグしてグラフの幅を調整 — 狭めると切り取り、広げるとより多くのレーンを表示",
+  "History_HideDiff_Tooltip": "差分ペインを隠す(コミット一覧を広げる)",
 
   "Ref_CheckOut": "チェックアウト",
   "Ref_DeleteBranch": "ブランチを削除",

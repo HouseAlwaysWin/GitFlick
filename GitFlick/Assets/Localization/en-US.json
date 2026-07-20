@@ -180,6 +180,8 @@
   "History_Sha_Tooltip": "Click to copy the full SHA",
   "History_NoCommits": "No commits yet.",
   "History_LoadMore": "Load more commits",
+  "History_GraphDivider_Tooltip": "Drag to resize the graph — narrower clips it, wider shows more lanes",
+  "History_HideDiff_Tooltip": "Hide the diff pane (widens the commit list)",
 
   "Ref_CheckOut": "Check out",
   "Ref_DeleteBranch": "Delete branch",

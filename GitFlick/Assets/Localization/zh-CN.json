@@ -180,6 +180,8 @@
   "History_Sha_Tooltip": "点击以复制完整 SHA",
   "History_NoCommits": "尚无提交。",
   "History_LoadMore": "加载更多提交",
+  "History_GraphDivider_Tooltip": "拖动调整树状图宽度 — 拉窄会裁切、拉宽显示更多线",
+  "History_HideDiff_Tooltip": "隐藏差异面板(让提交列表变宽)",
 
   "Ref_CheckOut": "检出",
   "Ref_DeleteBranch": "删除分支",

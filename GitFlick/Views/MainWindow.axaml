@@ -574,6 +574,7 @@
                 </Grid.ColumnDefinitions>
 
                 <GridSplitter Grid.Column="1"
+                              x:Name="MainSplitter"
                               Classes="vsplit"
                               ResizeDirection="Columns"
                               ResizeBehavior="PreviousAndNext" />
@@ -674,7 +675,7 @@
                 </Grid>
 
                 <!-- History: commit list with the lane graph drawn over its left gutter. -->
-                <DockPanel Grid.Column="0" IsVisible="{Binding IsHistoryMode}">
+                <DockPanel Grid.Column="0" x:Name="HistoryPane" IsVisible="{Binding IsHistoryMode}">
                     <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,4">
                         <TextBlock Grid.Column="0" Text="{loc:Tr History_Header}" FontWeight="SemiBold" VerticalAlignment="Center" />
 
@@ -987,12 +988,25 @@
 
                             <views:CommitGraphView x:Name="GraphView"
                                                    Graph="{Binding Graph}"
-                                                   Width="{Binding GraphWidth}"
+                                                   Width="{Binding GraphGutter}"
                                                    IsVisible="{Binding ShowGraph}"
                                                    RowHeight="26"
                                                    HorizontalAlignment="Left"
                                                    VerticalAlignment="Stretch"
+                                                   ClipToBounds="True"
                                                    IsHitTestVisible="False" />
+
+                            <!-- Draggable divider: sets how wide the graph gutter is. Narrower clips the
+                                 graph (drag wider to see more lanes) and gives the message columns room. -->
+                            <Border HorizontalAlignment="Left" Width="8" VerticalAlignment="Stretch"
+                                    Margin="{Binding GraphGripMargin}"
+                                    Background="Transparent" Cursor="SizeWestEast"
+                                    IsVisible="{Binding ShowGraph}"
+                                    Tag="Graph"
+                                    PointerPressed="OnGraphGripPressed"
+                                    PointerMoved="OnGraphGripMoved"
+                                    PointerReleased="OnGraphGripReleased"
+                                    ToolTip.Tip="{loc:Tr History_GraphDivider_Tooltip}" />
 
                             <TextBlock Text="{loc:Tr History_NoCommits}"
                                        IsVisible="{Binding !HasCommits}"
@@ -1046,6 +1060,13 @@
                                        IsVisible="{Binding !HasCommitFiles}"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"
                                        Opacity="0.35" IsHitTestVisible="False" />
+
+                            <!-- Collapses the diff pane back to a full-width commit list (History). -->
+                            <Button Content="✕" Classes="header"
+                                    HorizontalAlignment="Right" VerticalAlignment="Top"
+                                    Margin="0,2,4,0" FontSize="12" Padding="6,2"
+                                    Click="OnHideDiffPaneClick"
+                                    ToolTip.Tip="{loc:Tr History_HideDiff_Tooltip}" />
                         </Panel>
                     </Border>
 

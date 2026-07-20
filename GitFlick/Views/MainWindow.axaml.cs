@@ -592,6 +592,74 @@ public partial class MainWindow : Window
         }
     }
 
+    // Graph divider: drag to set how wide the lane-graph gutter is (clips the graph when narrowed),
+    // freeing width for the message columns. Mirrors the column grips.
+    private bool _graphResizing;
+    private double _graphResizeStartX;
+    private double _graphResizeStartGutter;
+
+    private void OnGraphGripPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (sender is not Border grip || Workspace is not { } ws)
+        {
+            return;
+        }
+
+        _graphResizing = true;
+        _graphResizeStartX = e.GetPosition(this).X;
+        _graphResizeStartGutter = ws.GraphGutter;
+        e.Pointer.Capture(grip);
+        e.Handled = true;
+    }
+
+    private void OnGraphGripMoved(object? sender, PointerEventArgs e)
+    {
+        if (!_graphResizing || Workspace is not { } ws)
+        {
+            return;
+        }
+
+        ws.SetGraphGutter(_graphResizeStartGutter + (e.GetPosition(this).X - _graphResizeStartX));
+    }
+
+    private void OnGraphGripReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        if (_graphResizing)
+        {
+            e.Pointer.Capture(null);
+            _graphResizing = false;
+            e.Handled = true;
+        }
+    }
+
+    // History opens with the diff pane hidden so the commit list (and its graph) get the full width;
+    // picking a commit reveals it, and the ✕ in the commit-files pane collapses it again.
+    private bool _historyDiffShown;
+
+    private void OnHideDiffPaneClick(object? sender, RoutedEventArgs e)
+    {
+        _historyDiffShown = false;
+        SyncHistoryDiff();
+    }
+
+    /// <summary>
+    /// Shows/hides the right-hand diff pane. In History it starts hidden (so the list spans the full
+    /// width); a selected commit reveals it, the ✕ hides it. Changes mode always shows it.
+    /// </summary>
+    private void SyncHistoryDiff()
+    {
+        if (HistoryPane is null || MainSplitter is null || DiffPaneGrid is null)
+        {
+            return;
+        }
+
+        var showDiff = _observedWorkspace?.IsHistoryMode != true || _historyDiffShown;
+
+        MainSplitter.IsVisible = showDiff;
+        DiffPaneGrid.IsVisible = showDiff;
+        Grid.SetColumnSpan(HistoryPane, showDiff ? 1 : 3);
+    }
+
     private WorkspaceViewModel? Workspace => (DataContext as MainViewModel)?.Workspace;
 
     /// <summary>Double-clicking a branch badge in the graph checks it out, à la Git Graph.</summary>
@@ -809,6 +877,7 @@ public partial class MainWindow : Window
         UpdateTitle();
         UpdateDiffEditor();
         SyncCommitFilesRow();
+        SyncHistoryDiff();
     }
 
     /// <summary>
@@ -1388,7 +1457,17 @@ public partial class MainWindow : Window
         }
         else if (e.PropertyName == nameof(WorkspaceViewModel.IsHistoryMode))
         {
+            _historyDiffShown = false;   // History opens with the diff hidden (full-width commit list)
             SyncCommitFilesRow();
+            SyncHistoryDiff();
+        }
+        else if (e.PropertyName == nameof(WorkspaceViewModel.SelectedCommit))
+        {
+            if (_observedWorkspace?.SelectedCommit is not null && !_historyDiffShown)
+            {
+                _historyDiffShown = true;   // picking a commit reveals the diff pane
+                SyncHistoryDiff();
+            }
         }
     }
 

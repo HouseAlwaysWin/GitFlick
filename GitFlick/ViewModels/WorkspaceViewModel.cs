@@ -486,6 +486,35 @@ public partial class WorkspaceViewModel : ViewModelBase
     [ObservableProperty]
     public partial double GraphWidth { get; set; }
 
+    // The lane graph lives in a left gutter. A repo with many concurrent branches makes it wide enough
+    // to squeeze the message columns, so GraphGutter is the *displayed* gutter — capped by default so it
+    // never squeezes, and draggable via the divider grip. The graph clips to it; drag wider to see more.
+    private const double MinGraphGutter = 24;
+    private const double DefaultGraphGutterCap = 260;
+    private bool _graphGutterUserSet;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(GraphGripMargin))]
+    public partial double GraphGutter { get; set; }
+
+    /// <summary>Left offset that parks the graph-divider grip at the gutter's right edge.</summary>
+    public Thickness GraphGripMargin => new(GraphGutter, 0, 0, 0);
+
+    /// <summary>Drag handler for the graph divider: sets the gutter, clamped to [min, natural width].</summary>
+    public void SetGraphGutter(double width)
+    {
+        _graphGutterUserSet = true;
+        GraphGutter = Math.Clamp(width, MinGraphGutter, Math.Max(MinGraphGutter, GraphWidth));
+        RefreshGraphGutterLayout();
+    }
+
+    // Rows and the header line up against the gutter, so both insets track GraphGutter (0 when hidden).
+    private void RefreshGraphGutterLayout()
+    {
+        CommitListPadding = ShowGraph ? new Thickness(GraphGutter + 6, 0, 0, 0) : new Thickness(0);
+        HistoryHeaderMargin = new Thickness(ShowGraph ? GraphGutter + 10 : 4, 0, HistoryRightInset, 0);
+    }
+
     [ObservableProperty]
     public partial CommitInfo? SelectedCommit { get; set; }
 
@@ -1113,6 +1142,12 @@ public partial class WorkspaceViewModel : ViewModelBase
             var graph = CommitGraphBuilder.Build(gitOrder, FirstParentOnly);
             Graph = graph;
             GraphWidth = graph.Width;
+
+            // Default the gutter to a cap so a wide graph never squeezes the columns out of the box;
+            // once the user has dragged the divider, keep their width (re-clamped to the new graph).
+            GraphGutter = _graphGutterUserSet
+                ? Math.Clamp(GraphGutter, MinGraphGutter, Math.Max(MinGraphGutter, GraphWidth))
+                : Math.Min(GraphWidth, DefaultGraphGutterCap);
         }
 
         IEnumerable<CommitInfo> view = SortColumn switch
@@ -1130,8 +1165,7 @@ public partial class WorkspaceViewModel : ViewModelBase
         _reorderingCommits = false;
 
         // The graph aligns only with git's order, so drop its gutter when it's hidden.
-        CommitListPadding = ShowGraph ? new Thickness(GraphWidth + 6, 0, 0, 0) : new Thickness(0);
-        HistoryHeaderMargin = new Thickness(ShowGraph ? GraphWidth + 10 : 4, 0, HistoryRightInset, 0);
+        RefreshGraphGutterLayout();
     }
 
     // OrderBy/OrderByDescending are stable, so equal keys keep their git order within the group.
