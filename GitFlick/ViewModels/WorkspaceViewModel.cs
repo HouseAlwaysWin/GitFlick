@@ -528,8 +528,8 @@ public partial class WorkspaceViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(GraphGripMargin))]
     public partial double GraphGutter { get; set; }
 
-    /// <summary>Left offset that parks the graph-divider grip at the gutter's right edge.</summary>
-    public Thickness GraphGripMargin => new(GraphGutter, 0, 0, 0);
+    /// <summary>Left offset that straddles the graph-divider grip across the gutter's right edge.</summary>
+    public Thickness GraphGripMargin => new(GraphGutter - 6, 0, 0, 0);
 
     /// <summary>Drag handler for the graph divider: sets the gutter, clamped to [min, natural width].</summary>
     public void SetGraphGutter(double width)

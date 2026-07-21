@@ -829,7 +829,8 @@
                             <!-- Column headers — click to sort. HistoryHeaderMargin absorbs the graph
                                  gutter and the scrollbar so the labels line up with the rows below. -->
                             <Border DockPanel.Dock="Top" BorderBrush="#22808080" BorderThickness="0,0,0,1">
-                                <Grid Height="24" Margin="{Binding HistoryHeaderMargin}">
+                                <Panel Height="24">
+                                <Grid Margin="{Binding HistoryHeaderMargin}">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" MinWidth="80" />
                                         <ColumnDefinition Width="{Binding AuthorColumnWidth}" />
@@ -877,6 +878,19 @@
                                                 Background="{DynamicResource SubtleForeground}" Opacity="0.25" />
                                     </Border>
                                 </Grid>
+                                <!-- Graph divider in the header, so the graph|Message boundary can be
+                                     dragged from the header row too (not just down in the list). -->
+                                <Border HorizontalAlignment="Left" VerticalAlignment="Stretch" Width="12"
+                                        Classes="colgrip" Margin="{Binding GraphGripMargin}"
+                                        Background="Transparent" Cursor="SizeWestEast"
+                                        IsVisible="{Binding ShowGraph}"
+                                        Tag="Graph"
+                                        PointerPressed="OnGraphGripPressed" PointerMoved="OnGraphGripMoved"
+                                        PointerReleased="OnGraphGripReleased">
+                                    <Border Width="1" HorizontalAlignment="Center" IsHitTestVisible="False"
+                                            Background="{DynamicResource SubtleForeground}" Opacity="0.25" />
+                                </Border>
+                                </Panel>
                             </Border>
 
                             <Panel>
@@ -884,7 +898,8 @@
                                      Background="Transparent"
                                      Padding="{Binding CommitListPadding}"
                                      ItemsSource="{Binding Commits}"
-                                     SelectedItem="{Binding SelectedCommit}">
+                                     SelectedItem="{Binding SelectedCommit}"
+                                     DoubleTapped="OnCommitActivated">
                                 <ListBox.ContextFlyout>
                                     <MenuFlyout>
                                         <MenuItem Header="{loc:Tr History_Ctx_AddTag}" Command="{Binding AddTagCommand}" />
@@ -1020,12 +1035,14 @@
                                     Background="Transparent" Cursor="Hand"
                                     PointerMoved="OnGraphPointerMoved"
                                     PointerPressed="OnGraphPointerPressed"
+                                    DoubleTapped="OnCommitActivated"
                                     ToolTip.Placement="Pointer"
                                     ToolTip.Tip="{Binding HoverCommitInfo}" />
 
                             <!-- Draggable divider: sets how wide the graph gutter is. Narrower clips the
                                  graph (drag wider to see more lanes) and gives the message columns room. -->
-                            <Border HorizontalAlignment="Left" Width="8" VerticalAlignment="Stretch"
+                            <Border HorizontalAlignment="Left" Width="12" VerticalAlignment="Stretch"
+                                    Classes="colgrip"
                                     Margin="{Binding GraphGripMargin}"
                                     Background="Transparent" Cursor="SizeWestEast"
                                     IsVisible="{Binding ShowGraph}"
@@ -1033,7 +1050,10 @@
                                     PointerPressed="OnGraphGripPressed"
                                     PointerMoved="OnGraphGripMoved"
                                     PointerReleased="OnGraphGripReleased"
-                                    ToolTip.Tip="{loc:Tr History_GraphDivider_Tooltip}" />
+                                    ToolTip.Tip="{loc:Tr History_GraphDivider_Tooltip}">
+                                <Border Width="1" HorizontalAlignment="Center" IsHitTestVisible="False"
+                                        Background="{DynamicResource SubtleForeground}" Opacity="0.25" />
+                            </Border>
 
                             <!-- Full-height column dividers: the 24px header grips are a tiny target, so
                                  mirror them down the whole list — a boundary can be grabbed anywhere. The

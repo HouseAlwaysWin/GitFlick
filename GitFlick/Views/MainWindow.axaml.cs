@@ -1501,13 +1501,17 @@ public partial class MainWindow : Window
             SyncCommitFilesRow();
             SyncHistoryDiff();
         }
-        else if (e.PropertyName == nameof(WorkspaceViewModel.SelectedCommit))
+        // A single click only selects (and shows the branch popup); the diff pane opens on double-click
+        // via OnCommitActivated, so browsing the list stays light.
+    }
+
+    /// <summary>Double-clicking a commit (row or graph dot) opens the diff pane for it.</summary>
+    private void OnCommitActivated(object? sender, TappedEventArgs e)
+    {
+        if (_observedWorkspace?.SelectedCommit is not null)
         {
-            if (_observedWorkspace?.SelectedCommit is not null && !_historyDiffShown)
-            {
-                _historyDiffShown = true;   // picking a commit reveals the diff pane
-                SyncHistoryDiff();
-            }
+            _historyDiffShown = true;
+            SyncHistoryDiff();
         }
     }
 
