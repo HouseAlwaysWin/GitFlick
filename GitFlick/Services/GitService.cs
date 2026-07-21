@@ -439,10 +439,14 @@ public sealed class GitService : IGitService
         var ancestor = await RunAsync(
             repoPath, ["merge-base", "--is-ancestor", sha, "HEAD"], null, cancellationToken).ConfigureAwait(false);
 
-        // "Which branch is this commit on?" — its lineage, for a mid-branch commit no ref points at.
-        // name-rev names it relative to the nearest ref (e.g. "main~30", "origin/feature~2"); we keep
-        // just the branch part. Tags are excluded (they show above as their own chips); "undefined"
-        // means no branch reaches it.
+        // "Which branch is this commit on?" — its lineage, when no ref points exactly at it. name-rev
+        // names it relative to the nearest branch, e.g. "main~30" (30 back on main's own line) or
+        // "main~1^2~4" (into a merge's SECOND parent). A '^' means the commit is NOT on that branch's
+        // first-parent line — it was merged in from another branch, usually one since deleted — so the
+        // name is misleading ("on main" when it never was) and, worse, collapses many merged-in commits
+        // onto the same surviving branch. Take only names without a '^': a genuine first-parent
+        // membership. name-rev already prefers the closest ref, so a still-existing feature branch wins
+        // over a distant "main~N^2~M". Tags are excluded (shown above as their own chips).
         var nearestBranch = string.Empty;
         if (branches.Count == 0)
         {
@@ -454,13 +458,12 @@ public sealed class GitService : IGitService
             if (nameRev.Succeeded)
             {
                 var name = nameRev.StandardOutput.Trim();
-                if (name.Length > 0 && name != "undefined")
+                if (name.Length > 0 && name != "undefined" && !name.Contains('^'))
                 {
-                    // Drop the "~N" / "^N" position suffix and any "remotes/" prefix name-rev adds.
-                    var cut = name.IndexOfAny(['~', '^']);
-                    if (cut >= 0)
+                    var tilde = name.IndexOf('~');   // drop the "~N" distance suffix
+                    if (tilde >= 0)
                     {
-                        name = name[..cut];
+                        name = name[..tilde];
                     }
 
                     if (name.StartsWith("remotes/", StringComparison.Ordinal))
