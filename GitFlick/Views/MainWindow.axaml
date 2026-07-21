@@ -69,12 +69,15 @@
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
 
-                    <!-- No ref points exactly here, but name-rev found the branch it sits on: show its
-                         lineage so you still know "which branch is this". Outlined chip, distinct from
-                         the solid decoration chips above. -->
+                    <!-- No ref points exactly here, but the branch is still known: either the line this
+                         commit sits on ("On <branch>") or, if it was merged in, the branch it came from
+                         per the merge commit ("Merged from <branch>", even if that ref is now deleted).
+                         Outlined chip, distinct from the solid decoration chips above. -->
                     <StackPanel Orientation="Horizontal" Spacing="5" IsVisible="{Binding HasNearest}">
                         <TextBlock Text="{loc:Tr History_Hover_OnBranch}" FontSize="10" Opacity="0.6"
-                                   VerticalAlignment="Center" />
+                                   VerticalAlignment="Center" IsVisible="{Binding !NearestIsMerge}" />
+                        <TextBlock Text="{loc:Tr History_Hover_MergedFrom}" FontSize="10" Opacity="0.6"
+                                   VerticalAlignment="Center" IsVisible="{Binding NearestIsMerge}" />
                         <Border CornerRadius="3" Padding="5,1" BorderThickness="1"
                                 Background="Transparent" BorderBrush="#6A737D" MaxWidth="230">
                             <TextBlock Text="{Binding NearestBranch}" FontSize="10"

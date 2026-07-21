@@ -26,13 +26,17 @@ public sealed partial class CommitBranchInfo : ObservableObject
     [ObservableProperty]
     public partial bool HasBranches { get; set; }
 
-    /// <summary>The branch this commit sits on when no ref points exactly at it (git name-rev).</summary>
+    /// <summary>The branch this commit belongs to when no ref points exactly at it (git name-rev).</summary>
     [ObservableProperty]
     public partial string NearestBranch { get; set; } = string.Empty;
 
-    /// <summary>Show the "on &lt;branch&gt;" lineage chip: loaded, no exact refs, but a nearest branch exists.</summary>
+    /// <summary>Show the branch-lineage chip: loaded, no exact refs, but a branch was resolved.</summary>
     [ObservableProperty]
     public partial bool HasNearest { get; set; }
+
+    /// <summary><see cref="NearestBranch"/> is the branch it was merged from (vs the line it sits on).</summary>
+    [ObservableProperty]
+    public partial bool NearestIsMerge { get; set; }
 
     /// <summary>Loaded, but nothing points here and nothing reaches it — a truly detached commit.</summary>
     [ObservableProperty]
@@ -67,6 +71,7 @@ public sealed partial class CommitBranchInfo : ObservableObject
 
         HasBranches = Branches.Count > 0;
         NearestBranch = containment?.NearestBranch ?? string.Empty;
+        NearestIsMerge = containment?.NearestIsMerge ?? false;
         HasNearest = IsLoaded && !HasBranches && NearestBranch.Length > 0;
         HasNoRef = IsLoaded && !HasBranches && !HasNearest;
     }
@@ -79,6 +84,7 @@ public sealed partial class CommitBranchInfo : ObservableObject
         Branches.Clear();
         HasBranches = false;
         NearestBranch = string.Empty;
+        NearestIsMerge = false;
         HasNearest = false;
         HasNoRef = false;
     }

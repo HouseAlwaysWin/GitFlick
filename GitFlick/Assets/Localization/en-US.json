@@ -191,6 +191,7 @@
   "History_Hover_Branches": "Branches: {0}",
   "History_Hover_NoBranches": "No branch or tag points here",
   "History_Hover_OnBranch": "On",
+  "History_Hover_MergedFrom": "Merged from",
   "History_Hover_MoreBranches": " (+{0} more)",
 
   "Ref_CheckOut": "Check out",

@@ -441,13 +441,16 @@ public sealed class GitService : IGitService
 
         // "Which branch is this commit on?" — its lineage, when no ref points exactly at it. name-rev
         // names it relative to the nearest branch, e.g. "main~30" (30 back on main's own line) or
-        // "main~1^2~4" (into a merge's SECOND parent). A '^' means the commit is NOT on that branch's
-        // first-parent line — it was merged in from another branch, usually one since deleted — so the
-        // name is misleading ("on main" when it never was) and, worse, collapses many merged-in commits
-        // onto the same surviving branch. Take only names without a '^': a genuine first-parent
-        // membership. name-rev already prefers the closest ref, so a still-existing feature branch wins
-        // over a distant "main~N^2~M". Tags are excluded (shown above as their own chips).
+        // "main~1^2~4" (into a merge's SECOND parent). Two cases:
+        //  • No '^' → the commit is on that branch's own first-parent line. Show "On <branch>".
+        //  • A '^' → it was merged in from another branch (often one since deleted), so "on <branch>"
+        //    would be wrong and collapses many commits onto the same survivor. The name up to the first
+        //    '^' is the MERGE COMMIT that brought it in; its message still records the branch name as it
+        //    was at merge time ("Merge pull request #N from owner/x", "Merge branch 'x'"). Show that as
+        //    "Merged from <branch>" — the real origin branch, even though the ref is gone.
+        // name-rev already prefers the closest ref; tags are excluded (shown above as their own chips).
         var nearestBranch = string.Empty;
+        var nearestIsMerge = false;
         if (branches.Count == 0)
         {
             var nameRev = await RunAsync(
@@ -458,25 +461,75 @@ public sealed class GitService : IGitService
             if (nameRev.Succeeded)
             {
                 var name = nameRev.StandardOutput.Trim();
-                if (name.Length > 0 && name != "undefined" && !name.Contains('^'))
+                if (name.Length > 0 && name != "undefined")
                 {
-                    var tilde = name.IndexOf('~');   // drop the "~N" distance suffix
-                    if (tilde >= 0)
+                    var caret = name.IndexOf('^');
+                    if (caret < 0)
                     {
-                        name = name[..tilde];
+                        var tilde = name.IndexOf('~');   // drop the "~N" distance suffix
+                        nearestBranch = tilde >= 0 ? name[..tilde] : name;
+                        if (nearestBranch.StartsWith("remotes/", StringComparison.Ordinal))
+                        {
+                            nearestBranch = nearestBranch["remotes/".Length..];
+                        }
                     }
-
-                    if (name.StartsWith("remotes/", StringComparison.Ordinal))
+                    else
                     {
-                        name = name["remotes/".Length..];
+                        var mergeRef = name[..caret];   // the merge commit on the named branch's line
+                        var mergeMsg = await RunAsync(
+                            repoPath, ["log", "-1", "--format=%s", mergeRef], null, cancellationToken).ConfigureAwait(false);
+                        if (mergeMsg.Succeeded)
+                        {
+                            var merged = ParseMergedBranch(mergeMsg.StandardOutput.Trim());
+                            if (merged.Length > 0)
+                            {
+                                nearestBranch = merged;
+                                nearestIsMerge = true;
+                            }
+                        }
                     }
-
-                    nearestBranch = name;
                 }
             }
         }
 
-        return new CommitContainment(ancestor.Succeeded, branches, nearestBranch);
+        return new CommitContainment(ancestor.Succeeded, branches, nearestBranch, nearestIsMerge);
+    }
+
+    /// <summary>
+    /// Pulls the merged branch name out of a merge commit's subject: GitHub's
+    /// "Merge pull request #N from owner/branch" (the owner segment is dropped), or git's own
+    /// "Merge branch 'branch'" / "Merge remote-tracking branch 'origin/branch'". Empty if it doesn't
+    /// look like a recognised merge subject.
+    /// </summary>
+    internal static string ParseMergedBranch(string subject)
+    {
+        const string prFrom = " from ";
+        if (subject.StartsWith("Merge pull request #", StringComparison.Ordinal))
+        {
+            var from = subject.IndexOf(prFrom, StringComparison.Ordinal);
+            if (from >= 0)
+            {
+                var spec = subject[(from + prFrom.Length)..].Trim();   // "owner/branch" (branch may have '/')
+                var slash = spec.IndexOf('/');
+                return slash >= 0 && slash < spec.Length - 1 ? spec[(slash + 1)..] : string.Empty;
+            }
+        }
+
+        // "Merge branch 'x'", "Merge branch 'x' into y", "Merge remote-tracking branch 'origin/x'".
+        if (subject.StartsWith("Merge ", StringComparison.Ordinal))
+        {
+            var open = subject.IndexOf('\'');
+            if (open >= 0)
+            {
+                var close = subject.IndexOf('\'', open + 1);
+                if (close > open + 1)
+                {
+                    return subject[(open + 1)..close];
+                }
+            }
+        }
+
+        return string.Empty;
     }
 
     // "M\tpath" lines (one per changed file, --no-renames so a single tab), deduped.

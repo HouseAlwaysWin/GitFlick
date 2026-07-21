@@ -54,13 +54,15 @@ public sealed record CommitInfo
 
 /// <summary>
 /// Where a commit sits relative to the current work: whether it's reachable from HEAD, which refs
-/// point AT it (its decoration labels), and — for a mid-branch commit that no ref points at — the
-/// nearest branch it descends onto (git name-rev), so its lineage is still visible. Loaded on demand
-/// for the commit's hover popup.
+/// point AT it (its decoration labels), and — for a commit no ref points at — the branch it belongs
+/// to. <see cref="NearestBranch"/> is either the branch whose first-parent line it sits on, or (when
+/// <see cref="NearestIsMerge"/>) the branch it was originally merged from, read from the merge commit.
+/// Loaded on demand for the commit's hover popup.
 /// </summary>
-public sealed record CommitContainment(bool InHead, IReadOnlyList<string> Branches, string NearestBranch = "")
+public sealed record CommitContainment(
+    bool InHead, IReadOnlyList<string> Branches, string NearestBranch = "", bool NearestIsMerge = false)
 {
-    public static readonly CommitContainment Empty = new(false, [], "");
+    public static readonly CommitContainment Empty = new(false, [], "", false);
 }
 
 /// <summary>One file touched by a commit, for the History view's per-file diff list.</summary>
