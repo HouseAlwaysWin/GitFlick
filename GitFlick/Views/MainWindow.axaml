@@ -1320,10 +1320,12 @@
                                        VerticalAlignment="Center"
                                        TextTrimming="CharacterEllipsis"
                                        Text="{Binding DiffPath, StringFormat='Diff — {0}'}" />
-                            <ToggleButton Grid.Column="1" Classes="header"
-                                          Content="{loc:Tr Diff_SideBySide}"
-                                          IsChecked="{Binding DiffSideBySide}"
-                                          ToolTip.Tip="{loc:Tr Diff_SideBySide_Tooltip}" />
+                            <!-- Opens the diff in its own window: two aligned columns need real width,
+                                 which this pane doesn't have. -->
+                            <Button Grid.Column="1" Classes="header"
+                                    Content="{loc:Tr Diff_SideBySide}"
+                                    Click="OnCompareClick"
+                                    ToolTip.Tip="{loc:Tr Diff_SideBySide_Tooltip}" />
                         </Grid>
                         <TextBlock DockPanel.Dock="Top"
                                    Margin="0,0,0,4"
@@ -1334,7 +1336,6 @@
 
                         <Border BorderBrush="#30808080" BorderThickness="1" CornerRadius="4" ClipToBounds="True">
                             <Panel>
-                                <!-- Unified diff (default). -->
                                 <edit:TextEditor x:Name="DiffEditor"
                                                  IsReadOnly="True"
                                                  ShowLineNumbers="False"
@@ -1343,60 +1344,7 @@
                                                  Background="Transparent"
                                                  HorizontalScrollBarVisibility="Auto"
                                                  VerticalScrollBarVisibility="Auto"
-                                                 IsVisible="{Binding ShowUnifiedDiff}" />
-
-                                <!-- Side-by-side: old lines left, new lines right, aligned and tinted.
-                                     Built inline from the same unified diff — no extra git call. -->
-                                <DockPanel IsVisible="{Binding ShowSplitDiff}">
-                                    <Grid DockPanel.Dock="Top" ColumnDefinitions="*,1,*" Margin="0,2,0,4">
-                                        <TextBlock Grid.Column="0" Text="{loc:Tr SideBySide_Old}" FontSize="11"
-                                                   Opacity="0.55" Margin="46,0,0,0" />
-                                        <TextBlock Grid.Column="2" Text="{loc:Tr SideBySide_New}" FontSize="11"
-                                                   Opacity="0.55" Margin="46,0,0,0" />
-                                    </Grid>
-                                    <ListBox ItemsSource="{Binding DiffRows}" Background="Transparent"
-                                             BorderThickness="0" Padding="0">
-                                        <ListBox.Styles>
-                                            <!-- Rows aren't selectable; strip padding and the hover/selection
-                                                 highlight so only the per-cell diff tints show. -->
-                                            <Style Selector="ListBoxItem">
-                                                <Setter Property="Padding" Value="0" />
-                                                <Setter Property="MinHeight" Value="0" />
-                                            </Style>
-                                            <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
-                                                <Setter Property="Background" Value="Transparent" />
-                                            </Style>
-                                            <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-                                                <Setter Property="Background" Value="Transparent" />
-                                            </Style>
-                                        </ListBox.Styles>
-                                        <ListBox.ItemTemplate>
-                                            <DataTemplate x:DataType="services:DiffRow">
-                                                <Grid ColumnDefinitions="*,1,*">
-                                                    <Grid Grid.Column="0" ColumnDefinitions="44,*"
-                                                          Background="{Binding LeftKind, Converter={StaticResource DiffCellBrush}}">
-                                                        <TextBlock Grid.Column="0" Text="{Binding LeftLine}" Opacity="0.4"
-                                                                   FontSize="11" TextAlignment="Right" Margin="0,0,8,0"
-                                                                   VerticalAlignment="Top"
-                                                                   FontFamily="Cascadia Mono,Consolas,monospace" />
-                                                        <TextBlock Grid.Column="1" Text="{Binding LeftText}" TextWrapping="Wrap"
-                                                                   FontFamily="Cascadia Mono,Consolas,monospace" FontSize="12" />
-                                                    </Grid>
-                                                    <Border Grid.Column="1" Background="{DynamicResource SeparatorBrush}" />
-                                                    <Grid Grid.Column="2" ColumnDefinitions="44,*"
-                                                          Background="{Binding RightKind, Converter={StaticResource DiffCellBrush}}">
-                                                        <TextBlock Grid.Column="0" Text="{Binding RightLine}" Opacity="0.4"
-                                                                   FontSize="11" TextAlignment="Right" Margin="0,0,8,0"
-                                                                   VerticalAlignment="Top"
-                                                                   FontFamily="Cascadia Mono,Consolas,monospace" />
-                                                        <TextBlock Grid.Column="1" Text="{Binding RightText}" TextWrapping="Wrap"
-                                                                   FontFamily="Cascadia Mono,Consolas,monospace" FontSize="12" />
-                                                    </Grid>
-                                                </Grid>
-                                            </DataTemplate>
-                                        </ListBox.ItemTemplate>
-                                    </ListBox>
-                                </DockPanel>
+                                                 IsVisible="{Binding HasDiff}" />
 
                                 <TextBlock Text="{Binding DiffEmptyHint}"
                                            IsVisible="{Binding !HasDiff}"

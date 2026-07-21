@@ -83,7 +83,6 @@
 
         <converters:FileStatusBrushConverter x:Key="FileStatusBrush" />
         <converters:SuccessBrushConverter x:Key="SuccessBrush" />
-        <converters:DiffCellBrushConverter x:Key="DiffCellBrush" />
         </ResourceDictionary>
     </Application.Resources>
 

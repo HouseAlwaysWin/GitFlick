@@ -809,7 +809,19 @@ public partial class MainWindow : Window
         }
     }
 
-private void OnShowFileHistoryClick(object? sender, RoutedEventArgs e)
+    /// <summary>
+    /// The diff header's side-by-side button: opens the current diff in its own window. Two aligned
+    /// columns need real width, which the diff pane doesn't have.
+    /// </summary>
+    private void OnCompareClick(object? sender, RoutedEventArgs e)
+    {
+        if (Workspace is { HasDiff: true } ws)
+        {
+            new SideBySideWindow(ws.DiffPath ?? string.Empty, ws.DiffText).Show(this);
+        }
+    }
+
+    private void OnShowFileHistoryClick(object? sender, RoutedEventArgs e)
     {
         if (Workspace is { } ws && (ws.SelectedUnstagedFile ?? ws.SelectedStagedFile) is { } file)
         {

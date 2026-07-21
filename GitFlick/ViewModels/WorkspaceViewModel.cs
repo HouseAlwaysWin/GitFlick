@@ -472,58 +472,9 @@ public partial class WorkspaceViewModel : ViewModelBase
     /// <summary>Path of the file the diff belongs to; empty when nothing is selected.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasDiff))]
-    [NotifyPropertyChangedFor(nameof(ShowUnifiedDiff))]
-    [NotifyPropertyChangedFor(nameof(ShowSplitDiff))]
     public partial string DiffPath { get; set; } = string.Empty;
 
     public bool HasDiff => DiffPath.Length > 0;
-
-    /// <summary>Diff view mode: unified list vs two aligned columns (old | new). Persisted in settings.</summary>
-    public bool DiffSideBySide
-    {
-        get => _settings?.Current.DiffSideBySide ?? false;
-        set
-        {
-            if (_settings is null || value == DiffSideBySide)
-            {
-                return;
-            }
-
-            _settings.Current.DiffSideBySide = value;
-            _settings.Save();
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(ShowUnifiedDiff));
-            OnPropertyChanged(nameof(ShowSplitDiff));
-            RebuildDiffRows();
-        }
-    }
-
-    public bool ShowUnifiedDiff => HasDiff && !DiffSideBySide;
-
-    public bool ShowSplitDiff => HasDiff && DiffSideBySide;
-
-    /// <summary>Aligned old/new rows of the current diff, built on demand while split mode is on.</summary>
-    public ObservableCollection<DiffRow> DiffRows { get; } = [];
-
-    partial void OnDiffTextChanged(string value)
-    {
-        if (DiffSideBySide)
-        {
-            RebuildDiffRows();
-        }
-    }
-
-    private void RebuildDiffRows()
-    {
-        DiffRows.Clear();
-        if (DiffSideBySide && HasDiff)
-        {
-            foreach (var row in SideBySideDiff.Build(DiffText))
-            {
-                DiffRows.Add(row);
-            }
-        }
-    }
 
     public bool CanCommit =>
         !IsBusy && HasStagedFiles && !string.IsNullOrWhiteSpace(CommitMessage);
