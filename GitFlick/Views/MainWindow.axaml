@@ -6,6 +6,7 @@
         xmlns:views="using:GitFlick.Views"
         xmlns:conv="using:GitFlick.Converters"
         xmlns:loc="using:GitFlick.Markup"
+        xmlns:sys="using:System"
         xmlns:edit="using:AvaloniaEdit"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -22,6 +23,59 @@
     <Design.DataContext>
         <vm:MainViewModel />
     </Design.DataContext>
+
+    <Window.DataTemplates>
+        <!-- "Where does this commit sit" card: SHA title, a HEAD chip, and a chip per containing branch.
+             Content only (no card chrome) so it reads well both inside the graph-dot tooltip's own frame
+             and inside the diff pane's tinted bar. Fills in place: SHA shows at once, the rest once git
+             answers (IsLoaded), so an open popup never flickers empty. -->
+        <DataTemplate DataType="vm:CommitBranchInfo">
+            <StackPanel Spacing="5" MaxWidth="320">
+                <TextBlock FontSize="12" TextWrapping="Wrap">
+                    <Run Text="{loc:Tr History_Hover_CommitLabel}" Foreground="{DynamicResource SubtleForeground}" />
+                    <Run Text="{Binding Sha}" FontFamily="Cascadia Mono,Consolas,monospace" FontWeight="SemiBold" />
+                </TextBlock>
+
+                <!-- Still querying git. -->
+                <TextBlock Text="{loc:Tr History_Hover_Loading}" FontSize="11" Opacity="0.7"
+                           IsVisible="{Binding !IsLoaded}" />
+
+                <StackPanel Spacing="5" IsVisible="{Binding IsLoaded}">
+                    <!-- HEAD reachability chip: green when reachable, muted grey when not. -->
+                    <Border CornerRadius="3" Padding="6,1" HorizontalAlignment="Left" BorderThickness="1"
+                            Background="#2C8F41" BorderBrush="#3FB950" IsVisible="{Binding InHead}">
+                        <TextBlock Text="{loc:Tr History_Hover_InHead}" FontSize="10" Foreground="White" />
+                    </Border>
+                    <Border CornerRadius="3" Padding="6,1" HorizontalAlignment="Left" BorderThickness="1"
+                            Background="#4D555E" BorderBrush="#6A737D" IsVisible="{Binding !InHead}">
+                        <TextBlock Text="{loc:Tr History_Hover_NotInHead}" FontSize="10" Foreground="White" />
+                    </Border>
+
+                    <!-- One chip per containing branch (capped, with a trailing "+N"). -->
+                    <ItemsControl ItemsSource="{Binding Branches}" IsVisible="{Binding HasBranches}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="sys:String">
+                                <Border CornerRadius="3" Padding="5,1" Margin="0,2,3,0" BorderThickness="1"
+                                        Background="#6E4CB8" BorderBrush="#A371F7" MaxWidth="230">
+                                    <TextBlock Text="{Binding}" FontSize="10" Foreground="White"
+                                               TextTrimming="CharacterEllipsis" />
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <!-- Loaded, but nothing contains it (a dangling/detached commit). -->
+                    <TextBlock Text="{loc:Tr History_Hover_NoBranches}" FontSize="11" Opacity="0.7"
+                               IsVisible="{Binding !HasBranches}" />
+                </StackPanel>
+            </StackPanel>
+        </DataTemplate>
+    </Window.DataTemplates>
 
     <Window.Styles>
         <!-- Ref badges: local branch (orange), remote (purple), tag (green). Fills are OPAQUE, not
@@ -1037,7 +1091,7 @@
                                     PointerPressed="OnGraphPointerPressed"
                                     DoubleTapped="OnCommitActivated"
                                     ToolTip.Placement="Pointer"
-                                    ToolTip.Tip="{Binding HoverCommitInfo}" />
+                                    ToolTip.Tip="{Binding HoverInfo}" />
 
                             <!-- Draggable divider: sets how wide the graph gutter is. Narrower clips the
                                  graph (drag wider to see more lanes) and gives the message columns room. -->
@@ -1119,10 +1173,10 @@
                             BorderBrush="#30808080" BorderThickness="1" CornerRadius="4"
                             ClipToBounds="True">
                         <DockPanel>
-                            <!-- "Commit X · in HEAD? · Branches …" for the selected commit (loaded on click). -->
-                            <Border DockPanel.Dock="Top" IsVisible="{Binding HasSelectedBranchInfo}"
-                                    Background="#22588CF0" BorderBrush="#40588CF0" BorderThickness="0,0,0,1" Padding="6,3">
-                                <TextBlock Text="{Binding SelectedBranchInfo}" TextWrapping="Wrap" FontSize="11" />
+                            <!-- Branch/HEAD card for the selected commit (loaded on select). -->
+                            <Border DockPanel.Dock="Top" IsVisible="{Binding SelectedInfo.HasSha}"
+                                    Background="#22588CF0" BorderBrush="#40588CF0" BorderThickness="0,0,0,1" Padding="8,6">
+                                <ContentControl Content="{Binding SelectedInfo}" HorizontalAlignment="Left" />
                             </Border>
                         <Panel>
                             <ListBox x:Name="CommitFilesList"

@@ -549,47 +549,39 @@ public partial class WorkspaceViewModel : ViewModelBase
     [ObservableProperty]
     public partial CommitInfo? SelectedCommit { get; set; }
 
-    // ── Commit "branches + in HEAD" info: SHA, HEAD-reachability, and the branches containing it.
-    //    Shown two ways: a popup on the hovered graph dot, and a line atop the diff pane for the selection.
+    // ── Commit "branches + in HEAD" info, styled as a card: the SHA, HEAD-reachability, and the branch
+    //    chips containing it. Shown two ways: a popup on the hovered graph dot, and a line atop the diff.
     private readonly Dictionary<string, CommitContainment> _containmentCache = new(StringComparer.Ordinal);
-
-    // Graph-dot hover popup.
     private CommitInfo? _hoverTarget;
-
-    [ObservableProperty]
-    public partial string HoverCommitInfo { get; set; } = string.Empty;
-
-    // Diff-pane line for the currently selected commit.
     private CommitInfo? _selectedInfoTarget;
 
-    [ObservableProperty]
-    public partial string SelectedBranchInfo { get; set; } = string.Empty;
+    /// <summary>The hovered graph dot's info (the floating popup).</summary>
+    public CommitBranchInfo HoverInfo { get; } = new();
 
-    partial void OnSelectedBranchInfoChanged(string value) => OnPropertyChanged(nameof(HasSelectedBranchInfo));
-
-    public bool HasSelectedBranchInfo => !string.IsNullOrEmpty(SelectedBranchInfo);
+    /// <summary>The selected commit's info (the card atop the diff pane).</summary>
+    public CommitBranchInfo SelectedInfo { get; } = new();
 
     /// <summary>Graph-dot hover: show the SHA at once, then fill branches/HEAD in place once git answers.</summary>
     public async void ShowCommitHoverInfo(CommitInfo commit)
     {
         _hoverTarget = commit;
-        HoverCommitInfo = FormatHover(commit, null);
+        HoverInfo.Update(commit.ShortSha, null);
         var containment = await GetContainmentAsync(commit);
         if (ReferenceEquals(_hoverTarget, commit))   // don't overwrite once the pointer has moved on
         {
-            HoverCommitInfo = FormatHover(commit, containment);
+            HoverInfo.Update(commit.ShortSha, containment);
         }
     }
 
-    /// <summary>Selected commit: the same info as a line at the top of the diff pane.</summary>
+    /// <summary>Selected commit: the same info as a card at the top of the diff pane.</summary>
     public async void ShowSelectedCommitInfo(CommitInfo commit)
     {
         _selectedInfoTarget = commit;
-        SelectedBranchInfo = FormatHover(commit, null);
+        SelectedInfo.Update(commit.ShortSha, null);
         var containment = await GetContainmentAsync(commit);
         if (ReferenceEquals(_selectedInfoTarget, commit))
         {
-            SelectedBranchInfo = FormatHover(commit, containment);
+            SelectedInfo.Update(commit.ShortSha, containment);
         }
     }
 
@@ -611,34 +603,6 @@ public partial class WorkspaceViewModel : ViewModelBase
 
         _containmentCache[commit.Sha] = containment;
         return containment;
-    }
-
-    private string FormatHover(CommitInfo commit, CommitContainment? containment)
-    {
-        var head = string.Format(Loc["History_Hover_Commit"], commit.ShortSha);
-        if (containment is null)
-        {
-            return head + "\n" + Loc["History_Hover_Loading"];
-        }
-
-        var headLine = containment.InHead ? Loc["History_Hover_InHead"] : Loc["History_Hover_NotInHead"];
-
-        string branchLine;
-        if (containment.Branches.Count == 0)
-        {
-            branchLine = Loc["History_Hover_NoBranches"];
-        }
-        else
-        {
-            const int max = 8;   // an old commit is contained by everything; keep the popup readable
-            var names = containment.Branches.Count <= max
-                ? string.Join(", ", containment.Branches)
-                : string.Join(", ", containment.Branches.Take(max))
-                    + string.Format(Loc["History_Hover_MoreBranches"], containment.Branches.Count - max);
-            branchLine = string.Format(Loc["History_Hover_Branches"], names);
-        }
-
-        return head + "\n" + headLine + "\n" + branchLine;
     }
 
     /// <summary>The files the selected commit changed; picking one shows just that file's diff.</summary>
@@ -1853,12 +1817,12 @@ public partial class WorkspaceViewModel : ViewModelBase
 
         if (value is null)
         {
-            SelectedBranchInfo = string.Empty;
+            SelectedInfo.Clear();
             return;
         }
 
         DiffLoad = LoadCommitFilesAsync(value);
-        ShowSelectedCommitInfo(value);   // "branches + in HEAD" line shown atop the diff pane
+        ShowSelectedCommitInfo(value);   // branch/HEAD card shown atop the diff pane
     }
 
     /// <summary>Loads the selected commit's changed files, then shows the first file's diff.</summary>
