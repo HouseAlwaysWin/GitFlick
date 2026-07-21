@@ -1255,11 +1255,23 @@
                             BorderBrush="#30808080" BorderThickness="1" CornerRadius="4"
                             ClipToBounds="True">
                         <DockPanel>
-                            <!-- Branch/HEAD card for the selected commit (loaded on select). -->
-                            <Border DockPanel.Dock="Top" IsVisible="{Binding SelectedInfo.HasSha}"
-                                    Background="#22588CF0" BorderBrush="#40588CF0" BorderThickness="0,0,0,1" Padding="8,4">
-                                <ContentControl Content="{Binding SelectedInfo}" HorizontalAlignment="Left"
-                                                ContentTemplate="{StaticResource BranchInfoLine}" />
+                            <!-- Branch/HEAD bar for the selected commit (loaded on select), with the
+                                 pane's close button at its right end. The bar itself is always present in
+                                 History so the ✕ never disappears when nothing is selected — only the
+                                 commit info inside it waits for a selection. The ✕ lives here rather than
+                                 floating over the file list, where it read as closing the first file. -->
+                            <Border DockPanel.Dock="Top"
+                                    Background="#22588CF0" BorderBrush="#40588CF0" BorderThickness="0,0,0,1" Padding="8,3">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <ContentControl Grid.Column="0" Content="{Binding SelectedInfo}"
+                                                    HorizontalAlignment="Left" VerticalAlignment="Center"
+                                                    IsVisible="{Binding SelectedInfo.HasSha}"
+                                                    ContentTemplate="{StaticResource BranchInfoLine}" />
+                                    <Button Grid.Column="1" Content="✕" Classes="header"
+                                            VerticalAlignment="Center" FontSize="12" Padding="6,1"
+                                            Click="OnHideDiffPaneClick"
+                                            ToolTip.Tip="{loc:Tr History_HideDiff_Tooltip}" />
+                                </Grid>
                             </Border>
                         <Panel>
                             <ListBox x:Name="CommitFilesList"
@@ -1289,13 +1301,6 @@
                                        IsVisible="{Binding !HasCommitFiles}"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"
                                        Opacity="0.35" IsHitTestVisible="False" />
-
-                            <!-- Collapses the diff pane back to a full-width commit list (History). -->
-                            <Button Content="✕" Classes="header"
-                                    HorizontalAlignment="Right" VerticalAlignment="Top"
-                                    Margin="0,2,4,0" FontSize="12" Padding="6,2"
-                                    Click="OnHideDiffPaneClick"
-                                    ToolTip.Tip="{loc:Tr History_HideDiff_Tooltip}" />
                         </Panel>
                         </DockPanel>
                     </Border>
