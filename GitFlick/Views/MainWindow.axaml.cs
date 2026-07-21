@@ -1199,20 +1199,43 @@ private void OnShowFileHistoryClick(object? sender, RoutedEventArgs e)
     /// "Pull from…": picks a remote and the branch on it to pull into the current branch. Returns
     /// null to cancel (or if either field is left empty).
     /// </summary>
-    private async Task<WorkspaceViewModel.RemoteBranch?> PromptPullSourceAsync(IReadOnlyList<string> remotes, string branch)
+    private async Task<WorkspaceViewModel.RemoteBranch?> PromptPullSourceAsync(WorkspaceViewModel.PullSourceOptions options)
     {
+        var branch = options.CurrentBranch;
+
         var remoteCombo = new ComboBox
         {
-            ItemsSource = remotes,
+            ItemsSource = options.Remotes,
             SelectedIndex = 0,
             HorizontalAlignment = HorizontalAlignment.Stretch,
         };
-        var branchBox = new TextBox
+
+        // Fuzzy completion over the branches that actually exist on the chosen remote, so a repo with
+        // dozens of them is typeable ("cmd" finds "claude/md-docs"). Free text still wins: whatever is
+        // typed is what gets pulled, even if it matches nothing in the list.
+        var branchBox = new AutoCompleteBox
         {
             Text = branch,
             PlaceholderText = Loc["Dialog_PullBranchPlaceholder"],
-            VerticalContentAlignment = VerticalAlignment.Center,
+            FilterMode = AutoCompleteFilterMode.Custom,
+            ItemFilter = (search, item) =>
+                string.IsNullOrEmpty(search)
+                || (item is string name && FuzzyMatcher.TryMatch(name, search, out _)),
+            MinimumPrefixLength = 0,
+            MaxDropDownHeight = 220,
         };
+
+        // The candidate list belongs to the selected remote, so refill it whenever that changes.
+        void LoadBranches()
+        {
+            if (remoteCombo.SelectedItem is string remote)
+            {
+                branchBox.ItemsSource = options.BranchesOn(remote);
+            }
+        }
+
+        remoteCombo.SelectionChanged += (_, _) => LoadBranches();
+        LoadBranches();
         var cancel = new Button { Content = Loc["Dialog_Cancel"], MinWidth = 92, HorizontalContentAlignment = HorizontalAlignment.Center };
         var pull = new Button { Content = Loc["Dialog_Pull"], MinWidth = 92, HorizontalContentAlignment = HorizontalAlignment.Center };
         pull.Classes.Add("primary");

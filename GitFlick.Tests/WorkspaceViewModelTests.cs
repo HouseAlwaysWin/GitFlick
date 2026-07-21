@@ -474,7 +474,7 @@ public class WorkspaceViewModelTests
 
         var vm = ForRepo(repo);
         await vm.RefreshAsync();
-        vm.PromptPullSource = (_, _) => Task.FromResult<WorkspaceViewModel.RemoteBranch?>(
+        vm.PromptPullSource = _ => Task.FromResult<WorkspaceViewModel.RemoteBranch?>(
             new WorkspaceViewModel.RemoteBranch("origin", "topic"));
 
         await vm.PullFromCommand.ExecuteAsync(null);

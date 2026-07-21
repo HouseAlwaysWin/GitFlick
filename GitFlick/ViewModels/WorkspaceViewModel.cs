@@ -1511,10 +1511,21 @@ public partial class WorkspaceViewModel : ViewModelBase
     public sealed record RemoteBranch(string Remote, string Branch);
 
     /// <summary>
-    /// Set by the View: given the configured remotes and the current branch, picks a remote + branch
-    /// to pull. Returns null to cancel. Null delegate (e.g. tests without a UI) skips the action.
+    /// What the "Pull from…" prompt needs: the configured remotes, the branch being pulled into, and
+    /// a lookup for the branches on a given remote so the branch box can offer completions. The
+    /// lookup is a delegate rather than a fixed list because the answer changes with the remote the
+    /// user picks in the dialog.
     /// </summary>
-    public Func<IReadOnlyList<string>, string, Task<RemoteBranch?>>? PromptPullSource { get; set; }
+    public sealed record PullSourceOptions(
+        IReadOnlyList<string> Remotes,
+        string CurrentBranch,
+        Func<string, IReadOnlyList<string>> BranchesOn);
+
+    /// <summary>
+    /// Set by the View: picks a remote + branch to pull. Returns null to cancel. Null delegate
+    /// (e.g. tests without a UI) skips the action.
+    /// </summary>
+    public Func<PullSourceOptions, Task<RemoteBranch?>>? PromptPullSource { get; set; }
 
     /// <summary>
     /// Set by the View: given the configured remotes and the current branch, picks the remote to push
@@ -2401,6 +2412,26 @@ public partial class WorkspaceViewModel : ViewModelBase
     private Task PullRebase() =>
         RunAsync(() => _git.PullRebaseAsync(Repository.Path, Progress()), Loc["Status_PulledRebase"]);
 
+    /// <summary>
+    /// Narrows "origin/main"-style remote-tracking refs to one remote and strips the prefix, because
+    /// <c>git pull &lt;remote&gt; &lt;branch&gt;</c> wants the bare branch name.
+    /// </summary>
+    internal static IReadOnlyList<string> BranchesOnRemote(IReadOnlyList<string> remoteBranches, string remote)
+    {
+        var prefix = remote + "/";
+        var names = new List<string>();
+
+        foreach (var full in remoteBranches)
+        {
+            if (full.StartsWith(prefix, StringComparison.Ordinal) && full.Length > prefix.Length)
+            {
+                names.Add(full[prefix.Length..]);
+            }
+        }
+
+        return names;
+    }
+
     [RelayCommand]
     private async Task PullFrom()
     {
@@ -2416,7 +2447,16 @@ public partial class WorkspaceViewModel : ViewModelBase
             return;
         }
 
-        var source = await PromptPullSource(remotes, BranchName);
+        // Every remote-tracking branch, once ("origin/main", "upstream/dev"). The dialog narrows them
+        // to whichever remote is picked, so switching remotes doesn't cost another git call.
+        var remoteBranches = await _git.GetRemoteBranchesAsync(Repository.Path);
+
+        var options = new PullSourceOptions(
+            remotes,
+            BranchName,
+            remote => BranchesOnRemote(remoteBranches, remote));
+
+        var source = await PromptPullSource(options);
         if (source is null || source.Branch.Length == 0)
         {
             return;   // cancelled, or no branch given
