@@ -660,6 +660,46 @@ public partial class MainWindow : Window
         Grid.SetColumnSpan(HistoryPane, showDiff ? 1 : 3);
     }
 
+    // Graph dot interaction: hovering a commit's lane shows its branch/HEAD popup; clicking selects it.
+    private void OnGraphPointerMoved(object? sender, PointerEventArgs e)
+    {
+        if (CommitAtGraphY(sender, e) is { } commit && Workspace is { } ws)
+        {
+            ws.ShowCommitHoverInfo(commit);
+        }
+    }
+
+    private void OnGraphPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (CommitAtGraphY(sender, e) is { } commit && Workspace is { } ws)
+        {
+            ws.SelectedCommit = commit;
+        }
+    }
+
+    // The commit whose row is under the pointer — found by the actual realized item bounds (in the
+    // list's own coordinates), so it stays correct regardless of scrolling.
+    private CommitInfo? CommitAtGraphY(object? sender, PointerEventArgs e)
+    {
+        var y = e.GetPosition(CommitList).Y;
+
+        foreach (var container in CommitList.GetRealizedContainers())
+        {
+            if (container.DataContext is not CommitInfo commit)
+            {
+                continue;
+            }
+
+            var top = container.TranslatePoint(default, CommitList)?.Y;
+            if (top is { } t && y >= t && y < t + container.Bounds.Height)
+            {
+                return commit;
+            }
+        }
+
+        return null;
+    }
+
     private WorkspaceViewModel? Workspace => (DataContext as MainViewModel)?.Workspace;
 
     /// <summary>Double-clicking a branch badge in the graph checks it out, à la Git Graph.</summary>

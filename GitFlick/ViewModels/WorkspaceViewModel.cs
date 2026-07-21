@@ -549,46 +549,68 @@ public partial class WorkspaceViewModel : ViewModelBase
     [ObservableProperty]
     public partial CommitInfo? SelectedCommit { get; set; }
 
-    // ── Commit hover popup: SHA + whether it's in HEAD + the branches that contain it ──────────
+    // ── Commit "branches + in HEAD" info: SHA, HEAD-reachability, and the branches containing it.
+    //    Shown two ways: a popup on the hovered graph dot, and a line atop the diff pane for the selection.
     private readonly Dictionary<string, CommitContainment> _containmentCache = new(StringComparer.Ordinal);
+
+    // Graph-dot hover popup.
     private CommitInfo? _hoverTarget;
 
-    /// <summary>The selected commit's "branches + in HEAD" line. Filled instantly, then enriched by git.</summary>
     [ObservableProperty]
     public partial string HoverCommitInfo { get; set; } = string.Empty;
 
-    partial void OnHoverCommitInfoChanged(string value) => OnPropertyChanged(nameof(HasCommitBranchInfo));
+    // Diff-pane line for the currently selected commit.
+    private CommitInfo? _selectedInfoTarget;
 
-    public bool HasCommitBranchInfo => !string.IsNullOrEmpty(HoverCommitInfo);
+    [ObservableProperty]
+    public partial string SelectedBranchInfo { get; set; } = string.Empty;
 
-    /// <summary>
-    /// Called when the pointer enters a commit row: shows the SHA immediately, then (once git reports
-    /// which branches contain it and whether it's reachable from HEAD) fills the rest in-place.
-    /// </summary>
+    partial void OnSelectedBranchInfoChanged(string value) => OnPropertyChanged(nameof(HasSelectedBranchInfo));
+
+    public bool HasSelectedBranchInfo => !string.IsNullOrEmpty(SelectedBranchInfo);
+
+    /// <summary>Graph-dot hover: show the SHA at once, then fill branches/HEAD in place once git answers.</summary>
     public async void ShowCommitHoverInfo(CommitInfo commit)
     {
         _hoverTarget = commit;
         HoverCommitInfo = FormatHover(commit, null);
-
-        if (!_containmentCache.TryGetValue(commit.Sha, out var containment))
-        {
-            try
-            {
-                containment = await _git.GetCommitContainmentAsync(Repository.Path, commit.Sha);
-            }
-            catch
-            {
-                containment = CommitContainment.Empty;
-            }
-
-            _containmentCache[commit.Sha] = containment;
-        }
-
-        // A slow lookup must not overwrite the popup for a row the pointer has since moved to.
-        if (ReferenceEquals(_hoverTarget, commit))
+        var containment = await GetContainmentAsync(commit);
+        if (ReferenceEquals(_hoverTarget, commit))   // don't overwrite once the pointer has moved on
         {
             HoverCommitInfo = FormatHover(commit, containment);
         }
+    }
+
+    /// <summary>Selected commit: the same info as a line at the top of the diff pane.</summary>
+    public async void ShowSelectedCommitInfo(CommitInfo commit)
+    {
+        _selectedInfoTarget = commit;
+        SelectedBranchInfo = FormatHover(commit, null);
+        var containment = await GetContainmentAsync(commit);
+        if (ReferenceEquals(_selectedInfoTarget, commit))
+        {
+            SelectedBranchInfo = FormatHover(commit, containment);
+        }
+    }
+
+    private async Task<CommitContainment> GetContainmentAsync(CommitInfo commit)
+    {
+        if (_containmentCache.TryGetValue(commit.Sha, out var containment))
+        {
+            return containment;
+        }
+
+        try
+        {
+            containment = await _git.GetCommitContainmentAsync(Repository.Path, commit.Sha);
+        }
+        catch
+        {
+            containment = CommitContainment.Empty;
+        }
+
+        _containmentCache[commit.Sha] = containment;
+        return containment;
     }
 
     private string FormatHover(CommitInfo commit, CommitContainment? containment)
@@ -1831,12 +1853,12 @@ public partial class WorkspaceViewModel : ViewModelBase
 
         if (value is null)
         {
-            HoverCommitInfo = string.Empty;
+            SelectedBranchInfo = string.Empty;
             return;
         }
 
         DiffLoad = LoadCommitFilesAsync(value);
-        ShowCommitHoverInfo(value);   // load "branches + in HEAD" for the info line shown with the diff
+        ShowSelectedCommitInfo(value);   // "branches + in HEAD" line shown atop the diff pane
     }
 
     /// <summary>Loads the selected commit's changed files, then shows the first file's diff.</summary>

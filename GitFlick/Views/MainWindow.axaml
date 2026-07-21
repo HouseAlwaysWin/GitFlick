@@ -858,15 +858,24 @@
                                     <Border Grid.Column="1" Tag="MsgAuthor" Classes="colgrip" Width="12" Margin="-6,0,0,0"
                                             HorizontalAlignment="Left" Background="Transparent" Cursor="SizeWestEast"
                                             PointerPressed="OnColumnGripPressed" PointerMoved="OnColumnGripMoved"
-                                            PointerReleased="OnColumnGripReleased" />
+                                            PointerReleased="OnColumnGripReleased">
+                                        <Border Width="1" HorizontalAlignment="Center" IsHitTestVisible="False"
+                                                Background="{DynamicResource SubtleForeground}" Opacity="0.25" />
+                                    </Border>
                                     <Border Grid.Column="2" Tag="AuthorDate" Classes="colgrip" Width="12" Margin="-6,0,0,0"
                                             HorizontalAlignment="Left" Background="Transparent" Cursor="SizeWestEast"
                                             PointerPressed="OnColumnGripPressed" PointerMoved="OnColumnGripMoved"
-                                            PointerReleased="OnColumnGripReleased" />
+                                            PointerReleased="OnColumnGripReleased">
+                                        <Border Width="1" HorizontalAlignment="Center" IsHitTestVisible="False"
+                                                Background="{DynamicResource SubtleForeground}" Opacity="0.25" />
+                                    </Border>
                                     <Border Grid.Column="3" Tag="DateCommit" Classes="colgrip" Width="12" Margin="-6,0,0,0"
                                             HorizontalAlignment="Left" Background="Transparent" Cursor="SizeWestEast"
                                             PointerPressed="OnColumnGripPressed" PointerMoved="OnColumnGripMoved"
-                                            PointerReleased="OnColumnGripReleased" />
+                                            PointerReleased="OnColumnGripReleased">
+                                        <Border Width="1" HorizontalAlignment="Center" IsHitTestVisible="False"
+                                                Background="{DynamicResource SubtleForeground}" Opacity="0.25" />
+                                    </Border>
                                 </Grid>
                             </Border>
 
@@ -1003,6 +1012,17 @@
                                                    ClipToBounds="True"
                                                    IsHitTestVisible="False" />
 
+                            <!-- Hit area over the lane graph: hover a commit's dot for its branch/HEAD
+                                 popup (like GitKraken), click it to select the commit. -->
+                            <Border HorizontalAlignment="Left" VerticalAlignment="Stretch"
+                                    Width="{Binding GraphGutter}"
+                                    IsVisible="{Binding ShowGraph}"
+                                    Background="Transparent" Cursor="Hand"
+                                    PointerMoved="OnGraphPointerMoved"
+                                    PointerPressed="OnGraphPointerPressed"
+                                    ToolTip.Placement="Pointer"
+                                    ToolTip.Tip="{Binding HoverCommitInfo}" />
+
                             <!-- Draggable divider: sets how wide the graph gutter is. Narrower clips the
                                  graph (drag wider to see more lanes) and gives the message columns room. -->
                             <Border HorizontalAlignment="Left" Width="8" VerticalAlignment="Stretch"
@@ -1080,9 +1100,9 @@
                             ClipToBounds="True">
                         <DockPanel>
                             <!-- "Commit X · in HEAD? · Branches …" for the selected commit (loaded on click). -->
-                            <Border DockPanel.Dock="Top" IsVisible="{Binding HasCommitBranchInfo}"
+                            <Border DockPanel.Dock="Top" IsVisible="{Binding HasSelectedBranchInfo}"
                                     Background="#22588CF0" BorderBrush="#40588CF0" BorderThickness="0,0,0,1" Padding="6,3">
-                                <TextBlock Text="{Binding HoverCommitInfo}" TextWrapping="Wrap" FontSize="11" />
+                                <TextBlock Text="{Binding SelectedBranchInfo}" TextWrapping="Wrap" FontSize="11" />
                             </Border>
                         <Panel>
                             <ListBox x:Name="CommitFilesList"
