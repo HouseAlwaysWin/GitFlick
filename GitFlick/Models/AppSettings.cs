@@ -42,6 +42,9 @@ public sealed class AppSettings
 
     /// <summary>Check GitHub for a newer release on launch (silent). Off by default.</summary>
     public bool AutoCheckUpdates { get; set; }
+
+    /// <summary>Render the file diff as two aligned columns (old | new) instead of a unified list.</summary>
+    public bool DiffSideBySide { get; set; }
 }
 
 /// <summary>How commit messages are generated.</summary>

@@ -190,6 +190,7 @@
   "History_Hover_NotInHead": "✗ 尚未包含在 HEAD",
   "History_Hover_Branches": "分支:{0}",
   "History_Hover_NoBranches": "沒有分支或標籤指向此提交",
+  "History_Hover_OnBranch": "位於",
   "History_Hover_MoreBranches": " (還有 {0} 個)",
 
   "Ref_CheckOut": "簽出",

@@ -190,6 +190,7 @@
   "History_Hover_NotInHead": "✗ HEAD に含まれていません",
   "History_Hover_Branches": "ブランチ: {0}",
   "History_Hover_NoBranches": "ここを指すブランチ・タグはありません",
+  "History_Hover_OnBranch": "ブランチ",
   "History_Hover_MoreBranches": " (他 {0} 件)",
 
   "Ref_CheckOut": "チェックアウト",

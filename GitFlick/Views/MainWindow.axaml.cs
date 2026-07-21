@@ -806,16 +806,7 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>The diff header's side-by-side button: opens the current diff in a split view.</summary>
-    private void OnCompareClick(object? sender, RoutedEventArgs e)
-    {
-        if (Workspace is { HasDiff: true } ws)
-        {
-            new SideBySideWindow(ws.DiffPath ?? string.Empty, ws.DiffText).Show(this);
-        }
-    }
-
-    private void OnShowFileHistoryClick(object? sender, RoutedEventArgs e)
+private void OnShowFileHistoryClick(object? sender, RoutedEventArgs e)
     {
         if (Workspace is { } ws && (ws.SelectedUnstagedFile ?? ws.SelectedStagedFile) is { } file)
         {

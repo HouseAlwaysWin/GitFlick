@@ -439,7 +439,41 @@ public sealed class GitService : IGitService
         var ancestor = await RunAsync(
             repoPath, ["merge-base", "--is-ancestor", sha, "HEAD"], null, cancellationToken).ConfigureAwait(false);
 
-        return new CommitContainment(ancestor.Succeeded, branches);
+        // "Which branch is this commit on?" — its lineage, for a mid-branch commit no ref points at.
+        // name-rev names it relative to the nearest ref (e.g. "main~30", "origin/feature~2"); we keep
+        // just the branch part. Tags are excluded (they show above as their own chips); "undefined"
+        // means no branch reaches it.
+        var nearestBranch = string.Empty;
+        if (branches.Count == 0)
+        {
+            var nameRev = await RunAsync(
+                repoPath,
+                ["name-rev", "--name-only", "--exclude=refs/tags/*", sha],
+                null,
+                cancellationToken).ConfigureAwait(false);
+            if (nameRev.Succeeded)
+            {
+                var name = nameRev.StandardOutput.Trim();
+                if (name.Length > 0 && name != "undefined")
+                {
+                    // Drop the "~N" / "^N" position suffix and any "remotes/" prefix name-rev adds.
+                    var cut = name.IndexOfAny(['~', '^']);
+                    if (cut >= 0)
+                    {
+                        name = name[..cut];
+                    }
+
+                    if (name.StartsWith("remotes/", StringComparison.Ordinal))
+                    {
+                        name = name["remotes/".Length..];
+                    }
+
+                    nearestBranch = name;
+                }
+            }
+        }
+
+        return new CommitContainment(ancestor.Succeeded, branches, nearestBranch);
     }
 
     // "M\tpath" lines (one per changed file, --no-renames so a single tab), deduped.

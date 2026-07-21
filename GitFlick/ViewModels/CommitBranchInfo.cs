@@ -26,6 +26,18 @@ public sealed partial class CommitBranchInfo : ObservableObject
     [ObservableProperty]
     public partial bool HasBranches { get; set; }
 
+    /// <summary>The branch this commit sits on when no ref points exactly at it (git name-rev).</summary>
+    [ObservableProperty]
+    public partial string NearestBranch { get; set; } = string.Empty;
+
+    /// <summary>Show the "on &lt;branch&gt;" lineage chip: loaded, no exact refs, but a nearest branch exists.</summary>
+    [ObservableProperty]
+    public partial bool HasNearest { get; set; }
+
+    /// <summary>Loaded, but nothing points here and nothing reaches it — a truly detached commit.</summary>
+    [ObservableProperty]
+    public partial bool HasNoRef { get; set; }
+
     /// <summary>Branch chips (local + remote), capped, with a trailing "+N" chip when there are more.</summary>
     public ObservableCollection<string> Branches { get; } = [];
 
@@ -54,6 +66,9 @@ public sealed partial class CommitBranchInfo : ObservableObject
         }
 
         HasBranches = Branches.Count > 0;
+        NearestBranch = containment?.NearestBranch ?? string.Empty;
+        HasNearest = IsLoaded && !HasBranches && NearestBranch.Length > 0;
+        HasNoRef = IsLoaded && !HasBranches && !HasNearest;
     }
 
     public void Clear()
@@ -63,5 +78,8 @@ public sealed partial class CommitBranchInfo : ObservableObject
         InHead = false;
         Branches.Clear();
         HasBranches = false;
+        NearestBranch = string.Empty;
+        HasNearest = false;
+        HasNoRef = false;
     }
 }

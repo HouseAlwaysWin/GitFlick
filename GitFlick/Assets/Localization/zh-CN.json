@@ -190,6 +190,7 @@
   "History_Hover_NotInHead": "✗ 尚未包含在 HEAD",
   "History_Hover_Branches": "分支:{0}",
   "History_Hover_NoBranches": "没有分支或标签指向此提交",
+  "History_Hover_OnBranch": "位于",
   "History_Hover_MoreBranches": " (还有 {0} 个)",
 
   "Ref_CheckOut": "检出",
