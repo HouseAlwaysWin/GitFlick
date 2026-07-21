@@ -189,7 +189,7 @@
   "History_Hover_InHead": "✓ Included in HEAD",
   "History_Hover_NotInHead": "✗ Not included in HEAD",
   "History_Hover_Branches": "Branches: {0}",
-  "History_Hover_NoBranches": "No branch contains this commit",
+  "History_Hover_NoBranches": "No branch or tag points here",
   "History_Hover_MoreBranches": " (+{0} more)",
 
   "Ref_CheckOut": "Check out",

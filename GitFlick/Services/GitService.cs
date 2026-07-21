@@ -397,11 +397,14 @@ public sealed class GitService : IGitService
 
     public async Task<CommitContainment> GetCommitContainmentAsync(string repoPath, string sha, CancellationToken cancellationToken = default)
     {
-        // Branches (local + remote) whose tip can reach this commit. Full refnames so the "<remote>/HEAD"
-        // symbolic alias is easy to drop; then shorten refs/heads/x -> x and refs/remotes/x -> x.
+        // Refs (local + remote branches, and tags) that point AT this commit — its decoration labels,
+        // not everything that descends from it. --contains would list every branch forked after an old
+        // trunk commit (dozens of them); --points-at answers "what sits here", which is what the graph
+        // draws. Full refnames so the "<remote>/HEAD" alias is easy to drop; then shorten
+        // refs/heads/x, refs/remotes/x and refs/tags/x down to x.
         var branchesResult = await RunAsync(
             repoPath,
-            ["branch", "--all", "--contains", sha, "--format=%(refname)"],
+            ["for-each-ref", "--points-at", sha, "--format=%(refname)"],
             null,
             cancellationToken).ConfigureAwait(false);
 
@@ -421,7 +424,9 @@ public sealed class GitService : IGitService
                     ? refName["refs/heads/".Length..]
                     : refName.StartsWith("refs/remotes/", StringComparison.Ordinal)
                         ? refName["refs/remotes/".Length..]
-                        : refName;
+                        : refName.StartsWith("refs/tags/", StringComparison.Ordinal)
+                            ? refName["refs/tags/".Length..]
+                            : refName;
 
                 if (name.Length > 0 && seen.Add(name))
                 {

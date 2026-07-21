@@ -189,7 +189,7 @@
   "History_Hover_InHead": "✓ HEAD に含まれています",
   "History_Hover_NotInHead": "✗ HEAD に含まれていません",
   "History_Hover_Branches": "ブランチ: {0}",
-  "History_Hover_NoBranches": "このコミットを含むブランチはありません",
+  "History_Hover_NoBranches": "ここを指すブランチ・タグはありません",
   "History_Hover_MoreBranches": " (他 {0} 件)",
 
   "Ref_CheckOut": "チェックアウト",
