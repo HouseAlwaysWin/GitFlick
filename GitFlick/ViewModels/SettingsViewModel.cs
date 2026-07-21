@@ -2,6 +2,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
+using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -23,11 +24,13 @@ public partial class SettingsViewModel : ViewModelBase
 
     private readonly ISettingsService _settings;
     private readonly UpdateService _updater;
+    private readonly HotkeyCoordinator? _hotkeys;
 
-    public SettingsViewModel(ISettingsService settings, UpdateService updater)
+    public SettingsViewModel(ISettingsService settings, UpdateService updater, HotkeyCoordinator? hotkeys = null)
     {
         _settings = settings;
         _updater = updater;
+        _hotkeys = hotkeys;
 
         AccentSwatches = new ObservableCollection<AccentSwatch>();
         foreach (var hex in PresetAccentPalette.Hexes)
@@ -89,6 +92,104 @@ public partial class SettingsViewModel : ViewModelBase
         {
             swatch.IsSelected = HexEquals(swatch.Hex, hex);
         }
+    }
+
+    // ---- Global hotkey ------------------------------------------------------------------------
+
+    /// <summary>The bound combo, e.g. <c>Ctrl+Alt+G</c>.</summary>
+    public string HotkeyDisplay => (_hotkeys?.Current ?? _settings.Current.Hotkey).ToDisplayString();
+
+    /// <summary>False when no coordinator was supplied (nothing to re-register), so the UI greys out.</summary>
+    public bool CanEditHotkey => _hotkeys is not null;
+
+    /// <summary>The capture button's label: the bound combo, or the prompt while it's listening.</summary>
+    public string HotkeyButtonText => IsCapturingHotkey ? Loc["Settings_Hotkey_Press"] : HotkeyDisplay;
+
+    /// <summary>True while the capture box is listening for the next combo.</summary>
+    [ObservableProperty]
+    private bool _isCapturingHotkey;
+
+    partial void OnIsCapturingHotkeyChanged(bool value) => OnPropertyChanged(nameof(HotkeyButtonText));
+
+    [ObservableProperty]
+    private string? _hotkeyError;
+
+    partial void OnHotkeyErrorChanged(string? value) => OnPropertyChanged(nameof(HasHotkeyError));
+
+    public bool HasHotkeyError => !string.IsNullOrEmpty(HotkeyError);
+
+    /// <summary>Arms the capture box; the window's code-behind feeds the next combo to <see cref="ApplyHotkey"/>.</summary>
+    [RelayCommand]
+    private void StartHotkeyCapture()
+    {
+        if (_hotkeys is null)
+        {
+            return;
+        }
+
+        HotkeyError = null;
+        IsCapturingHotkey = true;
+
+        // Let go of the OS registration, or pressing the bound combo would just toggle the window.
+        _hotkeys.SuspendForCapture();
+    }
+
+    /// <summary>Esc, losing focus, or closing the window: keep the combo that was already bound.</summary>
+    public void CancelHotkeyCapture()
+    {
+        if (!IsCapturingHotkey)
+        {
+            return;
+        }
+
+        IsCapturingHotkey = false;
+        _hotkeys?.ResumeAfterCapture();
+    }
+
+    /// <summary>
+    /// Applies a captured combo. On rejection the box stays armed (and suspended) with the reason
+    /// shown, so the user can just press a different one.
+    /// </summary>
+    public bool ApplyHotkey(KeyModifiers modifiers, Key key)
+    {
+        if (_hotkeys is null)
+        {
+            return false;
+        }
+
+        if (!_hotkeys.TryApply(new HotkeyDefinition { Modifiers = modifiers, Key = key }, out var error))
+        {
+            HotkeyError = error;
+
+            // TryApply put the old combo back; drop it again so capture keeps working.
+            _hotkeys.SuspendForCapture();
+            return false;
+        }
+
+        IsCapturingHotkey = false;
+        HotkeyError = null;
+        NotifyHotkeyChanged();
+        return true;
+    }
+
+    /// <summary>Puts the shipped Ctrl+Alt+G back.</summary>
+    [RelayCommand]
+    private void ResetHotkey()
+    {
+        if (_hotkeys is null)
+        {
+            return;
+        }
+
+        IsCapturingHotkey = false;
+        HotkeyError = _hotkeys.TryResetToDefault(out var error) ? null : error;
+        NotifyHotkeyChanged();
+    }
+
+    private void NotifyHotkeyChanged()
+    {
+        OnPropertyChanged(nameof(HotkeyDisplay));
+        OnPropertyChanged(nameof(HotkeyButtonText));
     }
 
     // ---- Updates ------------------------------------------------------------------------------

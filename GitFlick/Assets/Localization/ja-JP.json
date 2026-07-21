@@ -263,6 +263,13 @@
   "Settings_Theme_Dark": "ダーク",
   "Settings_Accent": "アクセントカラー",
 
+  "Settings_Hotkey": "グローバルホットキー",
+  "Settings_Hotkey_Press": "キーの組み合わせを押してください…",
+  "Settings_Hotkey_Reset": "リセット",
+  "Settings_Hotkey_Hint": "ボックスをクリックし、どこからでも GitFlick を呼び出す組み合わせを押します。Esc で取り消せます。",
+  "Settings_Hotkey_NeedModifier": "Ctrl・Alt・Win のいずれかを含めてください。ないとそのキーをシステム全体で奪ってしまいます。",
+  "Settings_Hotkey_UnusableKey": "「{0}」はグローバルホットキーとして使用できません。",
+
   "Settings_Updates": "アップデート",
   "Update_CurrentVersion": "現在のバージョン",
   "Update_CheckForUpdates": "更新を確認",

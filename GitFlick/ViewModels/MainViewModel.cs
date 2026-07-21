@@ -104,6 +104,9 @@ public partial class MainViewModel : ViewModelBase
     /// <summary>The self-update service. Set by <c>App</c> at startup; used by the palette ⚙.</summary>
     public Services.Updates.UpdateService? UpdateService { get; set; }
 
+    /// <summary>Re-binds the global hotkey. Set by <c>App</c> at startup; used by the palette ⚙.</summary>
+    public HotkeyCoordinator? Hotkeys { get; set; }
+
     public void ReportHotkeyFailure(string message)
     {
         HotkeyStatus = message;

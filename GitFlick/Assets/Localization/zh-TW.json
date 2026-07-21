@@ -263,6 +263,13 @@
   "Settings_Theme_Dark": "深色",
   "Settings_Accent": "強調色",
 
+  "Settings_Hotkey": "全域快捷鍵",
+  "Settings_Hotkey_Press": "請按下組合鍵…",
+  "Settings_Hotkey_Reset": "重設",
+  "Settings_Hotkey_Hint": "點一下方塊,再按下用來隨處喚出 GitFlick 的組合鍵。按 Esc 取消。",
+  "Settings_Hotkey_NeedModifier": "必須包含 Ctrl、Alt 或 Win,否則該按鍵會在整個系統中被攔截。",
+  "Settings_Hotkey_UnusableKey": "「{0}」無法作為全域快捷鍵。",
+
   "Settings_Updates": "更新",
   "Update_CurrentVersion": "目前版本",
   "Update_CheckForUpdates": "檢查更新",

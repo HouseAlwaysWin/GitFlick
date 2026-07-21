@@ -263,6 +263,13 @@
   "Settings_Theme_Dark": "Dark",
   "Settings_Accent": "ACCENT COLOUR",
 
+  "Settings_Hotkey": "GLOBAL HOTKEY",
+  "Settings_Hotkey_Press": "Press a key combination…",
+  "Settings_Hotkey_Reset": "Reset",
+  "Settings_Hotkey_Hint": "Click the box, then press the combination that summons GitFlick from anywhere. Esc cancels.",
+  "Settings_Hotkey_NeedModifier": "Include Ctrl, Alt or Win — without one, that key would be swallowed system-wide.",
+  "Settings_Hotkey_UnusableKey": "'{0}' cannot be used as a global hotkey.",
+
   "Settings_Updates": "UPDATES",
   "Update_CurrentVersion": "Current version",
   "Update_CheckForUpdates": "Check for updates",

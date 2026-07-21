@@ -80,6 +80,26 @@
             </ItemsControl>
         </StackPanel>
 
+        <StackPanel Spacing="6">
+            <TextBlock Text="{loc:Tr Settings_Hotkey}" FontSize="10" Opacity="0.5" />
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <!-- Click to arm, then press a combo. The window's tunnelling KeyDown records it. -->
+                <Button Grid.Column="0" x:Name="HotkeyCaptureButton"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                        FontFamily="Cascadia Mono,Consolas,monospace"
+                        Content="{Binding HotkeyButtonText}"
+                        IsEnabled="{Binding CanEditHotkey}"
+                        Command="{Binding StartHotkeyCaptureCommand}"
+                        LostFocus="OnHotkeyCaptureLostFocus" />
+                <Button Grid.Column="1" Content="{loc:Tr Settings_Hotkey_Reset}"
+                        IsEnabled="{Binding CanEditHotkey}"
+                        Command="{Binding ResetHotkeyCommand}" />
+            </Grid>
+            <TextBlock Text="{loc:Tr Settings_Hotkey_Hint}" FontSize="11" Opacity="0.5" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding HotkeyError}" IsVisible="{Binding HasHotkeyError}"
+                       FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource RedBrush}" />
+        </StackPanel>
+
         <Border Height="1" Background="{DynamicResource SubtleForeground}" Opacity="0.15" Margin="0,2" />
 
         <StackPanel Spacing="10">

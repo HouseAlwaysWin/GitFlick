@@ -515,7 +515,10 @@ public partial class MainWindow : Window
 
         if (_settingsWindow is null)
         {
-            _settingsWindow = new SettingsWindow { DataContext = new SettingsViewModel(settings, updater) };
+            _settingsWindow = new SettingsWindow
+            {
+                DataContext = new SettingsViewModel(settings, updater, mainVm.Hotkeys),
+            };
             _settingsWindow.Closed += (_, _) => _settingsWindow = null;
             _settingsWindow.Show(this);
         }

@@ -20,6 +20,7 @@ public partial class App : Application
     private MainViewModel? _viewModel;
     private ISettingsService? _settings;
     private IGlobalHotkeyService? _hotkeys;
+    private HotkeyCoordinator? _hotkeyCoordinator;
     private IGitService? _gitService;
     private UpdateService? _updateService;
     private TrayIcon? _trayIcon;
@@ -159,11 +160,13 @@ public partial class App : Application
 
         _hotkeys.HotkeyPressed += OnHotkeyPressed;
 
-        var hotkey = _settings!.Current.Hotkey;
+        // Settings re-binds the hotkey through this same coordinator, so registering, persisting and
+        // refreshing the tray tooltip all happen in one place.
+        _hotkeyCoordinator = new HotkeyCoordinator(_hotkeys, _settings!, SetTrayToolTip);
+        _viewModel!.Hotkeys = _hotkeyCoordinator;
 
-        if (_hotkeys.TryRegister(hotkey, out var error))
+        if (_hotkeyCoordinator.TryRegisterCurrent(out var error))
         {
-            SetTrayToolTip($"GitFlick — {hotkey.ToDisplayString()}");
             return;
         }
 
