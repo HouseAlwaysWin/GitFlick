@@ -662,15 +662,6 @@ public partial class MainWindow : Window
 
     private WorkspaceViewModel? Workspace => (DataContext as MainViewModel)?.Workspace;
 
-    /// <summary>Hovering a commit row loads its containment (branches + HEAD) for the row's popup.</summary>
-    private void OnCommitRowPointerEntered(object? sender, PointerEventArgs e)
-    {
-        if (sender is Control { DataContext: CommitInfo commit } && Workspace is { } ws)
-        {
-            ws.ShowCommitHoverInfo(commit);
-        }
-    }
-
     /// <summary>Double-clicking a branch badge in the graph checks it out, à la Git Graph.</summary>
     private void OnRefBadgeDoubleTapped(object? sender, TappedEventArgs e)
     {

@@ -553,9 +553,13 @@ public partial class WorkspaceViewModel : ViewModelBase
     private readonly Dictionary<string, CommitContainment> _containmentCache = new(StringComparer.Ordinal);
     private CommitInfo? _hoverTarget;
 
-    /// <summary>Text shown in a commit row's hover popup. Filled instantly, then enriched once git answers.</summary>
+    /// <summary>The selected commit's "branches + in HEAD" line. Filled instantly, then enriched by git.</summary>
     [ObservableProperty]
     public partial string HoverCommitInfo { get; set; } = string.Empty;
+
+    partial void OnHoverCommitInfoChanged(string value) => OnPropertyChanged(nameof(HasCommitBranchInfo));
+
+    public bool HasCommitBranchInfo => !string.IsNullOrEmpty(HoverCommitInfo);
 
     /// <summary>
     /// Called when the pointer enters a commit row: shows the SHA immediately, then (once git reports
@@ -1820,12 +1824,19 @@ public partial class WorkspaceViewModel : ViewModelBase
 
     partial void OnSelectedCommitChanged(CommitInfo? value)
     {
-        if (_reorderingCommits || value is null)
+        if (_reorderingCommits)
         {
             return;
         }
 
+        if (value is null)
+        {
+            HoverCommitInfo = string.Empty;
+            return;
+        }
+
         DiffLoad = LoadCommitFilesAsync(value);
+        ShowCommitHoverInfo(value);   // load "branches + in HEAD" for the info line shown with the diff
     }
 
     /// <summary>Loads the selected commit's changed files, then shows the first file's diff.</summary>
