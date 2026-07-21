@@ -23,6 +23,17 @@ public sealed partial class CommitBranchInfo : ObservableObject
     [ObservableProperty]
     public partial bool IsLoaded { get; set; }
 
+    // The card lays out on ONE line, so every element is a sibling and gates itself — these fold the
+    // "already loaded" check into the HEAD chips instead of relying on a wrapping container.
+
+    /// <summary>Loaded and reachable from HEAD — shows the green chip.</summary>
+    [ObservableProperty]
+    public partial bool ShowInHead { get; set; }
+
+    /// <summary>Loaded and not reachable from HEAD — shows the grey chip.</summary>
+    [ObservableProperty]
+    public partial bool ShowNotInHead { get; set; }
+
     [ObservableProperty]
     public partial bool HasBranches { get; set; }
 
@@ -53,6 +64,8 @@ public sealed partial class CommitBranchInfo : ObservableObject
         Sha = sha;
         IsLoaded = containment is not null;
         InHead = containment?.InHead ?? false;
+        ShowInHead = IsLoaded && InHead;
+        ShowNotInHead = IsLoaded && !InHead;
 
         Branches.Clear();
         if (containment is not null)
@@ -81,6 +94,8 @@ public sealed partial class CommitBranchInfo : ObservableObject
         Sha = string.Empty;
         IsLoaded = false;
         InHead = false;
+        ShowInHead = false;
+        ShowNotInHead = false;
         Branches.Clear();
         HasBranches = false;
         NearestBranch = string.Empty;

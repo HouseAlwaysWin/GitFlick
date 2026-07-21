@@ -24,11 +24,77 @@
         <vm:MainViewModel />
     </Design.DataContext>
 
+    <Window.Resources>
+        <!-- One-line variant of the commit branch/HEAD card, for the bar above the diff: SHA, HEAD chip
+             and branch all on a single row, so it costs one row of height instead of three. Applied
+             explicitly via ContentTemplate (the stacked implicit template below still serves the
+             graph-dot tooltip). A WrapPanel, not a StackPanel, so a long branch name wraps rather than
+             overflowing; every element is a sibling that gates itself, hence ShowInHead/ShowNotInHead,
+             which fold the "loaded yet?" check into the chips. -->
+        <DataTemplate x:Key="BranchInfoLine" DataType="vm:CommitBranchInfo">
+            <WrapPanel Orientation="Horizontal">
+                <TextBlock FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0">
+                    <Run Text="{loc:Tr History_Hover_CommitLabel}" Foreground="{DynamicResource SubtleForeground}" />
+                    <Run Text="{Binding Sha}" FontFamily="Cascadia Mono,Consolas,monospace" FontWeight="SemiBold" />
+                </TextBlock>
+
+                <TextBlock Text="{loc:Tr History_Hover_Loading}" FontSize="11" Opacity="0.7"
+                           VerticalAlignment="Center" IsVisible="{Binding !IsLoaded}" />
+
+                <Border CornerRadius="3" Padding="6,1" Margin="0,0,8,0" BorderThickness="1"
+                        VerticalAlignment="Center"
+                        Background="#2C8F41" BorderBrush="#3FB950" IsVisible="{Binding ShowInHead}">
+                    <TextBlock Text="{loc:Tr History_Hover_InHead}" FontSize="10" Foreground="White" />
+                </Border>
+                <Border CornerRadius="3" Padding="6,1" Margin="0,0,8,0" BorderThickness="1"
+                        VerticalAlignment="Center"
+                        Background="#4D555E" BorderBrush="#6A737D" IsVisible="{Binding ShowNotInHead}">
+                    <TextBlock Text="{loc:Tr History_Hover_NotInHead}" FontSize="10" Foreground="White" />
+                </Border>
+
+                <ItemsControl ItemsSource="{Binding Branches}" IsVisible="{Binding HasBranches}"
+                              VerticalAlignment="Center">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel Orientation="Horizontal" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="sys:String">
+                            <Border CornerRadius="3" Padding="5,1" Margin="0,0,3,0" BorderThickness="1"
+                                    Background="#6E4CB8" BorderBrush="#A371F7" MaxWidth="230">
+                                <TextBlock Text="{Binding}" FontSize="10" Foreground="White"
+                                           TextTrimming="CharacterEllipsis" />
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center"
+                            IsVisible="{Binding HasNearest}">
+                    <TextBlock Text="{loc:Tr History_Hover_OnBranch}" FontSize="10" Opacity="0.6"
+                               VerticalAlignment="Center" IsVisible="{Binding !NearestIsMerge}" />
+                    <TextBlock Text="{loc:Tr History_Hover_MergedFrom}" FontSize="10" Opacity="0.6"
+                               VerticalAlignment="Center" IsVisible="{Binding NearestIsMerge}" />
+                    <Border CornerRadius="3" Padding="5,1" BorderThickness="1"
+                            Background="Transparent" BorderBrush="#6A737D" MaxWidth="320">
+                        <TextBlock Text="{Binding NearestBranch}" FontSize="10"
+                                   TextTrimming="CharacterEllipsis" />
+                    </Border>
+                </StackPanel>
+
+                <TextBlock Text="{loc:Tr History_Hover_NoBranches}" FontSize="11" Opacity="0.7"
+                           VerticalAlignment="Center" IsVisible="{Binding HasNoRef}" />
+            </WrapPanel>
+        </DataTemplate>
+    </Window.Resources>
+
     <Window.DataTemplates>
-        <!-- "Where does this commit sit" card: SHA title, a HEAD chip, and a chip per containing branch.
-             Content only (no card chrome) so it reads well both inside the graph-dot tooltip's own frame
-             and inside the diff pane's tinted bar. Fills in place: SHA shows at once, the rest once git
-             answers (IsLoaded), so an open popup never flickers empty. -->
+        <!-- "Where does this commit sit" card, stacked: SHA title, a HEAD chip, then its branch. Used by
+             the graph-dot hover popup, where a tall narrow card suits the tooltip. (The diff pane uses
+             the one-line variant below instead — see BranchInfoLine.) Content only (no card chrome) so
+             it sits cleanly inside the tooltip's own frame. Fills in place: the SHA shows at once, the
+             rest once git answers (IsLoaded), so an open popup never flickers empty. -->
         <DataTemplate DataType="vm:CommitBranchInfo">
             <StackPanel Spacing="5" MaxWidth="320">
                 <TextBlock FontSize="12" TextWrapping="Wrap">
@@ -51,7 +117,7 @@
                         <TextBlock Text="{loc:Tr History_Hover_NotInHead}" FontSize="10" Foreground="White" />
                     </Border>
 
-                    <!-- One chip per containing branch (capped, with a trailing "+N"). -->
+                    <!-- One chip per ref pointing here (capped, with a trailing "+N"). -->
                     <ItemsControl ItemsSource="{Binding Branches}" IsVisible="{Binding HasBranches}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
@@ -1191,8 +1257,9 @@
                         <DockPanel>
                             <!-- Branch/HEAD card for the selected commit (loaded on select). -->
                             <Border DockPanel.Dock="Top" IsVisible="{Binding SelectedInfo.HasSha}"
-                                    Background="#22588CF0" BorderBrush="#40588CF0" BorderThickness="0,0,0,1" Padding="8,6">
-                                <ContentControl Content="{Binding SelectedInfo}" HorizontalAlignment="Left" />
+                                    Background="#22588CF0" BorderBrush="#40588CF0" BorderThickness="0,0,0,1" Padding="8,4">
+                                <ContentControl Content="{Binding SelectedInfo}" HorizontalAlignment="Left"
+                                                ContentTemplate="{StaticResource BranchInfoLine}" />
                             </Border>
                         <Panel>
                             <ListBox x:Name="CommitFilesList"
