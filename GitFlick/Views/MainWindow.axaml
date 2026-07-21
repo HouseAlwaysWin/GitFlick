@@ -888,6 +888,7 @@
                                                         Command="{Binding ClearAuthorFilterCommand}" />
                                             </Grid>
                                             <TextBox Text="{Binding AuthorFilterSearch}" PlaceholderText="{loc:Tr History_SearchAuthors}"
+                                                     VerticalContentAlignment="Center"
                                                      FontSize="12" Padding="6,3" />
                                             <ScrollViewer MaxHeight="280">
                                                 <ItemsControl ItemsSource="{Binding FilteredAuthorFilters}">
@@ -918,6 +919,7 @@
                                                         Command="{Binding ClearBranchFilterCommand}" />
                                             </Grid>
                                             <TextBox Text="{Binding BranchFilterSearch}" PlaceholderText="{loc:Tr History_SearchBranches}"
+                                                     VerticalContentAlignment="Center"
                                                      FontSize="12" Padding="6,3" />
                                             <ScrollViewer MaxHeight="280">
                                                 <ItemsControl ItemsSource="{Binding FilteredBranchFilters}">
