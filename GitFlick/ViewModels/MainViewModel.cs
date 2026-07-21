@@ -127,12 +127,15 @@ public partial class MainViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// A launcher always comes back to its search box. Called every time the window is summoned.
+    /// Freshens the palette for a new summon: a cleared search box and no stale status. Called every
+    /// time the window comes back from the tray.
+    /// <para>
+    /// An open repo is deliberately left alone — summoning drops you back into whatever you were
+    /// looking at, rather than throwing the workspace away. Esc remains the way out to the palette.
+    /// </para>
     /// </summary>
     public void ResetForSummon()
     {
-        OpenRepo = null;
-        Workspace = null;
         StatusMessage = string.Empty;
         SearchText = string.Empty;
         ApplyFilter();

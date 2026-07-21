@@ -1558,6 +1558,12 @@ private void OnShowFileHistoryClick(object? sender, RoutedEventArgs e)
     /// </summary>
     public void FocusInput()
     {
+        // With a repo open the palette isn't on screen; don't pull focus onto a hidden search box.
+        if (DataContext is MainViewModel { IsRepoOpen: true })
+        {
+            return;
+        }
+
         SearchBox.Focus();
         SearchBox.SelectAll();
     }

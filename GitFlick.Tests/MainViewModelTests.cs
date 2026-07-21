@@ -200,7 +200,7 @@ public class MainViewModelTests : IDisposable
     }
 
     [Fact]
-    public void ResetForSummon_clears_search_and_leaves_the_workspace()
+    public void ResetForSummon_clears_the_search_but_keeps_you_in_the_open_repo()
     {
         var vm = NewViewModel(out _);
         vm.AddRepository(_repoA);
@@ -210,7 +210,9 @@ public class MainViewModelTests : IDisposable
 
         vm.ResetForSummon();
 
-        Assert.True(vm.IsPaletteVisible);
+        // Summoning returns you to what you were looking at; Esc is the way back to the palette.
+        Assert.True(vm.IsRepoOpen);
+        Assert.NotNull(vm.Workspace);
         Assert.Empty(vm.SearchText);
     }
 

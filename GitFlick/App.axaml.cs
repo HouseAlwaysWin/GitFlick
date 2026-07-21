@@ -248,8 +248,9 @@ public partial class App : Application
             _mainWindow.WindowState = WindowState.Normal;
         }
 
-        // Only re-centre and reset when coming back from the tray. Restoring from the taskbar
-        // should leave the window where the user put it, and leave them where they were.
+        // Coming back from the tray re-centres the window and freshens the palette's search box.
+        // Restoring from the taskbar leaves it exactly where the user put it. Either way the view
+        // itself survives: you land back on whatever you had open, not on the picker.
         if (wasHidden)
         {
             PositionWindow();
