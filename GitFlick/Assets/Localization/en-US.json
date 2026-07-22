@@ -300,6 +300,7 @@
   "Diff_SelectCommit": "Select a commit to see what it changed.",
   "Diff_SelectFile": "Select a changed file to see its diff.",
 
+  "Banner_Dismiss": "Dismiss",
   "Dialog_Cancel": "Cancel",
   "Dialog_Close": "Close",
   "Dialog_CommitMessage_Title": "Commit message · {0}",

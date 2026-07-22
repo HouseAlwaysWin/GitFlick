@@ -300,6 +300,7 @@
   "Diff_SelectCommit": "変更内容を表示するにはコミットを選択してください。",
   "Diff_SelectFile": "差分を表示するには変更されたファイルを選択してください。",
 
+  "Banner_Dismiss": "この通知を閉じる",
   "Dialog_Cancel": "キャンセル",
   "Dialog_Close": "閉じる",
   "Dialog_CommitMessage_Title": "コミットメッセージ · {0}",

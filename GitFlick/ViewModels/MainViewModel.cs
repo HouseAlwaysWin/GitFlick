@@ -113,6 +113,18 @@ public partial class MainViewModel : ViewModelBase
         HasHotkeyStatus = true;
     }
 
+    /// <summary>
+    /// Dismisses the hotkey warning. It's advisory — the hotkey stays inactive until it's rebound in
+    /// ⚙ Settings — but there's nothing more to say once it has been read, so it shouldn't sit there
+    /// taking up the top of the window for the whole session.
+    /// </summary>
+    [RelayCommand]
+    private void DismissHotkeyStatus()
+    {
+        HasHotkeyStatus = false;
+        HotkeyStatus = string.Empty;
+    }
+
     public void ReportGitMissing(string message)
     {
         GitWarning = message;

@@ -267,6 +267,8 @@
 
     <DockPanel Margin="16">
 
+        <!-- Advisory, so it can be dismissed: the hotkey stays inactive until it's rebound in
+             ⚙ Settings, but the warning shouldn't hold the top of the window all session. -->
         <Border DockPanel.Dock="Top"
                 IsVisible="{Binding HasHotkeyStatus}"
                 Background="#40F05133"
@@ -275,7 +277,14 @@
                 CornerRadius="4"
                 Padding="10,8"
                 Margin="0,0,0,12">
-            <TextBlock Text="{Binding HotkeyStatus}" TextWrapping="Wrap" />
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <TextBlock Grid.Column="0" Text="{Binding HotkeyStatus}" TextWrapping="Wrap"
+                           VerticalAlignment="Center" />
+                <Button Grid.Column="1" Content="✕" Classes="header"
+                        VerticalAlignment="Center" FontSize="12" Padding="6,1"
+                        Command="{Binding DismissHotkeyStatusCommand}"
+                        ToolTip.Tip="{loc:Tr Banner_Dismiss}" />
+            </Grid>
         </Border>
 
         <Border DockPanel.Dock="Top"

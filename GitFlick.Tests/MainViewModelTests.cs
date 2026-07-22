@@ -200,6 +200,24 @@ public class MainViewModelTests : IDisposable
     }
 
     [Fact]
+    public void The_hotkey_warning_can_be_dismissed()
+    {
+        var vm = NewViewModel(out _);
+        vm.ReportHotkeyFailure("Ctrl+Alt+G is already in use by another application.");
+
+        Assert.True(vm.HasHotkeyStatus);
+
+        vm.DismissHotkeyStatusCommand.Execute(null);
+
+        // Gone for good this session — it must not come back when the window is re-summoned.
+        Assert.False(vm.HasHotkeyStatus);
+        Assert.Empty(vm.HotkeyStatus);
+
+        vm.ResetForSummon();
+        Assert.False(vm.HasHotkeyStatus);
+    }
+
+    [Fact]
     public void ResetForSummon_clears_the_search_but_keeps_you_in_the_open_repo()
     {
         var vm = NewViewModel(out _);

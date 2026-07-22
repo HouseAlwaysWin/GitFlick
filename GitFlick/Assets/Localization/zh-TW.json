@@ -300,6 +300,7 @@
   "Diff_SelectCommit": "選擇一個提交以查看其變更內容。",
   "Diff_SelectFile": "選擇一個變更的檔案以查看其差異。",
 
+  "Banner_Dismiss": "關閉這則提示",
   "Dialog_Cancel": "取消",
   "Dialog_Close": "關閉",
   "Dialog_CommitMessage_Title": "提交訊息 · {0}",
