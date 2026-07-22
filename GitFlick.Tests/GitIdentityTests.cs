@@ -1,3 +1,6 @@
+using System;
+using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using GitFlick.Models;
@@ -51,6 +54,40 @@ public class GitIdentityTests
         var result = await _git.ClearRepoIdentityAsync(repo.Path);
 
         Assert.True(result.Succeeded, result.FailureMessage);
+    }
+
+    [Fact]
+    public async Task A_failed_read_does_not_get_reported_as_no_identity()
+    {
+        // Not a repo at all, so the config reads fail outright. That must surface as an error rather
+        // than an empty identity — claiming "you have no name/email set" when the read simply broke is
+        // the one thing this must never do.
+        var notARepo = Path.Combine(Path.GetTempPath(), "gitflick-not-a-repo-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(notARepo);
+
+        try
+        {
+            await Assert.ThrowsAsync<GitException>(() => _git.GetIdentityAsync(notARepo));
+        }
+        finally
+        {
+            Directory.Delete(notARepo, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task A_repo_with_no_identity_anywhere_reports_it_as_unconfigured()
+    {
+        using var repo = new TestRepo();
+
+        // Hide the global config so nothing is inherited; an unset key exits 1, which is a real
+        // "not configured" answer and must NOT be mistaken for a failure.
+        await _git.SetIdentityAsync(repo.Path, "Someone", "someone@example.com", global: false);
+        await _git.ClearRepoIdentityAsync(repo.Path);
+
+        var identity = await _git.GetIdentityAsync(repo.Path);
+
+        Assert.False(identity.IsRepoOverride);   // read succeeded; it just has no override
     }
 
     [Fact]

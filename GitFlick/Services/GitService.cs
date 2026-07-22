@@ -206,6 +206,25 @@ public sealed class GitService : IGitService
         return new GitIdentity(name, email, localName.Length > 0 || localEmail.Length > 0);
     }
 
+    /// <summary>
+    /// One config read. <c>git config &lt;key&gt;</c> exits 1 for a key that simply isn't set, which is a
+    /// legitimate empty answer; any other non-zero exit is a real failure and must not be reported as
+    /// "no identity configured" — that would tell the user they have none when they do.
+    /// </summary>
+    private async Task<string> ConfigValueAsync(string repoPath, string[] args, CancellationToken cancellationToken)
+    {
+        var result = await RunAsync(repoPath, args, null, cancellationToken).ConfigureAwait(false);
+
+        if (result.Succeeded)
+        {
+            return result.StandardOutput.Trim();
+        }
+
+        return result.ExitCode == 1
+            ? string.Empty
+            : throw new GitException($"git {string.Join(' ', args)} failed: {result.FailureMessage}");
+    }
+
     public async Task<GitCommandResult> SetIdentityAsync(
         string repoPath, string name, string email, bool global, CancellationToken cancellationToken = default)
     {
@@ -235,13 +254,6 @@ public sealed class GitService : IGitService
         return email.Succeeded || email.ExitCode == 5
             ? new GitCommandResult(0, string.Empty, string.Empty)
             : email;
-    }
-
-    /// <summary>A single config read; an unset key is empty rather than an error.</summary>
-    private async Task<string> ConfigValueAsync(string repoPath, string[] args, CancellationToken cancellationToken)
-    {
-        var result = await RunAsync(repoPath, args, null, cancellationToken).ConfigureAwait(false);
-        return result.Succeeded ? result.StandardOutput.Trim() : string.Empty;
     }
 
     public async Task<IReadOnlyList<string>> GetRemotesAsync(string repoPath, CancellationToken cancellationToken = default)

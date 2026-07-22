@@ -392,7 +392,9 @@ public partial class WorkspaceViewModel : ViewModelBase
         }
         catch (GitException)
         {
-            Identity = GitIdentity.None;
+            // A failed read is not "no identity configured". Blanking it here would claim the user has
+            // none — the one message this feature must never get wrong — so keep the last known value.
+            return;
         }
 
         IdentityNameInput = Identity.Name;
@@ -556,7 +558,15 @@ public partial class WorkspaceViewModel : ViewModelBase
 
     /// <summary>A quiet background fetch is running to refresh the ahead/behind counts.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsWorking))]
     public partial bool IsCheckingRemote { get; set; }
+
+    /// <summary>
+    /// Anything is in flight — a command, or the quiet background fetch. Drives the loading line at the
+    /// top of the window, which is the only signal a long operation gets: the background fetch
+    /// deliberately doesn't touch the status text, and a toolbar label would reflow the toolbar.
+    /// </summary>
+    public bool IsWorking => IsBusy || IsCheckingRemote;
 
     [ObservableProperty]
     public partial GitStatusEntry? SelectedUnstagedFile { get; set; }
@@ -663,6 +673,7 @@ public partial class WorkspaceViewModel : ViewModelBase
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanCommit))]
+    [NotifyPropertyChangedFor(nameof(IsWorking))]
     public partial bool IsBusy { get; set; }
 
     [ObservableProperty]

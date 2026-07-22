@@ -284,6 +284,17 @@
 
     <DockPanel Margin="16">
 
+        <!-- Loading line. A long fetch/pull used to show only as a toolbar label, which both buried the
+             signal and reflowed the toolbar as it appeared and vanished. A 2px indeterminate bar at the
+             top says "something is running" without taking part in any other layout — it collapses to
+             nothing when idle. -->
+        <ProgressBar DockPanel.Dock="Top"
+                     Height="2" Margin="0,0,0,10"
+                     IsIndeterminate="True"
+                     ShowProgressText="False"
+                     MinWidth="0"
+                     IsVisible="{Binding Workspace.IsWorking, FallbackValue=False}" />
+
         <!-- Advisory, so it can be dismissed: the hotkey stays inactive until it's rebound in
              ⚙ Settings, but the warning shouldn't hold the top of the window all session. -->
         <Border DockPanel.Dock="Top"
@@ -471,9 +482,9 @@
                      left. Repo name and branch live in the OS title bar (see UpdateTitle). -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center"
                             Margin="10,0,0,0">
-                    <TextBlock VerticalAlignment="Center" Opacity="0.5" FontSize="12"
-                               Text="{loc:Tr Sync_Checking}"
-                               IsVisible="{Binding IsCheckingRemote}" />
+                    <!-- "Checking remote…" used to sit here; it appeared and disappeared mid-session and
+                         reflowed the whole toolbar. The loading line at the top of the window says the
+                         same thing without consuming width. -->
                     <TextBlock VerticalAlignment="Center" Opacity="0.6" FontSize="12"
                                Text="{Binding Ahead, StringFormat='↑{0}'}"
                                IsVisible="{Binding Ahead}" />
@@ -482,7 +493,10 @@
                                IsVisible="{Binding Behind}" />
                     <!-- Who you are: the commit author and the account allowed to push. They're
                          independent, and them disagreeing is the classic trap, so both live here. -->
+                    <!-- Capped: an identity name is arbitrary text, and letting it size the toolbar
+                         would wrap the button row on a long one. -->
                     <Button Classes="header" VerticalAlignment="Center"
+                            MaxWidth="150" ClipToBounds="True"
                             Content="{Binding IdentityLabel}"
                             ToolTip.Tip="{loc:Tr Account_Tooltip}">
                         <Button.Flyout>
