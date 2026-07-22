@@ -377,6 +377,16 @@ public partial class WorkspaceViewModel : ViewModelBase
     [ObservableProperty]
     public partial string NewBranchName { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Ref the new branch starts from. Defaults to the checked-out branch (git's own default), but can
+    /// be any branch, tag or SHA — typing one that isn't in <see cref="BaseRefs"/> is allowed.
+    /// </summary>
+    [ObservableProperty]
+    public partial string NewBranchFrom { get; set; } = string.Empty;
+
+    /// <summary>Completions for "create from": local branches first, then remote-tracking ones.</summary>
+    public ObservableCollection<string> BaseRefs { get; } = [];
+
     /// <summary>Fuzzy query that narrows the Branch-flyout list, so a repo with many branches stays findable.</summary>
     [ObservableProperty]
     public partial string BranchSearch { get; set; } = string.Empty;
@@ -1930,6 +1940,7 @@ public partial class WorkspaceViewModel : ViewModelBase
                 ?? Branches.FirstOrDefault(b => b.IsCurrent);
             NarrowBranches();   // keep the Branch-flyout's filtered view in sync with the refreshed list
             _containmentCache.Clear();   // branch tips / HEAD moved, so cached commit-containment is stale
+            await RefreshBaseRefsAsync();
 
             var stashes = await _git.GetStashesAsync(Repository.Path);
             Replace(Stashes, stashes);
@@ -2363,6 +2374,31 @@ public partial class WorkspaceViewModel : ViewModelBase
     private Task PullRebase() =>
         RunAsync(() => _git.PullRebaseAsync(Repository.Path, Progress()), Loc["Status_PulledRebase"]);
 
+    // Completions for "create branch from": local branches first (the common case), then the
+    // remote-tracking ones, since branching off origin/… is just as routine. Best-effort — a repo with
+    // no remote simply gets the local list, and the box takes free text either way.
+    private async Task RefreshBaseRefsAsync()
+    {
+        var refs = new List<string>(Branches.Select(b => b.Name));
+
+        try
+        {
+            refs.AddRange(await _git.GetRemoteBranchesAsync(Repository.Path));
+        }
+        catch (GitException)
+        {
+            // No remote, or git refused — the local branches are still worth offering.
+        }
+
+        Replace(BaseRefs, refs);
+
+        // Default to branching off where you are, which is what git does with no start point.
+        if (NewBranchFrom.Length == 0)
+        {
+            NewBranchFrom = BranchName;
+        }
+    }
+
     /// <summary>
     /// Narrows "origin/main"-style remote-tracking refs to one remote and strips the prefix, because
     /// <c>git pull &lt;remote&gt; &lt;branch&gt;</c> wants the bare branch name.
@@ -2457,7 +2493,16 @@ public partial class WorkspaceViewModel : ViewModelBase
             return;
         }
 
-        await RunAsync(() => _git.CreateBranchAsync(Repository.Path, name), string.Format(Loc["Status_CreatedBranch"], name));
+        // Blank, or already the checked-out branch, means "from HEAD" — leave it to git.
+        var from = NewBranchFrom.Trim();
+        var startPoint = from.Length == 0 || from == BranchName ? null : from;
+
+        await RunAsync(
+            () => _git.CreateBranchAsync(Repository.Path, name, checkout: true, startPoint),
+            startPoint is null
+                ? string.Format(Loc["Status_CreatedBranch"], name)
+                : string.Format(Loc["Status_CreatedBranchFrom"], name, startPoint));
+
         NewBranchName = string.Empty;
     }
 

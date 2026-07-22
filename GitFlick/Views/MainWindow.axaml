@@ -527,6 +527,21 @@
                                                  Text="{Binding NewBranchName}" VerticalContentAlignment="Center" />
                                         <Button Grid.Column="1" Content="{loc:Tr Branch_Create}" Command="{Binding CreateBranchCommand}" />
                                     </Grid>
+                                    <!-- Where the branch starts. Defaults to the checked-out branch; takes any
+                                         branch/tag/SHA, so free text is accepted even if it isn't in the list. -->
+                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6">
+                                        <TextBlock Grid.Column="0" Text="{loc:Tr Branch_CreateFrom}"
+                                                   FontSize="10" Opacity="0.5" VerticalAlignment="Center" />
+                                        <AutoCompleteBox Grid.Column="1"
+                                                         Text="{Binding NewBranchFrom, Mode=TwoWay}"
+                                                         ItemsSource="{Binding BaseRefs}"
+                                                         FilterMode="Custom"
+                                                         ItemFilter="{x:Static vm:FuzzyFilters.Any}"
+                                                         MinimumPrefixLength="0"
+                                                         MaxDropDownHeight="200"
+                                                         PlaceholderText="{loc:Tr Branch_CreateFromPlaceholder}"
+                                                         FontSize="12" />
+                                    </Grid>
 
                                     <Separator Margin="0,4" />
 

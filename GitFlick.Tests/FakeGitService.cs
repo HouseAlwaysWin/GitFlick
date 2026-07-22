@@ -212,7 +212,14 @@ internal sealed class FakeGitService : IGitService
 
     public Task<GitCommandResult> CheckoutAsync(string repoPath, string branch, CancellationToken cancellationToken = default) => Task.FromResult(Ok);
 
-    public Task<GitCommandResult> CreateBranchAsync(string repoPath, string name, bool checkout = true, CancellationToken cancellationToken = default) => Task.FromResult(Ok);
+    /// <summary>The start point the last CreateBranchAsync was given (null = branch from HEAD).</summary>
+    public string? LastCreateBranchStartPoint { get; private set; }
+
+    public Task<GitCommandResult> CreateBranchAsync(string repoPath, string name, bool checkout = true, string? startPoint = null, CancellationToken cancellationToken = default)
+    {
+        LastCreateBranchStartPoint = startPoint;
+        return Task.FromResult(Ok);
+    }
 
     public Task<GitCommandResult> DeleteBranchAsync(string repoPath, string name, bool force = false, CancellationToken cancellationToken = default) => Task.FromResult(Ok);
 

@@ -1230,9 +1230,7 @@ public partial class MainWindow : Window
             Text = branch,
             PlaceholderText = Loc["Dialog_PullBranchPlaceholder"],
             FilterMode = AutoCompleteFilterMode.Custom,
-            ItemFilter = (search, item) =>
-                string.IsNullOrEmpty(search)
-                || (item is string name && FuzzyMatcher.TryMatch(name, search, out _)),
+            ItemFilter = FuzzyFilters.Any,
             MinimumPrefixLength = 0,
             MaxDropDownHeight = 220,
         };

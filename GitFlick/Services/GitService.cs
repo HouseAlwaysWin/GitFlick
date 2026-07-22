@@ -668,10 +668,25 @@ public sealed class GitService : IGitService
     public Task<GitCommandResult> CheckoutAsync(string repoPath, string branch, CancellationToken cancellationToken = default)
         => RunAsync(repoPath, ["checkout", branch], null, cancellationToken);
 
-    public Task<GitCommandResult> CreateBranchAsync(string repoPath, string name, bool checkout = true, CancellationToken cancellationToken = default)
-        => checkout
-            ? RunAsync(repoPath, ["checkout", "-b", name], null, cancellationToken)
-            : RunAsync(repoPath, ["branch", name], null, cancellationToken);
+    public Task<GitCommandResult> CreateBranchAsync(
+        string repoPath,
+        string name,
+        bool checkout = true,
+        string? startPoint = null,
+        CancellationToken cancellationToken = default)
+    {
+        // No start point means "branch from HEAD", which is git's own default — so leave the argument
+        // off entirely rather than passing the current branch explicitly.
+        var start = string.IsNullOrWhiteSpace(startPoint) ? null : startPoint.Trim();
+
+        List<string> args = checkout ? ["checkout", "-b", name] : ["branch", name];
+        if (start is not null)
+        {
+            args.Add(start);
+        }
+
+        return RunAsync(repoPath, [.. args], null, cancellationToken);
+    }
 
     public Task<GitCommandResult> DeleteBranchAsync(string repoPath, string name, bool force = false, CancellationToken cancellationToken = default)
         => RunAsync(repoPath, ["branch", force ? "-D" : "-d", name], null, cancellationToken);

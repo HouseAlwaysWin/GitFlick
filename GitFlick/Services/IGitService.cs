@@ -159,7 +159,11 @@ public interface IGitService
 
     Task<GitCommandResult> CheckoutAsync(string repoPath, string branch, CancellationToken cancellationToken = default);
 
-    Task<GitCommandResult> CreateBranchAsync(string repoPath, string name, bool checkout = true, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Creates a branch. <paramref name="startPoint"/> is the ref to branch from (a branch, tag or
+    /// SHA); null/empty branches from HEAD, which is git's default.
+    /// </summary>
+    Task<GitCommandResult> CreateBranchAsync(string repoPath, string name, bool checkout = true, string? startPoint = null, CancellationToken cancellationToken = default);
 
     Task<GitCommandResult> DeleteBranchAsync(string repoPath, string name, bool force = false, CancellationToken cancellationToken = default);
 
