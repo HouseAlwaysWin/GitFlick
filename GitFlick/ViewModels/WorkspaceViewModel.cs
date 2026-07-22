@@ -331,6 +331,195 @@ public partial class WorkspaceViewModel : ViewModelBase
     [ObservableProperty]
     public partial bool IsDetachedHead { get; set; }
 
+    // ── Accounts ────────────────────────────────────────────────────────────────────────────────
+    // Two independent things, which is the whole point of showing them together: the identity commits
+    // are authored as, and the GitHub account allowed to push. Them disagreeing is the classic trap.
+
+    private readonly GitHubAccountService _github = new();
+
+    /// <summary>Effective commit author for this repo (repo-local value beats global).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IdentityLabel))]
+    [NotifyPropertyChangedFor(nameof(IdentitySummary))]
+    public partial GitIdentity Identity { get; set; } = GitIdentity.None;
+
+    /// <summary>Short label for the toolbar button.</summary>
+    public string IdentityLabel => Identity.IsConfigured ? Identity.Name : Loc["Account_NoIdentity"];
+
+    /// <summary>"Martin Wang &lt;…&gt;" plus where it came from, for the flyout.</summary>
+    public string IdentitySummary => Identity.IsConfigured
+        ? $"{Identity} · {Loc[Identity.IsRepoOverride ? "Account_ScopeRepo" : "Account_ScopeGlobal"]}"
+        : Loc["Account_NoIdentity_Hint"];
+
+    /// <summary>Edit fields in the flyout, seeded from the effective identity.</summary>
+    [ObservableProperty]
+    public partial string IdentityNameInput { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string IdentityEmailInput { get; set; } = string.Empty;
+
+    /// <summary>Apply to this repo only rather than globally.</summary>
+    [ObservableProperty]
+    public partial bool IdentityRepoOnly { get; set; }
+
+    /// <summary>Identities saved for one-click switching.</summary>
+    public ObservableCollection<SavedIdentity> SavedIdentities { get; } = [];
+
+    /// <summary>GitHub accounts gh is signed in to.</summary>
+    public ObservableCollection<GhAccount> GitHubAccounts { get; } = [];
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasGitHubAccount))]
+    public partial string ActiveGitHubLogin { get; set; } = string.Empty;
+
+    public bool HasGitHubAccount => ActiveGitHubLogin.Length > 0;
+
+    /// <summary>gh is installed; when false the flyout shows an install hint instead of buttons.</summary>
+    [ObservableProperty]
+    public partial bool IsGhAvailable { get; set; } = true;
+
+    /// <summary>
+    /// Set by the View: confirms signing a GitHub account out of gh (login). Null (tests) = no prompt.
+    /// </summary>
+    public Func<string, Task<bool>>? ConfirmGitHubLogout { get; set; }
+
+    /// <summary>Reloads the effective identity and seeds the edit fields.</summary>
+    private async Task RefreshIdentityAsync()
+    {
+        try
+        {
+            Identity = await _git.GetIdentityAsync(Repository.Path);
+        }
+        catch (GitException)
+        {
+            Identity = GitIdentity.None;
+        }
+
+        IdentityNameInput = Identity.Name;
+        IdentityEmailInput = Identity.Email;
+        IdentityRepoOnly = Identity.IsRepoOverride;
+
+        Replace(SavedIdentities, _settings?.Current.SavedIdentities ?? []);
+    }
+
+    /// <summary>Reloads the gh account list. Best-effort: gh is optional.</summary>
+    [RelayCommand]
+    private async Task RefreshAccounts()
+    {
+        var accounts = await _github.GetAccountsAsync();
+        IsGhAvailable = _github.IsAvailable;
+
+        Replace(GitHubAccounts, accounts);
+        ActiveGitHubLogin = accounts.FirstOrDefault(a => a.IsActive)?.Login ?? string.Empty;
+    }
+
+    /// <summary>Writes the edited identity to the chosen scope.</summary>
+    [RelayCommand]
+    private async Task ApplyIdentity()
+    {
+        var name = IdentityNameInput.Trim();
+        var email = IdentityEmailInput.Trim();
+        if (name.Length == 0 || email.Length == 0)
+        {
+            return;
+        }
+
+        await RunAsync(
+            () => _git.SetIdentityAsync(Repository.Path, name, email, global: !IdentityRepoOnly),
+            string.Format(Loc["Status_IdentitySet"], name));
+
+        RememberIdentity(name, email);
+        await RefreshIdentityAsync();
+    }
+
+    /// <summary>Drops the repo-local identity so this repo follows the global one again.</summary>
+    [RelayCommand]
+    private async Task ClearRepoIdentity()
+    {
+        await RunAsync(() => _git.ClearRepoIdentityAsync(Repository.Path), Loc["Status_IdentityCleared"]);
+        await RefreshIdentityAsync();
+    }
+
+    /// <summary>One-click switch to a saved identity, at the currently selected scope.</summary>
+    [RelayCommand]
+    private async Task UseSavedIdentity(SavedIdentity? saved)
+    {
+        if (saved is null)
+        {
+            return;
+        }
+
+        IdentityNameInput = saved.Name;
+        IdentityEmailInput = saved.Email;
+        await ApplyIdentity();
+    }
+
+    [RelayCommand]
+    private void GitHubLogin()
+    {
+        if (!_github.StartLogin())
+        {
+            IsGhAvailable = false;
+            return;
+        }
+
+        StatusText = Loc["Status_GitHubLoginStarted"];
+    }
+
+    [RelayCommand]
+    private async Task SwitchGitHubAccount(GhAccount? account)
+    {
+        if (account is null || account.IsActive)
+        {
+            return;
+        }
+
+        StatusText = await _github.SwitchAsync(account.Host, account.Login)
+            ? string.Format(Loc["Status_GitHubSwitched"], account.Login)
+            : Loc["Status_GitHubSwitchFailed"];
+
+        await RefreshAccountsCommand.ExecuteAsync(null);
+    }
+
+    [RelayCommand]
+    private async Task GitHubLogout(GhAccount? account)
+    {
+        if (account is null)
+        {
+            return;
+        }
+
+        if (ConfirmGitHubLogout is not null && !await ConfirmGitHubLogout(account.Login))
+        {
+            return;
+        }
+
+        StatusText = await _github.LogoutAsync(account.Host, account.Login)
+            ? string.Format(Loc["Status_GitHubLoggedOut"], account.Login)
+            : Loc["Status_GitHubLogoutFailed"];
+
+        await RefreshAccountsCommand.ExecuteAsync(null);
+    }
+
+    // Keeps the switcher list useful without asking the user to curate it by hand.
+    private void RememberIdentity(string name, string email)
+    {
+        if (_settings is null)
+        {
+            return;
+        }
+
+        var known = _settings.Current.SavedIdentities;
+        if (known.Any(i => string.Equals(i.Email, email, StringComparison.OrdinalIgnoreCase)
+                        && string.Equals(i.Name, name, StringComparison.Ordinal)))
+        {
+            return;
+        }
+
+        known.Add(new SavedIdentity { Name = name, Email = email });
+        _settings.Save();
+    }
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsAhead))]
     [NotifyPropertyChangedFor(nameof(PushLabel))]
@@ -2045,6 +2234,7 @@ public partial class WorkspaceViewModel : ViewModelBase
             NarrowBranches();   // keep the Branch-flyout's filtered view in sync with the refreshed list
             _containmentCache.Clear();   // branch tips / HEAD moved, so cached commit-containment is stale
             await RefreshBaseRefsAsync();
+            await RefreshIdentityAsync();
 
             var stashes = await _git.GetStashesAsync(Repository.Path);
             Replace(Stashes, stashes);

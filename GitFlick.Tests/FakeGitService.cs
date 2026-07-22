@@ -85,6 +85,29 @@ internal sealed class FakeGitService : IGitService
         return Task.FromResult(Ok);
     }
 
+    /// <summary>The identity GetIdentityAsync serves.</summary>
+    public GitIdentity StubIdentity { get; set; } = GitIdentity.None;
+
+    /// <summary>Arguments of the last SetIdentityAsync, so tests can assert the scope.</summary>
+    public (string Name, string Email, bool Global)? LastIdentitySet { get; private set; }
+
+    public int ClearRepoIdentityCount { get; private set; }
+
+    public Task<GitIdentity> GetIdentityAsync(string repoPath, CancellationToken cancellationToken = default)
+        => Task.FromResult(StubIdentity);
+
+    public Task<GitCommandResult> SetIdentityAsync(string repoPath, string name, string email, bool global, CancellationToken cancellationToken = default)
+    {
+        LastIdentitySet = (name, email, global);
+        return Task.FromResult(Ok);
+    }
+
+    public Task<GitCommandResult> ClearRepoIdentityAsync(string repoPath, CancellationToken cancellationToken = default)
+    {
+        ClearRepoIdentityCount++;
+        return Task.FromResult(Ok);
+    }
+
     /// <summary>Remotes GetRemotesAsync serves; the remote check bails out when empty.</summary>
     public List<string> StubRemotes { get; } = [];
 

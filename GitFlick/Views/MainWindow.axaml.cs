@@ -705,6 +705,94 @@ public partial class MainWindow : Window
 
     private WorkspaceViewModel? Workspace => (DataContext as MainViewModel)?.Workspace;
 
+    // ── Account flyout ──────────────────────────────────────────────────────────────────────────
+    // Per-item actions use Click handlers reading the row's DataContext, matching how the ref badges
+    // and branch rows already work in this window.
+
+    /// <summary>Reads the gh account list when the flyout opens, not on every workspace refresh.</summary>
+    private void OnAccountFlyoutOpened(object? sender, EventArgs e) =>
+        Workspace?.RefreshAccountsCommand.Execute(null);
+
+    private void OnUseSavedIdentityClick(object? sender, RoutedEventArgs e)
+    {
+        if ((sender as Control)?.DataContext is SavedIdentity saved)
+        {
+            Workspace?.UseSavedIdentityCommand.Execute(saved);
+        }
+    }
+
+    private void OnSwitchGitHubAccountClick(object? sender, RoutedEventArgs e)
+    {
+        if ((sender as Control)?.DataContext is GhAccount account)
+        {
+            Workspace?.SwitchGitHubAccountCommand.Execute(account);
+        }
+    }
+
+    private void OnGitHubLogoutClick(object? sender, RoutedEventArgs e)
+    {
+        if ((sender as Control)?.DataContext is GhAccount account)
+        {
+            Workspace?.GitHubLogoutCommand.Execute(account);
+        }
+    }
+
+    /// <summary>Signing out is easy to hit by accident and re-auth is a browser round trip — confirm.</summary>
+    private async Task<bool> ConfirmGitHubLogoutAsync(string login)
+    {
+        var cancel = new Button
+        {
+            Content = Loc["Dialog_Cancel"],
+            MinWidth = 92,
+            HorizontalContentAlignment = HorizontalAlignment.Center,
+        };
+        var logout = new Button
+        {
+            Content = Loc["Account_Logout"],
+            MinWidth = 92,
+            HorizontalContentAlignment = HorizontalAlignment.Center,
+        };
+        logout.Classes.Add("danger");
+
+        var dialog = new Window
+        {
+            Title = Loc["Account_ConfirmLogout_Title"],
+            SizeToContent = SizeToContent.WidthAndHeight,
+            CanResize = false,
+            ShowInTaskbar = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Content = new Border
+            {
+                Padding = new Thickness(22),
+                Child = new StackPanel
+                {
+                    Spacing = 16,
+                    MaxWidth = 400,
+                    Children =
+                    {
+                        new TextBlock
+                        {
+                            TextWrapping = TextWrapping.Wrap,
+                            Text = string.Format(Loc["Account_ConfirmLogout_Body"], login),
+                        },
+                        new StackPanel
+                        {
+                            Orientation = Orientation.Horizontal,
+                            Spacing = 8,
+                            HorizontalAlignment = HorizontalAlignment.Right,
+                            Children = { cancel, logout },
+                        },
+                    },
+                },
+            },
+        };
+
+        cancel.Click += (_, _) => dialog.Close(false);
+        logout.Click += (_, _) => dialog.Close(true);
+
+        return await dialog.ShowDialog<bool>(this);
+    }
+
     /// <summary>Double-clicking a branch badge in the graph checks it out, à la Git Graph.</summary>
     private void OnRefBadgeDoubleTapped(object? sender, TappedEventArgs e)
     {
@@ -912,6 +1000,7 @@ public partial class MainWindow : Window
             _observedWorkspace.PromptPullSource = PromptPullSourceAsync;
             _observedWorkspace.PromptPushTarget = PromptPushTargetAsync;
             _observedWorkspace.ConfirmPublishBranch = ConfirmPublishBranchAsync;
+            _observedWorkspace.ConfirmGitHubLogout = ConfirmGitHubLogoutAsync;
             _observedWorkspace.OpenUrlInBrowser = BrowserLauncher.Open;
             _observedWorkspace.SetClipboardText = text => Clipboard?.SetTextAsync(text) ?? Task.CompletedTask;
             _observedWorkspace.PromptPickRef = (items, prompt) => PromptPickAsync(items, Loc["Dialog_PickRef_Title"], prompt);

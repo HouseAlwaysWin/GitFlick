@@ -45,6 +45,9 @@ public sealed class AppSettings
 
     /// <summary>Show a commit's files as a folder tree instead of a flat list of full paths.</summary>
     public bool CommitFilesAsTree { get; set; }
+
+    /// <summary>Identities kept for one-click switching (personal vs work).</summary>
+    public List<SavedIdentity> SavedIdentities { get; set; } = [];
 }
 
 /// <summary>How commit messages are generated.</summary>

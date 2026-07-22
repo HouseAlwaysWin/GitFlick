@@ -480,6 +480,91 @@
                     <TextBlock VerticalAlignment="Center" Opacity="0.6" FontSize="12"
                                Text="{Binding Behind, StringFormat='↓{0}'}"
                                IsVisible="{Binding Behind}" />
+                    <!-- Who you are: the commit author and the account allowed to push. They're
+                         independent, and them disagreeing is the classic trap, so both live here. -->
+                    <Button Classes="header" VerticalAlignment="Center"
+                            Content="{Binding IdentityLabel}"
+                            ToolTip.Tip="{loc:Tr Account_Tooltip}">
+                        <Button.Flyout>
+                            <!-- gh is a subprocess, so the account list is read when the flyout opens
+                                 rather than on every refresh. -->
+                            <Flyout Placement="BottomEdgeAlignedRight" Opened="OnAccountFlyoutOpened">
+                                <StackPanel Width="340" Spacing="8" x:DataType="vm:WorkspaceViewModel">
+                                    <TextBlock Text="{loc:Tr Account_CommitIdentity}" FontSize="10" Opacity="0.5" />
+                                    <TextBlock Text="{Binding IdentitySummary}" FontSize="12" TextWrapping="Wrap" />
+
+                                    <TextBox Text="{Binding IdentityNameInput}" FontSize="12"
+                                             VerticalContentAlignment="Center"
+                                             PlaceholderText="{loc:Tr Account_Name}" />
+                                    <TextBox Text="{Binding IdentityEmailInput}" FontSize="12"
+                                             VerticalContentAlignment="Center"
+                                             PlaceholderText="{loc:Tr Account_Email}" />
+
+                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                                        <CheckBox Grid.Column="0" FontSize="11" VerticalAlignment="Center"
+                                                  Content="{loc:Tr Account_RepoOnly}"
+                                                  IsChecked="{Binding IdentityRepoOnly}"
+                                                  ToolTip.Tip="{loc:Tr Account_RepoOnly_Tooltip}" />
+                                        <Button Grid.Column="1" Classes="primary" FontSize="12"
+                                                Content="{loc:Tr Account_Apply}"
+                                                Command="{Binding ApplyIdentityCommand}" />
+                                    </Grid>
+
+                                    <Button FontSize="11" HorizontalAlignment="Left"
+                                            Content="{loc:Tr Account_ClearRepo}"
+                                            IsVisible="{Binding Identity.IsRepoOverride}"
+                                            Command="{Binding ClearRepoIdentityCommand}"
+                                            ToolTip.Tip="{loc:Tr Account_ClearRepo_Tooltip}" />
+
+                                    <TextBlock Text="{loc:Tr Account_Saved}" FontSize="10" Opacity="0.5" />
+                                    <ItemsControl ItemsSource="{Binding SavedIdentities}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="models:SavedIdentity">
+                                                <Button Classes="frequent" HorizontalAlignment="Stretch"
+                                                        HorizontalContentAlignment="Left" FontSize="11"
+                                                        Click="OnUseSavedIdentityClick">
+                                                    <TextBlock Text="{Binding}" TextTrimming="CharacterEllipsis" />
+                                                </Button>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <Separator Margin="0,2" />
+
+                                    <TextBlock Text="{loc:Tr Account_GitHub}" FontSize="10" Opacity="0.5" />
+                                    <TextBlock Text="{loc:Tr Account_GhMissing}" FontSize="11" Opacity="0.6"
+                                               TextWrapping="Wrap" IsVisible="{Binding !IsGhAvailable}" />
+
+                                    <ItemsControl ItemsSource="{Binding GitHubAccounts}"
+                                                  IsVisible="{Binding IsGhAvailable}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="services:GhAccount">
+                                                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6" Margin="0,2">
+                                                    <TextBlock Grid.Column="0" VerticalAlignment="Center" FontSize="12"
+                                                               Text="{Binding Login}" TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Grid.Column="1" VerticalAlignment="Center" FontSize="10"
+                                                               Opacity="0.55" Text="{loc:Tr Account_Active}"
+                                                               IsVisible="{Binding IsActive}" />
+                                                    <Button Grid.Column="1" FontSize="11" Content="{loc:Tr Account_Switch}"
+                                                            IsVisible="{Binding !IsActive}"
+                                                            Click="OnSwitchGitHubAccountClick" />
+                                                    <Button Grid.Column="2" FontSize="11" Content="{loc:Tr Account_Logout}"
+                                                            Click="OnGitHubLogoutClick" />
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <Button FontSize="12" HorizontalAlignment="Left"
+                                            Content="{loc:Tr Account_Login}"
+                                            IsVisible="{Binding IsGhAvailable}"
+                                            Command="{Binding GitHubLoginCommand}"
+                                            ToolTip.Tip="{loc:Tr Account_Login_Tooltip}" />
+                                </StackPanel>
+                            </Flyout>
+                        </Button.Flyout>
+                    </Button>
+
                     <Button Content="{loc:Tr Toolbar_Back}" Click="OnBackClick" VerticalAlignment="Center"
                             ToolTip.Tip="{loc:Tr Toolbar_Back_Tooltip}" />
                 </StackPanel>

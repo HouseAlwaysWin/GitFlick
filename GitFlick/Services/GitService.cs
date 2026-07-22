@@ -191,6 +191,59 @@ public sealed class GitService : IGitService
     public Task<GitCommandResult> PublishBranchAsync(string repoPath, string remote, string branch, IProgress<string>? progress = null, CancellationToken cancellationToken = default)
         => RunAsync(repoPath, ["push", "--progress", "--set-upstream", remote, branch], progress, cancellationToken);
 
+    public async Task<GitIdentity> GetIdentityAsync(string repoPath, CancellationToken cancellationToken = default)
+    {
+        // Plain "git config" run inside the repo already resolves local-over-global, so this is the
+        // effective author. Which level it came from needs a separate --local probe: that exits
+        // non-zero when the key isn't set there, which is how we tell "overridden here" from
+        // "inherited from global".
+        var name = await ConfigValueAsync(repoPath, ["config", "user.name"], cancellationToken).ConfigureAwait(false);
+        var email = await ConfigValueAsync(repoPath, ["config", "user.email"], cancellationToken).ConfigureAwait(false);
+
+        var localName = await ConfigValueAsync(repoPath, ["config", "--local", "--get", "user.name"], cancellationToken).ConfigureAwait(false);
+        var localEmail = await ConfigValueAsync(repoPath, ["config", "--local", "--get", "user.email"], cancellationToken).ConfigureAwait(false);
+
+        return new GitIdentity(name, email, localName.Length > 0 || localEmail.Length > 0);
+    }
+
+    public async Task<GitCommandResult> SetIdentityAsync(
+        string repoPath, string name, string email, bool global, CancellationToken cancellationToken = default)
+    {
+        string[] scope = global ? ["--global"] : ["--local"];
+
+        var setName = await RunAsync(repoPath, ["config", .. scope, "user.name", name], null, cancellationToken).ConfigureAwait(false);
+        if (!setName.Succeeded)
+        {
+            return setName;
+        }
+
+        return await RunAsync(repoPath, ["config", .. scope, "user.email", email], null, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<GitCommandResult> ClearRepoIdentityAsync(string repoPath, CancellationToken cancellationToken = default)
+    {
+        // --unset exits 5 when the key isn't there. That's "already how the caller wants it", not a
+        // failure, so only a real error is reported.
+        var name = await RunAsync(repoPath, ["config", "--local", "--unset", "user.name"], null, cancellationToken).ConfigureAwait(false);
+        var email = await RunAsync(repoPath, ["config", "--local", "--unset", "user.email"], null, cancellationToken).ConfigureAwait(false);
+
+        if (!name.Succeeded && name.ExitCode != 5)
+        {
+            return name;
+        }
+
+        return email.Succeeded || email.ExitCode == 5
+            ? new GitCommandResult(0, string.Empty, string.Empty)
+            : email;
+    }
+
+    /// <summary>A single config read; an unset key is empty rather than an error.</summary>
+    private async Task<string> ConfigValueAsync(string repoPath, string[] args, CancellationToken cancellationToken)
+    {
+        var result = await RunAsync(repoPath, args, null, cancellationToken).ConfigureAwait(false);
+        return result.Succeeded ? result.StandardOutput.Trim() : string.Empty;
+    }
+
     public async Task<IReadOnlyList<string>> GetRemotesAsync(string repoPath, CancellationToken cancellationToken = default)
     {
         var result = await RunAsync(repoPath, ["remote"], null, cancellationToken).ConfigureAwait(false);

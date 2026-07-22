@@ -110,6 +110,18 @@ public interface IGitService
     /// </summary>
     Task<GitCommandResult> PublishBranchAsync(string repoPath, string remote, string branch, IProgress<string>? progress = null, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// The identity commits in this repo are authored as, and whether it comes from a repo-local
+    /// override or the global config.
+    /// </summary>
+    Task<GitIdentity> GetIdentityAsync(string repoPath, CancellationToken cancellationToken = default);
+
+    /// <summary>Sets user.name/user.email either globally or just for this repo.</summary>
+    Task<GitCommandResult> SetIdentityAsync(string repoPath, string name, string email, bool global, CancellationToken cancellationToken = default);
+
+    /// <summary>Drops the repo-local identity so the repo falls back to the global one.</summary>
+    Task<GitCommandResult> ClearRepoIdentityAsync(string repoPath, CancellationToken cancellationToken = default);
+
     /// <summary>The names of the configured remotes (<c>git remote</c>), empty if none.</summary>
     Task<IReadOnlyList<string>> GetRemotesAsync(string repoPath, CancellationToken cancellationToken = default);
 
