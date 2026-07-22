@@ -1854,6 +1854,55 @@ public partial class WorkspaceViewModel : ViewModelBase
         ShowSelectedCommitInfo(value);   // branch/HEAD card shown atop the diff pane
     }
 
+    /// <summary>The commit's files as a folder tree — the alternative to the flat full-path list.</summary>
+    public ObservableCollection<CommitFileNode> CommitFileNodes { get; } = [];
+
+    /// <summary>
+    /// Folder tree vs flat list for a commit's files. A view preference, so it persists; deep repo
+    /// paths make the flat list hard to scan, while a shallow commit reads better flat.
+    /// </summary>
+    public bool ShowFilesAsTree
+    {
+        get => _settings?.Current.CommitFilesAsTree ?? false;
+        set
+        {
+            if (_settings is null || value == ShowFilesAsTree)
+            {
+                return;
+            }
+
+            _settings.Current.CommitFilesAsTree = value;
+            _settings.Save();
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>
+    /// Selection in the tree. Folders aren't files, so picking one leaves the diff alone rather than
+    /// blanking it — expanding a folder shouldn't throw away what you were reading.
+    /// </summary>
+    [ObservableProperty]
+    public partial CommitFileNode? SelectedCommitFileNode { get; set; }
+
+    partial void OnSelectedCommitFileNodeChanged(CommitFileNode? value)
+    {
+        if (value?.File is { } file)
+        {
+            SelectedCommitFile = file;
+        }
+    }
+
+    private void RebuildCommitFileNodes()
+    {
+        SelectedCommitFileNode = null;
+        CommitFileNodes.Clear();
+
+        foreach (var node in CommitFileNode.Build(CommitFiles))
+        {
+            CommitFileNodes.Add(node);
+        }
+    }
+
     /// <summary>A merge is selected, so the "what was resolved by hand" view is offered.</summary>
     [ObservableProperty]
     public partial bool IsMergeCommitSelected { get; set; }
@@ -1906,6 +1955,7 @@ public partial class WorkspaceViewModel : ViewModelBase
             }
 
             Replace(CommitFiles, files);
+            RebuildCommitFileNodes();   // the tree view mirrors the same list
             HasCommitFiles = CommitFiles.Count > 0;
 
             SelectedCommitFile = CommitFiles.FirstOrDefault();   // fires the file diff load

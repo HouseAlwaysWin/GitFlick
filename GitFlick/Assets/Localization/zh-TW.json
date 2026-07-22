@@ -202,6 +202,7 @@
   "Diff_NoFilesChanged": "沒有檔案變更",
   "Diff_Header": "差異",
   "Changes_OpenFile": "開啟檔案",
+  "Files_TreeView_Tooltip": "以資料夾樹狀顯示這次提交的檔案,取代完整路徑清單",
   "Diff_MergeResolution": "⚔ 衝突解法",
   "Diff_MergeResolution_Tooltip": "顯示這次合併手動決定了什麼——這些內容不存在於任何其他 commit",
   "Diff_NoMergeResolution": "這次合併是自動完成的,沒有手動解過衝突。",

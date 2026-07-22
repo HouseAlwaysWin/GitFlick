@@ -42,6 +42,9 @@ public sealed class AppSettings
 
     /// <summary>Check GitHub for a newer release on launch (silent). Off by default.</summary>
     public bool AutoCheckUpdates { get; set; }
+
+    /// <summary>Show a commit's files as a folder tree instead of a flat list of full paths.</summary>
+    public bool CommitFilesAsTree { get; set; }
 }
 
 /// <summary>How commit messages are generated.</summary>

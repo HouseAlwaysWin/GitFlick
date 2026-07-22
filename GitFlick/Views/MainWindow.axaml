@@ -1288,12 +1288,22 @@
                                  floating over the file list, where it read as closing the first file. -->
                             <Border DockPanel.Dock="Top"
                                     Background="#22588CF0" BorderBrush="#40588CF0" BorderThickness="0,0,0,1" Padding="8,3">
-                                <Grid ColumnDefinitions="*,Auto">
+                                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
                                     <ContentControl Grid.Column="0" Content="{Binding SelectedInfo}"
                                                     HorizontalAlignment="Left" VerticalAlignment="Center"
                                                     IsVisible="{Binding SelectedInfo.HasSha}"
                                                     ContentTemplate="{StaticResource BranchInfoLine}" />
-                                    <Button Grid.Column="1" Content="✕" Classes="header"
+                                    <!-- Folder tree vs the flat full-path list. Deep repo paths are hard
+                                         to scan flat; a shallow commit reads better flat. -->
+                                    <!-- Icon only: the bar is deliberately one line, and a labelled
+                                         button pushed the commit card onto a second row. -->
+                                    <ToggleButton Grid.Column="1" Classes="header"
+                                                  Content="🗀"
+                                                  VerticalAlignment="Center" FontSize="12" Padding="6,1"
+                                                  IsChecked="{Binding ShowFilesAsTree}"
+                                                  IsVisible="{Binding HasCommitFiles}"
+                                                  ToolTip.Tip="{loc:Tr Files_TreeView_Tooltip}" />
+                                    <Button Grid.Column="2" Content="✕" Classes="header"
                                             VerticalAlignment="Center" FontSize="12" Padding="6,1"
                                             Click="OnHideDiffPaneClick"
                                             ToolTip.Tip="{loc:Tr History_HideDiff_Tooltip}" />
@@ -1302,6 +1312,7 @@
                         <Panel>
                             <ListBox x:Name="CommitFilesList"
                                      Background="Transparent"
+                                     IsVisible="{Binding !ShowFilesAsTree}"
                                      ItemsSource="{Binding CommitFiles}"
                                      SelectedItem="{Binding SelectedCommitFile}">
                                 <ListBox.ContextFlyout>
@@ -1323,6 +1334,42 @@
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
                             </ListBox>
+
+                            <!-- Same files as a folder tree. Runs of single-child folders are collapsed
+                                 into one row by the builder, so deep paths don't become pure indentation. -->
+                            <TreeView x:Name="CommitFilesTree"
+                                      Background="Transparent"
+                                      IsVisible="{Binding ShowFilesAsTree}"
+                                      ItemsSource="{Binding CommitFileNodes}"
+                                      SelectedItem="{Binding SelectedCommitFileNode}">
+                                <TreeView.Styles>
+                                    <!-- A commit touches few files, so expanded is the useful default;
+                                         collapsed would mean clicking through folders every time. -->
+                                    <Style Selector="TreeViewItem">
+                                        <Setter Property="IsExpanded" Value="True" />
+                                    </Style>
+                                </TreeView.Styles>
+                                <TreeView.ContextFlyout>
+                                    <MenuFlyout>
+                                        <MenuItem Header="{loc:Tr Changes_OpenFile}" Click="OnOpenCommitFileClick" />
+                                        <Separator />
+                                        <MenuItem Header="{loc:Tr Changes_Blame}" Click="OnBlameCommitFileClick" />
+                                        <MenuItem Header="{loc:Tr Changes_FileHistory}" Click="OnShowCommitFileHistoryClick" />
+                                    </MenuFlyout>
+                                </TreeView.ContextFlyout>
+                                <TreeView.ItemTemplate>
+                                    <TreeDataTemplate x:DataType="vm:CommitFileNode" ItemsSource="{Binding Children}">
+                                        <Grid ColumnDefinitions="Auto,*">
+                                            <TextBlock Grid.Column="0" Text="{Binding Badge}" Width="18"
+                                                       FontWeight="SemiBold" FontFamily="Cascadia Mono,Consolas,monospace"
+                                                       Foreground="{Binding Badge, Converter={StaticResource FileStatusBrush}}" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Name}"
+                                                       TextTrimming="CharacterEllipsis" />
+                                        </Grid>
+                                    </TreeDataTemplate>
+                                </TreeView.ItemTemplate>
+                            </TreeView>
+
                             <TextBlock Text="{loc:Tr Diff_NoFilesChanged}"
                                        IsVisible="{Binding !HasCommitFiles}"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"
