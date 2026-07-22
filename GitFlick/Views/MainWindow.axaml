@@ -1337,16 +1337,25 @@
                                   IsVisible="{Binding IsHistoryMode}" />
 
                     <DockPanel Grid.Row="2">
-                        <Grid DockPanel.Dock="Top" Margin="0,0,0,4" ColumnDefinitions="*,Auto"
+                        <Grid DockPanel.Dock="Top" Margin="0,0,0,4" ColumnDefinitions="*,Auto,Auto"
+                              ColumnSpacing="6"
                               IsVisible="{Binding HasDiff}">
                             <TextBlock Grid.Column="0"
                                        FontWeight="SemiBold"
                                        VerticalAlignment="Center"
                                        TextTrimming="CharacterEllipsis"
                                        Text="{Binding DiffPath, StringFormat='Diff — {0}'}" />
+                            <!-- Merges only: swap the "what this brought in" diff for the combined one,
+                                 i.e. what was decided by hand while resolving — content that exists in
+                                 no other commit and that a plain log never shows. -->
+                            <ToggleButton Grid.Column="1" Classes="header"
+                                          Content="{loc:Tr Diff_MergeResolution}"
+                                          IsVisible="{Binding IsMergeCommitSelected}"
+                                          IsChecked="{Binding ShowMergeResolution}"
+                                          ToolTip.Tip="{loc:Tr Diff_MergeResolution_Tooltip}" />
                             <!-- Opens the diff in its own window: two aligned columns need real width,
                                  which this pane doesn't have. -->
-                            <Button Grid.Column="1" Classes="header"
+                            <Button Grid.Column="2" Classes="header"
                                     Content="{loc:Tr Diff_SideBySide}"
                                     Click="OnCompareClick"
                                     ToolTip.Tip="{loc:Tr Diff_SideBySide_Tooltip}" />

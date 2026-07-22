@@ -1839,11 +1839,47 @@ public partial class WorkspaceViewModel : ViewModelBase
         if (value is null)
         {
             SelectedInfo.Clear();
+            IsMergeCommitSelected = false;
             return;
         }
 
+        // Offer the resolution view only for a merge, and always start on the normal view — carrying
+        // the toggle across selections would silently show a different diff than the one just clicked.
+        _switchingCommit = true;
+        IsMergeCommitSelected = value.IsMerge;
+        ShowMergeResolution = false;
+        _switchingCommit = false;
+
         DiffLoad = LoadCommitFilesAsync(value);
         ShowSelectedCommitInfo(value);   // branch/HEAD card shown atop the diff pane
+    }
+
+    /// <summary>A merge is selected, so the "what was resolved by hand" view is offered.</summary>
+    [ObservableProperty]
+    public partial bool IsMergeCommitSelected { get; set; }
+
+    /// <summary>
+    /// Show the merge's combined diff (what was decided while resolving) instead of what it brought in
+    /// from the merged branch. Only meaningful for a merge, and reset whenever the selection moves so
+    /// it can't silently stay on for the next commit.
+    /// </summary>
+    [ObservableProperty]
+    public partial bool ShowMergeResolution { get; set; }
+
+    /// <summary>Set while a new commit is being selected, so resetting the toggle doesn't double-load.</summary>
+    private bool _switchingCommit;
+
+    partial void OnShowMergeResolutionChanged(bool value)
+    {
+        if (_switchingCommit)
+        {
+            return;   // OnSelectedCommitChanged loads for the new commit itself
+        }
+
+        if (SelectedCommit is { } commit)
+        {
+            DiffLoad = LoadCommitFilesAsync(commit);
+        }
     }
 
     /// <summary>Loads the selected commit's changed files, then shows the first file's diff.</summary>
@@ -1858,7 +1894,10 @@ public partial class WorkspaceViewModel : ViewModelBase
 
         try
         {
-            var files = await _git.GetCommitFilesAsync(Repository.Path, commit.Sha);
+            var resolution = ShowMergeResolution && commit.IsMerge;
+            var files = resolution
+                ? await _git.GetMergeResolutionFilesAsync(Repository.Path, commit.Sha)
+                : await _git.GetCommitFilesAsync(Repository.Path, commit.Sha);
 
             // The selection may have moved on while we were awaiting — ignore a stale result.
             if (_selectedCommitSha != commit.Sha)
@@ -1872,7 +1911,9 @@ public partial class WorkspaceViewModel : ViewModelBase
             SelectedCommitFile = CommitFiles.FirstOrDefault();   // fires the file diff load
             if (SelectedCommitFile is null)
             {
-                DiffText = Loc["Diff_NoTextualChanges"];
+                // Most merges resolve cleanly, so an empty resolution view is the normal case — say
+                // that rather than the generic "no textual changes", which reads like something broke.
+                DiffText = resolution ? Loc["Diff_NoMergeResolution"] : Loc["Diff_NoTextualChanges"];
             }
         }
         catch (GitException ex)
@@ -1898,7 +1939,9 @@ public partial class WorkspaceViewModel : ViewModelBase
 
         try
         {
-            var diff = await _git.GetCommitFileDiffAsync(Repository.Path, sha, file.Path);
+            var diff = ShowMergeResolution && SelectedCommit?.IsMerge == true
+                ? await _git.GetMergeResolutionFileDiffAsync(Repository.Path, sha, file.Path)
+                : await _git.GetCommitFileDiffAsync(Repository.Path, sha, file.Path);
 
             DiffText = diff.Trim().Length == 0
                 ? "(no textual changes)"

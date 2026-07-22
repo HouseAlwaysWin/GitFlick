@@ -606,6 +606,69 @@ public sealed class GitService : IGitService
         return result.Succeeded ? result.StandardOutput : result.FailureMessage;
     }
 
+    /// <summary>
+    /// Files a merge resolved by hand — where the result matches NEITHER parent. Everything else in a
+    /// merge already exists as a commit on one side; this is the content that lives only in the merge
+    /// itself, which a plain <c>git log -p</c> never shows.
+    /// <para>
+    /// The list is parsed out of the combined patch rather than taken from <c>--name-only</c>: that
+    /// also reports files whose combined patch turns out empty (identical to one parent), which would
+    /// give a file list with nothing to show behind it.
+    /// </para>
+    /// </summary>
+    public async Task<IReadOnlyList<CommitFileEntry>> GetMergeResolutionFilesAsync(
+        string repoPath, string sha, CancellationToken cancellationToken = default)
+    {
+        var result = await RunAsync(
+            repoPath, ["diff-tree", "--cc", "-p", "--no-commit-id", sha], null, cancellationToken).ConfigureAwait(false);
+
+        if (!result.Succeeded)
+        {
+            throw new GitException($"git diff-tree --cc failed: {result.FailureMessage}");
+        }
+
+        const string header = "diff --cc ";
+        var files = new List<CommitFileEntry>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var raw in result.StandardOutput.Split('\n'))
+        {
+            var line = raw.TrimEnd('\r');
+            if (!line.StartsWith(header, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var path = line[header.Length..].Trim();
+            if (path.Length > 0 && seen.Add(path))
+            {
+                // A resolution is always a modification of the merged result; there's no add/delete
+                // distinction to report here.
+                files.Add(new CommitFileEntry(path, "M"));
+            }
+        }
+
+        return files;
+    }
+
+    /// <summary>The combined ("--cc") patch for one file of a merge — the hand-resolved hunks.</summary>
+    public async Task<string> GetMergeResolutionFileDiffAsync(
+        string repoPath, string sha, string path, CancellationToken cancellationToken = default)
+    {
+        var result = await RunAsync(
+            repoPath,
+            ["diff-tree", "--cc", "-p", "--no-commit-id", sha, "--", path],
+            null,
+            cancellationToken).ConfigureAwait(false);
+
+        if (!result.Succeeded)
+        {
+            throw new GitException($"git diff-tree --cc (file) failed: {result.FailureMessage}");
+        }
+
+        return result.StandardOutput;
+    }
+
     public async Task<string> GetCommitFileDiffAsync(string repoPath, string sha, string path, CancellationToken cancellationToken = default)
     {
         var result = await RunAsync(

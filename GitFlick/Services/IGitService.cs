@@ -157,6 +157,15 @@ public interface IGitService
 
     Task<IReadOnlyList<GitBranch>> GetBranchesAsync(string repoPath, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Files a merge resolved by hand (combined diff — differs from both parents). Empty for a merge
+    /// that git resolved on its own, and for a non-merge commit.
+    /// </summary>
+    Task<IReadOnlyList<CommitFileEntry>> GetMergeResolutionFilesAsync(string repoPath, string sha, CancellationToken cancellationToken = default);
+
+    /// <summary>The combined patch for one file of a merge — the hand-resolved hunks.</summary>
+    Task<string> GetMergeResolutionFileDiffAsync(string repoPath, string sha, string path, CancellationToken cancellationToken = default);
+
     Task<GitCommandResult> CheckoutAsync(string repoPath, string branch, CancellationToken cancellationToken = default);
 
     /// <summary>

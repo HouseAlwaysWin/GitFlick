@@ -35,6 +35,22 @@ internal sealed class TestRepo : IDisposable
         File.WriteAllText(full, content, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
     }
 
+    /// <summary>
+    /// Runs git for setup where a non-zero exit is the expected outcome — a conflicting <c>merge</c>
+    /// exits 1 by design, and that is exactly the state some tests need to set up.
+    /// </summary>
+    public void GitAllowFail(params string[] args)
+    {
+        try
+        {
+            Git(args);
+        }
+        catch (InvalidOperationException)
+        {
+            // Expected: the caller wants the working tree in whatever state this left behind.
+        }
+    }
+
     /// <summary>Runs git directly for test setup (bypassing the class under test). Throws on failure.</summary>
     public string Git(params string[] args)
     {

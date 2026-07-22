@@ -210,6 +210,15 @@ internal sealed class FakeGitService : IGitService
     public Task<IReadOnlyList<GitBranch>> GetBranchesAsync(string repoPath, CancellationToken cancellationToken = default)
         => Task.FromResult<IReadOnlyList<GitBranch>>([]);
 
+    /// <summary>Hand-resolved files GetMergeResolutionFilesAsync serves.</summary>
+    public List<CommitFileEntry> StubMergeResolutionFiles { get; } = [];
+
+    public Task<IReadOnlyList<CommitFileEntry>> GetMergeResolutionFilesAsync(string repoPath, string sha, CancellationToken cancellationToken = default)
+        => Task.FromResult<IReadOnlyList<CommitFileEntry>>(StubMergeResolutionFiles.ToList());
+
+    public Task<string> GetMergeResolutionFileDiffAsync(string repoPath, string sha, string path, CancellationToken cancellationToken = default)
+        => Task.FromResult(string.Empty);
+
     public Task<GitCommandResult> CheckoutAsync(string repoPath, string branch, CancellationToken cancellationToken = default) => Task.FromResult(Ok);
 
     /// <summary>The start point the last CreateBranchAsync was given (null = branch from HEAD).</summary>
