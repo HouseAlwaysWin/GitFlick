@@ -188,6 +188,9 @@ public sealed class GitService : IGitService
     public Task<GitCommandResult> PushToAsync(string repoPath, string remote, string branch, IProgress<string>? progress = null, CancellationToken cancellationToken = default)
         => RunAsync(repoPath, ["push", "--progress", remote, branch], progress, cancellationToken);
 
+    public Task<GitCommandResult> PublishBranchAsync(string repoPath, string remote, string branch, IProgress<string>? progress = null, CancellationToken cancellationToken = default)
+        => RunAsync(repoPath, ["push", "--progress", "--set-upstream", remote, branch], progress, cancellationToken);
+
     public async Task<IReadOnlyList<string>> GetRemotesAsync(string repoPath, CancellationToken cancellationToken = default)
     {
         var result = await RunAsync(repoPath, ["remote"], null, cancellationToken).ConfigureAwait(false);
@@ -408,7 +411,9 @@ public sealed class GitService : IGitService
             null,
             cancellationToken).ConfigureAwait(false);
 
-        var branches = new List<string>();
+        // Keep the KIND, not just the name: "main" and "origin/main" are otherwise indistinguishable
+        // once the prefix is stripped, and the card colours them like the commit-row badges do.
+        var branches = new List<GitRef>();
         if (branchesResult.Succeeded)
         {
             var seen = new HashSet<string>(StringComparer.Ordinal);
@@ -420,17 +425,20 @@ public sealed class GitService : IGitService
                     continue;
                 }
 
-                var name = refName.StartsWith("refs/heads/", StringComparison.Ordinal)
-                    ? refName["refs/heads/".Length..]
-                    : refName.StartsWith("refs/remotes/", StringComparison.Ordinal)
-                        ? refName["refs/remotes/".Length..]
-                        : refName.StartsWith("refs/tags/", StringComparison.Ordinal)
-                            ? refName["refs/tags/".Length..]
-                            : refName;
+                var (name, kind) = refName switch
+                {
+                    _ when refName.StartsWith("refs/heads/", StringComparison.Ordinal)
+                        => (refName["refs/heads/".Length..], GitRefKind.LocalBranch),
+                    _ when refName.StartsWith("refs/remotes/", StringComparison.Ordinal)
+                        => (refName["refs/remotes/".Length..], GitRefKind.RemoteBranch),
+                    _ when refName.StartsWith("refs/tags/", StringComparison.Ordinal)
+                        => (refName["refs/tags/".Length..], GitRefKind.Tag),
+                    _ => (refName, GitRefKind.LocalBranch),
+                };
 
                 if (name.Length > 0 && seen.Add(name))
                 {
-                    branches.Add(name);
+                    branches.Add(new GitRef(name, kind));
                 }
             }
         }

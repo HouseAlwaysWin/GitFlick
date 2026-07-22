@@ -305,6 +305,10 @@
   "Diff_SelectFile": "差分を表示するには変更されたファイルを選択してください。",
 
   "Banner_Dismiss": "この通知を閉じる",
+  "Dialog_Publish": "公開",
+  "Dialog_PublishBranch_Title": "ブランチを公開",
+  "Dialog_PublishBranch_Body": "「{0}」はまだ「{1}」にありません。プッシュして追跡を設定しますか？以降のプッシュ・プルがそのまま使えます。",
+  "Status_PublishedBranch": "{0} を {1} に公開しました",
   "Dialog_Cancel": "キャンセル",
   "Dialog_Close": "閉じる",
   "Dialog_CommitMessage_Title": "コミットメッセージ · {0}",

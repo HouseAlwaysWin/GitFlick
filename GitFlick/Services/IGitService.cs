@@ -104,6 +104,12 @@ public interface IGitService
     /// <summary>Push a specific <paramref name="branch"/> to a specific <paramref name="remote"/>.</summary>
     Task<GitCommandResult> PushToAsync(string repoPath, string remote, string branch, IProgress<string>? progress = null, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// First push of a branch the remote doesn't have: pushes and sets the upstream, so later plain
+    /// pushes/pulls work (<c>git push --set-upstream</c>).
+    /// </summary>
+    Task<GitCommandResult> PublishBranchAsync(string repoPath, string remote, string branch, IProgress<string>? progress = null, CancellationToken cancellationToken = default);
+
     /// <summary>The names of the configured remotes (<c>git remote</c>), empty if none.</summary>
     Task<IReadOnlyList<string>> GetRemotesAsync(string repoPath, CancellationToken cancellationToken = default);
 

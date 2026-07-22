@@ -53,8 +53,18 @@ public sealed partial class CommitBranchInfo : ObservableObject
     [ObservableProperty]
     public partial bool HasNoRef { get; set; }
 
-    /// <summary>Branch chips (local + remote), capped, with a trailing "+N" chip when there are more.</summary>
-    public ObservableCollection<string> Branches { get; } = [];
+    /// <summary>
+    /// Refs pointing at this commit, capped. Carries each ref's kind so the chips can be coloured the
+    /// way the commit rows are — "main" and "origin/main" read identically otherwise.
+    /// </summary>
+    public ObservableCollection<GitRef> Branches { get; } = [];
+
+    /// <summary>"+N" for refs past the cap. Kept out of <see cref="Branches"/>: it isn't a ref.</summary>
+    [ObservableProperty]
+    public partial string OverflowText { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial bool HasOverflow { get; set; }
 
     public bool HasSha => !string.IsNullOrEmpty(Sha);
 
@@ -68,6 +78,9 @@ public sealed partial class CommitBranchInfo : ObservableObject
         ShowNotInHead = IsLoaded && !InHead;
 
         Branches.Clear();
+        OverflowText = string.Empty;
+        HasOverflow = false;
+
         if (containment is not null)
         {
             var all = containment.Branches;
@@ -78,7 +91,8 @@ public sealed partial class CommitBranchInfo : ObservableObject
 
             if (all.Count > MaxChips)
             {
-                Branches.Add($"+{all.Count - MaxChips}");
+                OverflowText = $"+{all.Count - MaxChips}";
+                HasOverflow = true;
             }
         }
 
@@ -98,6 +112,8 @@ public sealed partial class CommitBranchInfo : ObservableObject
         ShowNotInHead = false;
         Branches.Clear();
         HasBranches = false;
+        OverflowText = string.Empty;
+        HasOverflow = false;
         NearestBranch = string.Empty;
         NearestIsMerge = false;
         HasNearest = false;

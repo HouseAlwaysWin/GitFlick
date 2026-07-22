@@ -911,6 +911,7 @@ public partial class MainWindow : Window
             _observedWorkspace.ConfirmDiscardFiles = ConfirmDiscardFilesAsync;
             _observedWorkspace.PromptPullSource = PromptPullSourceAsync;
             _observedWorkspace.PromptPushTarget = PromptPushTargetAsync;
+            _observedWorkspace.ConfirmPublishBranch = ConfirmPublishBranchAsync;
             _observedWorkspace.OpenUrlInBrowser = BrowserLauncher.Open;
             _observedWorkspace.SetClipboardText = text => Clipboard?.SetTextAsync(text) ?? Task.CompletedTask;
             _observedWorkspace.PromptPickRef = (items, prompt) => PromptPickAsync(items, Loc["Dialog_PickRef_Title"], prompt);
@@ -1093,6 +1094,65 @@ public partial class MainWindow : Window
 
         cancel.Click += (_, _) => dialog.Close(false);
         discard.Click += (_, _) => dialog.Close(true);
+
+        return await dialog.ShowDialog<bool>(this);
+    }
+
+    /// <summary>
+    /// First push of a branch the remote has never seen. Plain "push" would just fail, so say what's
+    /// going to happen and let the user confirm.
+    /// </summary>
+    private async Task<bool> ConfirmPublishBranchAsync(string branch, string remote)
+    {
+        var cancel = new Button
+        {
+            Content = Loc["Dialog_Cancel"],
+            MinWidth = 92,
+            HorizontalContentAlignment = HorizontalAlignment.Center,
+        };
+        var publish = new Button
+        {
+            Content = Loc["Dialog_Publish"],
+            MinWidth = 92,
+            HorizontalContentAlignment = HorizontalAlignment.Center,
+        };
+        publish.Classes.Add("primary");
+
+        var dialog = new Window
+        {
+            Title = Loc["Dialog_PublishBranch_Title"],
+            SizeToContent = SizeToContent.WidthAndHeight,
+            CanResize = false,
+            ShowInTaskbar = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Content = new Border
+            {
+                Padding = new Thickness(22),
+                Child = new StackPanel
+                {
+                    Spacing = 16,
+                    MaxWidth = 420,
+                    Children =
+                    {
+                        new TextBlock
+                        {
+                            TextWrapping = TextWrapping.Wrap,
+                            Text = string.Format(Loc["Dialog_PublishBranch_Body"], branch, remote),
+                        },
+                        new StackPanel
+                        {
+                            Orientation = Orientation.Horizontal,
+                            Spacing = 8,
+                            HorizontalAlignment = HorizontalAlignment.Right,
+                            Children = { cancel, publish },
+                        },
+                    },
+                },
+            },
+        };
+
+        cancel.Click += (_, _) => dialog.Close(false);
+        publish.Click += (_, _) => dialog.Close(true);
 
         return await dialog.ShowDialog<bool>(this);
     }

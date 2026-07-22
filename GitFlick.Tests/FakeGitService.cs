@@ -76,6 +76,15 @@ internal sealed class FakeGitService : IGitService
 
     public Task<GitCommandResult> PushToAsync(string repoPath, string remote, string branch, IProgress<string>? progress = null, CancellationToken cancellationToken = default) => Task.FromResult(Ok);
 
+    /// <summary>Remote/branch the last PublishBranchAsync was given, so tests can assert the publish.</summary>
+    public (string Remote, string Branch)? LastPublish { get; private set; }
+
+    public Task<GitCommandResult> PublishBranchAsync(string repoPath, string remote, string branch, IProgress<string>? progress = null, CancellationToken cancellationToken = default)
+    {
+        LastPublish = (remote, branch);
+        return Task.FromResult(Ok);
+    }
+
     /// <summary>Remotes GetRemotesAsync serves; the remote check bails out when empty.</summary>
     public List<string> StubRemotes { get; } = [];
 

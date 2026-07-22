@@ -60,7 +60,7 @@ public sealed record CommitInfo
 /// Loaded on demand for the commit's hover popup.
 /// </summary>
 public sealed record CommitContainment(
-    bool InHead, IReadOnlyList<string> Branches, string NearestBranch = "", bool NearestIsMerge = false)
+    bool InHead, IReadOnlyList<GitRef> Branches, string NearestBranch = "", bool NearestIsMerge = false)
 {
     public static readonly CommitContainment Empty = new(false, [], "", false);
 }

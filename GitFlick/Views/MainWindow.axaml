@@ -52,6 +52,8 @@
                     <TextBlock Text="{loc:Tr History_Hover_NotInHead}" FontSize="10" Foreground="White" />
                 </Border>
 
+                <!-- Same colours as the commit-row badges: local orange, remote purple, tag green.
+                     Without the kind, "main" and "origin/main" are indistinguishable. -->
                 <ItemsControl ItemsSource="{Binding Branches}" IsVisible="{Binding HasBranches}"
                               VerticalAlignment="Center">
                     <ItemsControl.ItemsPanel>
@@ -60,15 +62,23 @@
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="sys:String">
-                            <Border CornerRadius="3" Padding="5,1" Margin="0,0,3,0" BorderThickness="1"
-                                    Background="#6E4CB8" BorderBrush="#A371F7" MaxWidth="230">
-                                <TextBlock Text="{Binding}" FontSize="10" Foreground="White"
+                        <DataTemplate x:DataType="models:GitRef">
+                            <Border Classes.tag="{Binding IsTag}" Classes.remote="{Binding IsRemoteBranch}"
+                                    CornerRadius="3" Padding="5,1" Margin="0,0,3,0" MaxWidth="230">
+                                <TextBlock Text="{Binding Name}" FontSize="10" Foreground="White"
                                            TextTrimming="CharacterEllipsis" />
                             </Border>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
+
+                <!-- "+N" for refs past the cap. Outside the ItemsControl so the badge styles, which key
+                     off ItemsControl > ContentPresenter > Border, leave it neutral. -->
+                <Border CornerRadius="3" Padding="5,1" Margin="0,0,8,0" BorderThickness="1"
+                        VerticalAlignment="Center"
+                        Background="#4D555E" BorderBrush="#6A737D" IsVisible="{Binding HasOverflow}">
+                    <TextBlock Text="{Binding OverflowText}" FontSize="10" Foreground="White" />
+                </Border>
 
                 <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center"
                             IsVisible="{Binding HasNearest}">
@@ -117,7 +127,8 @@
                         <TextBlock Text="{loc:Tr History_Hover_NotInHead}" FontSize="10" Foreground="White" />
                     </Border>
 
-                    <!-- One chip per ref pointing here (capped, with a trailing "+N"). -->
+                    <!-- One chip per ref pointing here, coloured by kind like the commit-row badges:
+                         local orange, remote purple, tag green. -->
                     <ItemsControl ItemsSource="{Binding Branches}" IsVisible="{Binding HasBranches}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
@@ -125,15 +136,21 @@
                             </ItemsPanelTemplate>
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="sys:String">
-                                <Border CornerRadius="3" Padding="5,1" Margin="0,2,3,0" BorderThickness="1"
-                                        Background="#6E4CB8" BorderBrush="#A371F7" MaxWidth="230">
-                                    <TextBlock Text="{Binding}" FontSize="10" Foreground="White"
+                            <DataTemplate x:DataType="models:GitRef">
+                                <Border Classes.tag="{Binding IsTag}" Classes.remote="{Binding IsRemoteBranch}"
+                                        CornerRadius="3" Padding="5,1" Margin="0,2,3,0" MaxWidth="230">
+                                    <TextBlock Text="{Binding Name}" FontSize="10" Foreground="White"
                                                TextTrimming="CharacterEllipsis" />
                                 </Border>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
+
+                    <!-- "+N" for refs past the cap; outside the ItemsControl so the badge styles skip it. -->
+                    <Border CornerRadius="3" Padding="5,1" BorderThickness="1" HorizontalAlignment="Left"
+                            Background="#4D555E" BorderBrush="#6A737D" IsVisible="{Binding HasOverflow}">
+                        <TextBlock Text="{Binding OverflowText}" FontSize="10" Foreground="White" />
+                    </Border>
 
                     <!-- No ref points exactly here, but the branch is still known: either the line this
                          commit sits on ("On <branch>") or, if it was merged in, the branch it came from

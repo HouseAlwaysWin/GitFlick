@@ -327,6 +327,10 @@ public partial class WorkspaceViewModel : ViewModelBase
     [ObservableProperty]
     public partial string? Upstream { get; set; }
 
+    /// <summary>HEAD isn't on a branch, so there's no branch to publish or track.</summary>
+    [ObservableProperty]
+    public partial bool IsDetachedHead { get; set; }
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsAhead))]
     [NotifyPropertyChangedFor(nameof(PushLabel))]
@@ -1494,6 +1498,12 @@ public partial class WorkspaceViewModel : ViewModelBase
     /// </summary>
     public Func<IReadOnlyList<string>, string, Task<string?>>? PromptPushTarget { get; set; }
 
+    /// <summary>
+    /// Set by the View: confirms publishing a branch the remote doesn't have yet (branch, remote).
+    /// Null (e.g. tests) means "no prompt, just publish".
+    /// </summary>
+    public Func<string, string, Task<bool>>? ConfirmPublishBranch { get; set; }
+
     /// <summary>Set by the View: opens a URL in the default browser (side-effect kept injectable for tests).</summary>
     public Action<string>? OpenUrlInBrowser { get; set; }
 
@@ -2011,6 +2021,7 @@ public partial class WorkspaceViewModel : ViewModelBase
             var status = await _git.GetStatusAsync(Repository.Path);
 
             BranchName = status.IsDetached ? "(detached)" : status.BranchName ?? string.Empty;
+            IsDetachedHead = status.IsDetached;
             Upstream = status.Upstream;
             Ahead = status.Ahead;
             Behind = status.Behind;
@@ -2547,9 +2558,43 @@ public partial class WorkspaceViewModel : ViewModelBase
             $"Pulled {source.Branch} from {source.Remote}");
     }
 
+    /// <summary>
+    /// Push. A branch the remote has never seen has no upstream, and plain <c>git push</c> just fails
+    /// with a wall of advice — so offer to publish it (push --set-upstream) instead, the way other
+    /// clients do. Anything else falls through to the ordinary push.
+    /// </summary>
     [RelayCommand]
-    private Task Push() =>
-        RunAsync(() => _git.PushAsync(Repository.Path, Progress()), Loc["Status_Pushed"]);
+    private async Task Push()
+    {
+        if (!string.IsNullOrEmpty(Upstream) || BranchName.Length == 0 || IsDetachedHead)
+        {
+            await RunAsync(() => _git.PushAsync(Repository.Path, Progress()), Loc["Status_Pushed"]);
+            return;
+        }
+
+        var remotes = await _git.GetRemotesAsync(Repository.Path);
+        if (remotes.Count == 0)
+        {
+            StatusText = Loc["Status_NoRemotes"];
+            return;
+        }
+
+        // One remote is the normal case; with several, ask which — same picker as "Push to…".
+        var remote = remotes.Count == 1 ? remotes[0] : await (PromptPushTarget?.Invoke(remotes, BranchName) ?? Task.FromResult<string?>(null));
+        if (remote is null)
+        {
+            return;   // cancelled
+        }
+
+        if (ConfirmPublishBranch is not null && !await ConfirmPublishBranch(BranchName, remote))
+        {
+            return;
+        }
+
+        await RunAsync(
+            () => _git.PublishBranchAsync(Repository.Path, remote, BranchName, Progress()),
+            string.Format(Loc["Status_PublishedBranch"], BranchName, remote));
+    }
 
     [RelayCommand]
     private async Task PushTo()

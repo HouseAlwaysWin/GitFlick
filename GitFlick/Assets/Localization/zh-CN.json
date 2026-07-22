@@ -305,6 +305,10 @@
   "Diff_SelectFile": "选择一个更改的文件以查看其差异。",
 
   "Banner_Dismiss": "关闭这条提示",
+  "Dialog_Publish": "发布",
+  "Dialog_PublishBranch_Title": "发布分支",
+  "Dialog_PublishBranch_Body": "“{0}”还不在“{1}”上。要推送并建立跟踪吗？之后的推送与拉取就能直接使用。",
+  "Status_PublishedBranch": "已将 {0} 发布到 {1}",
   "Dialog_Cancel": "取消",
   "Dialog_Close": "关闭",
   "Dialog_CommitMessage_Title": "提交信息 · {0}",
