@@ -1008,15 +1008,17 @@
                                                      VerticalContentAlignment="Center"
                                                      FontSize="12" Padding="6,4"
                                                      KeyDown="OnSearchBoxKeyDown" />
-                                            <!-- File scope only: the fuzzy-matched historical paths. -->
+                                            <!-- File scope only: the fuzzy-matched historical paths. Bounding the
+                                                 ListBox itself (rather than wrapping it in a ScrollViewer) keeps its
+                                                 VirtualizingStackPanel realizing only the visible rows — a wrapping
+                                                 ScrollViewer hands it an unbounded measure and defeats virtualization. -->
                                             <Border IsVisible="{Binding IsFileSearch}"
                                                     BorderBrush="#30808080" BorderThickness="1" CornerRadius="3">
-                                                <ScrollViewer MaxHeight="240">
-                                                    <ListBox x:Name="PathList"
-                                                             ItemsSource="{Binding FilteredPathSuggestions}"
-                                                             SelectionChanged="OnPathSuggestionSelected"
-                                                             Background="Transparent" FontSize="12" />
-                                                </ScrollViewer>
+                                                <ListBox x:Name="PathList"
+                                                         MaxHeight="240"
+                                                         ItemsSource="{Binding FilteredPathSuggestions}"
+                                                         SelectionChanged="OnPathSuggestionSelected"
+                                                         Background="Transparent" FontSize="12" />
                                             </Border>
                                         </StackPanel>
                                     </Flyout>
