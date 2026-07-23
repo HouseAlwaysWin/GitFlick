@@ -862,20 +862,26 @@ public sealed class GitService : IGitService
 
     public async Task<IReadOnlyList<string>> GetRemoteBranchesAsync(string repoPath, CancellationToken cancellationToken = default)
     {
-        var result = await RunAsync(repoPath, ["for-each-ref", "--format=%(refname:short)", "refs/remotes"], null, cancellationToken)
+        // Filter on the FULL refname, not the short one: the symbolic refs/remotes/<remote>/HEAD shortens
+        // to just "<remote>" (e.g. "origin"), so a %(refname:short) + EndsWith("/HEAD") check misses it
+        // and a bare "origin" leaks in as though it were a branch.
+        var result = await RunAsync(repoPath, ["for-each-ref", "--format=%(refname)", "refs/remotes"], null, cancellationToken)
             .ConfigureAwait(false);
         if (!result.Succeeded)
         {
             return [];
         }
 
+        const string prefix = "refs/remotes/";
         var names = new List<string>();
         foreach (var raw in result.StandardOutput.Split('\n'))
         {
-            var name = raw.Trim();
-            if (name.Length > 0 && !name.EndsWith("/HEAD", StringComparison.Ordinal))
+            var full = raw.Trim();
+            if (full.StartsWith(prefix, StringComparison.Ordinal)
+                && !full.EndsWith("/HEAD", StringComparison.Ordinal)
+                && full.Length > prefix.Length)
             {
-                names.Add(name);
+                names.Add(full[prefix.Length..]);   // "refs/remotes/origin/main" -> "origin/main"
             }
         }
 

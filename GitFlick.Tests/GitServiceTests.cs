@@ -204,6 +204,27 @@ public class GitServiceTests
     }
 
     [Fact]
+    public async Task Remote_branches_exclude_the_origin_HEAD_symref()
+    {
+        using var origin = new TestRepo();
+        origin.WriteFile("a.txt", "1");
+        origin.Git("add", "-A");
+        origin.Git("commit", "-m", "first");
+
+        using var clone = new TestRepo();
+        System.IO.Directory.Delete(clone.Path, recursive: true);
+        // A clone creates refs/remotes/origin/main AND the symbolic refs/remotes/origin/HEAD.
+        new TestRepo().Git("clone", origin.Path, clone.Path);
+
+        var remotes = await _git.GetRemoteBranchesAsync(clone.Path);
+
+        Assert.Contains("origin/main", remotes);
+        // The HEAD symref shortens to a bare "origin"; it must not surface as a branch.
+        Assert.DoesNotContain("origin", remotes);
+        Assert.DoesNotContain(remotes, r => r.EndsWith("/HEAD", System.StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task Lists_branches_with_the_current_one_marked()
     {
         using var repo = new TestRepo();

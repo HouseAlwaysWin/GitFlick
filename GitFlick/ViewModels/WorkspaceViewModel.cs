@@ -225,6 +225,9 @@ public partial class WorkspaceViewModel : ViewModelBase
 
     public ObservableCollection<GitBranch> Branches { get; } = [];
 
+    /// <summary>Remote-tracking branches ("origin/main", …) shown under the flyout's REMOTE section.</summary>
+    public ObservableCollection<GitBranch> RemoteBranches { get; } = [];
+
     public ObservableCollection<StashEntry> Stashes { get; } = [];
 
     public ObservableCollection<TagItem> Tags { get; } = [];
@@ -552,8 +555,55 @@ public partial class WorkspaceViewModel : ViewModelBase
     [ObservableProperty]
     public partial GitStatusEntry? SelectedStagedFile { get; set; }
 
+    // Two lists (local + remote) but one logical selection. Binding both ListBoxes to a single
+    // SelectedItem doesn't work: the second list doesn't contain the first list's item, so it coerces
+    // the shared binding back to null. Instead each list gets its own selection property, picking in
+    // one clears the other, and SelectedBranch is the derived "whichever is active" the buttons read.
     [ObservableProperty]
-    public partial GitBranch? SelectedBranch { get; set; }
+    [NotifyPropertyChangedFor(nameof(SelectedBranch))]
+    [NotifyPropertyChangedFor(nameof(SelectedIsLocal))]
+    [NotifyPropertyChangedFor(nameof(CanPublishSelected))]
+    public partial GitBranch? SelectedLocalBranch { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SelectedBranch))]
+    [NotifyPropertyChangedFor(nameof(SelectedIsLocal))]
+    [NotifyPropertyChangedFor(nameof(CanPublishSelected))]
+    public partial GitBranch? SelectedRemoteBranch { get; set; }
+
+    // Picking in one list clears the other, so the two stay mutually exclusive. Only act on a non-null
+    // pick — clearing the other to null re-enters here with null, which is the no-op that stops a loop.
+    partial void OnSelectedLocalBranchChanged(GitBranch? value)
+    {
+        if (value is not null)
+        {
+            SelectedRemoteBranch = null;
+        }
+    }
+
+    partial void OnSelectedRemoteBranchChanged(GitBranch? value)
+    {
+        if (value is not null)
+        {
+            SelectedLocalBranch = null;
+        }
+    }
+
+    /// <summary>
+    /// The branch the flyout's action buttons operate on: whichever list has a pick (they're mutually
+    /// exclusive). Settable so refresh and tests can restore a local selection the old way.
+    /// </summary>
+    public GitBranch? SelectedBranch
+    {
+        get => SelectedLocalBranch ?? SelectedRemoteBranch;
+        set => SelectedLocalBranch = value;
+    }
+
+    /// <summary>The selection is a local branch — rename/upstream/delete/publish only apply to those.</summary>
+    public bool SelectedIsLocal => SelectedBranch is { IsRemote: false };
+
+    /// <summary>A local branch the remote hasn't seen yet — the Publish button pushes --set-upstream it.</summary>
+    public bool CanPublishSelected => SelectedBranch is { IsRemote: false, Upstream: null };
 
     [ObservableProperty]
     public partial string NewBranchName { get; set; } = string.Empty;
@@ -574,17 +624,26 @@ public partial class WorkspaceViewModel : ViewModelBase
 
     partial void OnBranchSearchChanged(string value) => NarrowBranches();
 
-    /// <summary>Branches matching <see cref="BranchSearch"/> — what the Branch flyout list actually shows.</summary>
+    /// <summary>Local branches matching <see cref="BranchSearch"/> — the flyout's LOCAL list.</summary>
     public ObservableCollection<GitBranch> FilteredBranches { get; } = [];
 
-    // Copies the fuzzy-matching branches (all when the query is empty) into FilteredBranches, keeping the
-    // current selection if it still matches so the action buttons stay pointed at the same branch.
+    /// <summary>Remote-tracking branches matching <see cref="BranchSearch"/> — the flyout's REMOTE list.</summary>
+    public ObservableCollection<GitBranch> FilteredRemoteBranches { get; } = [];
+
+    /// <summary>Whether the REMOTE section has anything to show, so it hides for a remote-less repo.</summary>
+    [ObservableProperty]
+    public partial bool HasRemoteBranches { get; set; }
+
+    // Copies the fuzzy-matching branches (all when the query is empty) into the two filtered lists,
+    // keeping the current selection if it still matches so the action buttons stay pointed at the same
+    // branch. Clearing a bound list momentarily nulls its ListBox selection; the re-pin below restores it.
     private void NarrowBranches()
     {
         var query = BranchSearch.Trim();
-        var keep = SelectedBranch;
-        FilteredBranches.Clear();
+        var keepLocal = SelectedLocalBranch;
+        var keepRemote = SelectedRemoteBranch;
 
+        FilteredBranches.Clear();
         foreach (var branch in Branches)
         {
             if (query.Length == 0 || FuzzyMatcher.TryMatch(branch.Name, query, out _))
@@ -593,10 +652,26 @@ public partial class WorkspaceViewModel : ViewModelBase
             }
         }
 
-        if (keep is not null && FilteredBranches.Contains(keep))
+        FilteredRemoteBranches.Clear();
+        foreach (var branch in RemoteBranches)
         {
-            SelectedBranch = keep;
+            if (query.Length == 0 || FuzzyMatcher.TryMatch(branch.Name, query, out _))
+            {
+                FilteredRemoteBranches.Add(branch);
+            }
         }
+
+        if (keepLocal is not null && FilteredBranches.Contains(keepLocal))
+        {
+            SelectedLocalBranch = keepLocal;
+        }
+
+        if (keepRemote is not null && FilteredRemoteBranches.Contains(keepRemote))
+        {
+            SelectedRemoteBranch = keepRemote;
+        }
+
+        HasRemoteBranches = FilteredRemoteBranches.Count > 0;
     }
 
     [ObservableProperty]
@@ -1184,9 +1259,10 @@ public partial class WorkspaceViewModel : ViewModelBase
             // stays sequential below because it reads the freshly-refreshed Branches list.
             var statusTask = _git.GetStatusAsync(Repository.Path);
             var branchesTask = _git.GetBranchesAsync(Repository.Path);
+            var remoteBranchesTask = _git.GetRemoteBranchesAsync(Repository.Path);
             var stashesTask = _git.GetStashesAsync(Repository.Path);
             var tagsTask = _git.GetTagsAsync(Repository.Path);
-            await Task.WhenAll(statusTask, branchesTask, stashesTask, tagsTask);
+            await Task.WhenAll(statusTask, branchesTask, remoteBranchesTask, stashesTask, tagsTask);
 
             var status = await statusTask;
 
@@ -1209,9 +1285,10 @@ public partial class WorkspaceViewModel : ViewModelBase
 
             var branchName = SelectedBranch?.Name;
             Replace(Branches, await branchesTask);
-            SelectedBranch = Branches.FirstOrDefault(b => b.Name == branchName)
+            Replace(RemoteBranches, (await remoteBranchesTask).Select(n => new GitBranch { Name = n, IsRemote = true }));
+            SelectedLocalBranch = Branches.FirstOrDefault(b => b.Name == branchName)
                 ?? Branches.FirstOrDefault(b => b.IsCurrent);
-            NarrowBranches();   // keep the Branch-flyout's filtered view in sync with the refreshed list
+            NarrowBranches();   // keep the Branch-flyout's filtered lists in sync with the refreshed data
             History.InvalidateContainment();   // branch tips / HEAD moved, so cached commit-containment is stale
             await RefreshBaseRefsAsync();
             await RefreshIdentityAsync();
@@ -1913,18 +1990,29 @@ public partial class WorkspaceViewModel : ViewModelBase
     [RelayCommand]
     private Task Checkout()
     {
-        if (SelectedBranch is not { IsCurrent: false } branch)
+        if (SelectedBranch is not { } branch)
         {
             return Task.CompletedTask;
         }
 
-        return GuardedCheckout(branch.Name, string.Format(Loc["Status_SwitchedTo"], branch.Name));
+        // A remote branch DWIMs to its local tracking branch: "origin/main" -> checkout "main", which
+        // git creates tracking origin/main if no local branch of that name exists yet.
+        if (branch.IsRemote)
+        {
+            var local = branch.Name[(branch.Name.IndexOf('/') + 1)..];
+            return GuardedCheckout(local, string.Format(Loc["Status_SwitchedTo"], local));
+        }
+
+        return branch.IsCurrent
+            ? Task.CompletedTask   // already on it
+            : GuardedCheckout(branch.Name, string.Format(Loc["Status_SwitchedTo"], branch.Name));
     }
 
     [RelayCommand]
     private Task DeleteBranch()
     {
-        if (SelectedBranch is not { IsCurrent: false } branch)
+        // Local branches only, and never the checked-out one (git refuses that anyway).
+        if (SelectedBranch is not { IsRemote: false, IsCurrent: false } branch)
         {
             return Task.CompletedTask;
         }
@@ -1947,7 +2035,7 @@ public partial class WorkspaceViewModel : ViewModelBase
     [RelayCommand]
     private async Task RenameBranch()
     {
-        if (SelectedBranch is not { } branch || PromptBranchName is null)
+        if (SelectedBranch is not { IsRemote: false } branch || PromptBranchName is null)
         {
             return;
         }
@@ -1967,7 +2055,7 @@ public partial class WorkspaceViewModel : ViewModelBase
     [RelayCommand]
     private async Task SetUpstream()
     {
-        if (SelectedBranch is not { } branch || PromptPickRef is null)
+        if (SelectedBranch is not { IsRemote: false } branch || PromptPickRef is null)
         {
             return;
         }
@@ -1991,9 +2079,47 @@ public partial class WorkspaceViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private Task UnsetUpstream() => SelectedBranch is { } branch
+    private Task UnsetUpstream() => SelectedBranch is { IsRemote: false } branch
         ? RunAsync(() => _git.UnsetUpstreamAsync(Repository.Path, branch.Name), Loc["Status_UnsetUpstream"])
         : Task.CompletedTask;
+
+    /// <summary>
+    /// Publish the selected local branch that has no upstream yet: push --set-upstream to a remote — the
+    /// same flow the toolbar Push takes for an unpublished current branch, but for any picked branch.
+    /// </summary>
+    [RelayCommand]
+    private async Task PublishBranch()
+    {
+        if (SelectedBranch is not { IsRemote: false, Upstream: null } branch)
+        {
+            return;
+        }
+
+        var remotes = await _git.GetRemotesAsync(Repository.Path);
+        if (remotes.Count == 0)
+        {
+            StatusText = Loc["Status_NoRemotes"];
+            return;
+        }
+
+        // One remote is the normal case; with several, ask which — same picker as "Push to…".
+        var remote = remotes.Count == 1
+            ? remotes[0]
+            : await (PromptPushTarget?.Invoke(remotes, branch.Name) ?? Task.FromResult<string?>(null));
+        if (remote is null)
+        {
+            return;   // cancelled
+        }
+
+        if (ConfirmPublishBranch is not null && !await ConfirmPublishBranch(branch.Name, remote))
+        {
+            return;
+        }
+
+        await RunAsync(
+            () => _git.PublishBranchAsync(Repository.Path, remote, branch.Name, Progress()),
+            string.Format(Loc["Status_PublishedBranch"], branch.Name, remote));
+    }
 
     // ── Stash: create ───────────────────────────────────────────────────────────
     [RelayCommand]

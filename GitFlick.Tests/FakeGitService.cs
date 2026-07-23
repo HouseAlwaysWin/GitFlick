@@ -287,7 +287,14 @@ internal sealed class FakeGitService : IGitService
     public Task<string> GetMergeResolutionFileDiffAsync(string repoPath, string sha, string path, CancellationToken cancellationToken = default)
         => Task.FromResult(string.Empty);
 
-    public Task<GitCommandResult> CheckoutAsync(string repoPath, string branch, CancellationToken cancellationToken = default) => Task.FromResult(Ok);
+    /// <summary>The branch the last CheckoutAsync was given, so tests can assert the DWIM target.</summary>
+    public string? LastCheckout { get; private set; }
+
+    public Task<GitCommandResult> CheckoutAsync(string repoPath, string branch, CancellationToken cancellationToken = default)
+    {
+        LastCheckout = branch;
+        return Task.FromResult(Ok);
+    }
 
     /// <summary>The start point the last CreateBranchAsync was given (null = branch from HEAD).</summary>
     public string? LastCreateBranchStartPoint { get; private set; }

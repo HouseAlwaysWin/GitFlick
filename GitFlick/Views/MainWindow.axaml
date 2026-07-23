@@ -672,12 +672,16 @@
 
                                     <Separator Margin="0,4" />
 
-                                    <TextBlock Text="{loc:Tr Branch_ListHeader}" FontSize="10" Opacity="0.5" />
+                                    <!-- One search box narrows both sections; each list keeps its own selection
+                                         (see SelectedLocalBranch / SelectedRemoteBranch) so picking in one clears
+                                         the other and the action buttons follow whichever is active. -->
                                     <TextBox Text="{Binding BranchSearch}" PlaceholderText="{loc:Tr Branch_Search}"
                                              VerticalContentAlignment="Center" FontSize="12" />
-                                    <ListBox MaxHeight="200"
+
+                                    <TextBlock Text="{loc:Tr Branch_LocalHeader}" FontSize="10" Opacity="0.5" />
+                                    <ListBox MaxHeight="150"
                                              ItemsSource="{Binding FilteredBranches}"
-                                             SelectedItem="{Binding SelectedBranch}">
+                                             SelectedItem="{Binding SelectedLocalBranch}">
                                         <ListBox.ItemTemplate>
                                             <DataTemplate x:DataType="models:GitBranch">
                                                 <Grid ColumnDefinitions="*,Auto">
@@ -688,25 +692,49 @@
                                             </DataTemplate>
                                         </ListBox.ItemTemplate>
                                     </ListBox>
+
+                                    <!-- Hidden entirely for a repo with no remote-tracking branches. -->
+                                    <StackPanel Spacing="6" IsVisible="{Binding HasRemoteBranches}">
+                                        <TextBlock Text="{loc:Tr Branch_RemoteHeader}" FontSize="10" Opacity="0.5" />
+                                        <ListBox MaxHeight="150"
+                                                 ItemsSource="{Binding FilteredRemoteBranches}"
+                                                 SelectedItem="{Binding SelectedRemoteBranch}">
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate x:DataType="models:GitBranch">
+                                                    <TextBlock Text="{Binding Name}" FontFamily="Cascadia Mono,Consolas,monospace"
+                                                               FontSize="12" />
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
+                                    </StackPanel>
+
+                                    <!-- Appears only for a local branch the remote hasn't seen yet. -->
+                                    <Button Content="{loc:Tr Branch_Publish}" Classes="primary" HorizontalAlignment="Stretch"
+                                            HorizontalContentAlignment="Center" Command="{Binding PublishBranchCommand}"
+                                            IsVisible="{Binding CanPublishSelected}" />
                                     <Grid ColumnDefinitions="*,*,*" ColumnSpacing="6">
                                         <Button Grid.Column="0" Content="{loc:Tr Branch_Checkout}" HorizontalAlignment="Stretch"
                                                 HorizontalContentAlignment="Center" Command="{Binding CheckoutCommand}" />
                                         <Button Grid.Column="1" Content="{loc:Tr Branch_Merge}" HorizontalAlignment="Stretch"
                                                 HorizontalContentAlignment="Center" Command="{Binding MergeCommand}" />
                                         <Button Grid.Column="2" Classes="danger" Content="{loc:Tr Branch_Delete}" HorizontalAlignment="Stretch"
-                                                HorizontalContentAlignment="Center" Command="{Binding DeleteBranchCommand}" />
+                                                HorizontalContentAlignment="Center" Command="{Binding DeleteBranchCommand}"
+                                                IsEnabled="{Binding SelectedIsLocal}" />
                                     </Grid>
                                     <!-- Upstream actions get their own 2-col row: "Set/Unset upstream" are too
                                          wide to sit three-across in a 300px flyout without truncating. -->
                                     <Grid ColumnDefinitions="*,*" ColumnSpacing="6">
                                         <Button Grid.Column="0" Content="{loc:Tr Branch_SetUpstream}" HorizontalAlignment="Stretch"
-                                                HorizontalContentAlignment="Center" Command="{Binding SetUpstreamCommand}" />
+                                                HorizontalContentAlignment="Center" Command="{Binding SetUpstreamCommand}"
+                                                IsEnabled="{Binding SelectedIsLocal}" />
                                         <Button Grid.Column="1" Content="{loc:Tr Branch_UnsetUpstream}" HorizontalAlignment="Stretch"
-                                                HorizontalContentAlignment="Center" Command="{Binding UnsetUpstreamCommand}" />
+                                                HorizontalContentAlignment="Center" Command="{Binding UnsetUpstreamCommand}"
+                                                IsEnabled="{Binding SelectedIsLocal}" />
                                     </Grid>
                                     <Grid ColumnDefinitions="*,*" ColumnSpacing="6">
                                         <Button Grid.Column="0" Content="{loc:Tr Branch_Rename}" HorizontalAlignment="Stretch"
-                                                HorizontalContentAlignment="Center" Command="{Binding RenameBranchCommand}" />
+                                                HorizontalContentAlignment="Center" Command="{Binding RenameBranchCommand}"
+                                                IsEnabled="{Binding SelectedIsLocal}" />
                                         <Button Grid.Column="1" Content="{loc:Tr Branch_Compare}" HorizontalAlignment="Stretch"
                                                 HorizontalContentAlignment="Center" Click="OnCompareBranchClick"
                                                 ToolTip.Tip="{loc:Tr Branch_Compare_Tooltip}" />
