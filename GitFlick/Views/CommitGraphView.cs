@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
@@ -12,6 +13,9 @@ namespace GitFlick.Views;
 /// The graph's Y coordinates are in ROW units (row i is centred at i + 0.5), so this control
 /// multiplies them by <see cref="RowHeight"/> at draw time. That is what lets the row height
 /// change without regenerating the graph.
+///
+/// The lane/link geometry is a pure function of the graph and the row height, so it's tessellated
+/// once and cached; scrolling only re-runs the cheap replay under a translation, never a rebuild.
 /// </summary>
 public sealed class CommitGraphView : Control
 {
@@ -46,6 +50,17 @@ public sealed class CommitGraphView : Control
     ];
 
     private static readonly Pen[] Pens = CreatePens();
+
+    // Dot fills reuse the palette; cached once like Pens instead of allocating a brush per dot per frame.
+    private static readonly IBrush[] DotBrushes = CreateDotBrushes();
+
+    // Cached tessellation, rebuilt only when Graph or RowHeight changes — never on scroll.
+    private CommitGraph? _cachedGraph;
+    private double _cachedRowHeight = double.NaN;
+    private LaneGeometry[] _pathGeometries = [];
+    private LaneGeometry[] _linkGeometries = [];
+
+    private readonly record struct LaneGeometry(Geometry Geometry, int Color);
 
     static CommitGraphView()
     {
@@ -87,19 +102,49 @@ public sealed class CommitGraphView : Control
         }
 
         var rowHeight = RowHeight;
+        EnsureGeometry(graph, rowHeight);
+
         var top = ScrollOffset;
 
         using (context.PushClip(new Rect(Bounds.Size)))
         using (context.PushTransform(Matrix.CreateTranslation(0, -top)))
         {
-            DrawPaths(context, graph, rowHeight);
-            DrawLinks(context, graph, rowHeight);
+            foreach (var lane in _pathGeometries)
+            {
+                context.DrawGeometry(null, PenFor(lane.Color), lane.Geometry);
+            }
+
+            foreach (var lane in _linkGeometries)
+            {
+                context.DrawGeometry(null, PenFor(lane.Color), lane.Geometry);
+            }
+
             DrawDots(context, graph, rowHeight);
         }
     }
 
-    private static void DrawPaths(DrawingContext context, CommitGraph graph, double rowHeight)
+    /// <summary>
+    /// Rebuilds the cached path/link geometry when the graph identity or row height changes. Both are
+    /// pure inputs to the tessellation, so a cache hit replays identical geometry under the scroll
+    /// transform without re-tessellating every lane each frame.
+    /// </summary>
+    private void EnsureGeometry(CommitGraph graph, double rowHeight)
     {
+        if (ReferenceEquals(_cachedGraph, graph) && _cachedRowHeight.Equals(rowHeight))
+        {
+            return;
+        }
+
+        _cachedGraph = graph;
+        _cachedRowHeight = rowHeight;
+        _pathGeometries = BuildPaths(graph, rowHeight);
+        _linkGeometries = BuildLinks(graph, rowHeight);
+    }
+
+    private static LaneGeometry[] BuildPaths(CommitGraph graph, double rowHeight)
+    {
+        var lanes = new List<LaneGeometry>(graph.Paths.Count);
+
         foreach (var path in graph.Paths)
         {
             if (path.Points.Count < 2)
@@ -149,14 +194,19 @@ public sealed class CommitGraphView : Control
                 }
             }
 
-            context.DrawGeometry(null, PenFor(path.Color), geometry);
+            lanes.Add(new LaneGeometry(geometry, path.Color));
         }
+
+        return lanes.ToArray();
     }
 
-    private static void DrawLinks(DrawingContext context, CommitGraph graph, double rowHeight)
+    private static LaneGeometry[] BuildLinks(CommitGraph graph, double rowHeight)
     {
-        foreach (var link in graph.Links)
+        var lanes = new LaneGeometry[graph.Links.Count];
+
+        for (var i = 0; i < graph.Links.Count; i++)
         {
+            var link = graph.Links[i];
             var geometry = new StreamGeometry();
 
             using (var ctx = geometry.Open())
@@ -165,8 +215,10 @@ public sealed class CommitGraphView : Control
                 ctx.QuadraticBezierTo(Scale(link.Control, rowHeight), Scale(link.End, rowHeight));
             }
 
-            context.DrawGeometry(null, PenFor(link.Color), geometry);
+            lanes[i] = new LaneGeometry(geometry, link.Color);
         }
+
+        return lanes;
     }
 
     private void DrawDots(DrawingContext context, CommitGraph graph, double rowHeight)
@@ -176,7 +228,7 @@ public sealed class CommitGraphView : Control
         foreach (var dot in graph.Dots)
         {
             var center = Scale(dot.Center, rowHeight);
-            var brush = new SolidColorBrush(Palette[dot.Color % Palette.Length]);
+            var brush = BrushFor(dot.Color);
 
             switch (dot.Kind)
             {
@@ -203,6 +255,8 @@ public sealed class CommitGraphView : Control
 
     private static Pen PenFor(int color) => Pens[color % Pens.Length];
 
+    private static IBrush BrushFor(int color) => DotBrushes[color % DotBrushes.Length];
+
     private static Pen[] CreatePens()
     {
         var pens = new Pen[Palette.Length];
@@ -213,5 +267,17 @@ public sealed class CommitGraphView : Control
         }
 
         return pens;
+    }
+
+    private static IBrush[] CreateDotBrushes()
+    {
+        var brushes = new IBrush[Palette.Length];
+
+        for (var i = 0; i < Palette.Length; i++)
+        {
+            brushes[i] = new SolidColorBrush(Palette[i]);
+        }
+
+        return brushes;
     }
 }
