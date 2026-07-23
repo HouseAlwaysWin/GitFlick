@@ -19,11 +19,11 @@ public class MergeFilterTests
         var vm = new WorkspaceViewModel(git, new RepositoryItem("r", Path.GetTempPath()));
         await vm.ShowHistoryCommand.ExecuteAsync(null);
 
-        vm.MergesOnly = true;
-        await vm.HistoryLoad;
+        vm.History.MergesOnly = true;
+        await vm.History.HistoryLoad;
 
         Assert.True(git.LastMergesOnly);
-        Assert.False(vm.ShowGraph);   // merges-only isn't a parent-closed subset
+        Assert.False(vm.History.ShowGraph);   // merges-only isn't a parent-closed subset
     }
 
     [Fact]
@@ -39,10 +39,10 @@ public class MergeFilterTests
 
         var vm = new WorkspaceViewModel(new GitService(), new RepositoryItem("r", repo.Path));
         await vm.ShowHistoryCommand.ExecuteAsync(null);
-        vm.MergesOnly = true;
-        await vm.HistoryLoad;
+        vm.History.MergesOnly = true;
+        await vm.History.HistoryLoad;
 
-        var only = Assert.Single(vm.Commits);
+        var only = Assert.Single(vm.History.Commits);
         Assert.Equal("merge feature", only.Subject);
         Assert.True(only.IsMerge);
     }
@@ -63,8 +63,8 @@ public class MergeFilterTests
 
         var vm = new WorkspaceViewModel(new GitService(), new RepositoryItem("r", repo.Path));
         await vm.ShowFileHistory("f.txt");
-        await vm.HistoryLoad;
+        await vm.History.HistoryLoad;
 
-        Assert.Contains(vm.Commits, c => c.Subject == "merge feature" && c.IsMerge);
+        Assert.Contains(vm.History.Commits, c => c.Subject == "merge feature" && c.IsMerge);
     }
 }

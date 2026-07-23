@@ -961,7 +961,9 @@
                 <!-- ClipToBounds: a backstop so nothing in here can ever paint over the diff pane, whatever
                      the pane is narrowed to. -->
                 <DockPanel Grid.Column="0" x:Name="HistoryPane" ClipToBounds="True"
-                           IsVisible="{Binding IsHistoryMode}">
+                           DataContext="{Binding History}"
+                           x:DataType="vm:HistoryViewModel"
+                           IsVisible="{Binding $parent[Grid].((vm:WorkspaceViewModel)DataContext).IsHistoryMode}">
                     <!-- The filters live in a '*' column, not 'Auto': an Auto column takes the group's full
                          desired width, which overflowed a narrow pane and drew across the diff. Constrained
                          here, the WrapPanel drops them onto a second line instead. -->
@@ -982,7 +984,7 @@
                                     ToolTip.Tip="{loc:Tr History_SearchType_Tooltip}">
                                 <Button.Flyout>
                                     <Flyout Placement="BottomEdgeAlignedRight">
-                                        <StackPanel Width="300" Spacing="8" x:DataType="vm:WorkspaceViewModel">
+                                        <StackPanel Width="300" Spacing="8" x:DataType="vm:HistoryViewModel">
                                             <Grid ColumnDefinitions="*,Auto">
                                                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10">
                                                     <RadioButton GroupName="searchScope" FontSize="12"
@@ -1029,7 +1031,7 @@
                                     ToolTip.Tip="{loc:Tr History_AuthorFilter_Tooltip}">
                                 <Button.Flyout>
                                     <Flyout Placement="BottomEdgeAlignedRight">
-                                        <StackPanel Width="250" Spacing="6" x:DataType="vm:WorkspaceViewModel">
+                                        <StackPanel Width="250" Spacing="6" x:DataType="vm:HistoryViewModel">
                                             <Grid ColumnDefinitions="*,Auto">
                                                 <TextBlock Grid.Column="0" Text="{loc:Tr History_ShowOnlyAuthors}"
                                                            FontSize="10" Opacity="0.5" VerticalAlignment="Center" />
@@ -1060,7 +1062,7 @@
                                     ToolTip.Tip="{loc:Tr History_BranchFilter_Tooltip}">
                                 <Button.Flyout>
                                     <Flyout Placement="BottomEdgeAlignedRight">
-                                        <StackPanel Width="270" Spacing="6" x:DataType="vm:WorkspaceViewModel">
+                                        <StackPanel Width="270" Spacing="6" x:DataType="vm:HistoryViewModel">
                                             <Grid ColumnDefinitions="*,Auto">
                                                 <TextBlock Grid.Column="0" Text="{loc:Tr History_ShowOnlyBranches}"
                                                            FontSize="10" Opacity="0.5" VerticalAlignment="Center" />
@@ -1190,28 +1192,30 @@
                                      SelectedItem="{Binding SelectedCommit}"
                                      DoubleTapped="OnCommitActivated">
                                 <ListBox.ContextFlyout>
+                                    <!-- Commit context actions STAY on the workspace VM; the pane's DataContext is
+                                         the HistoryViewModel, so each command reaches back up to the workspace. -->
                                     <MenuFlyout>
-                                        <MenuItem Header="{loc:Tr History_Ctx_AddTag}" Command="{Binding AddTagCommand}" />
-                                        <MenuItem Header="{loc:Tr History_Ctx_CreateBranch}" Command="{Binding CreateBranchHereCommand}" />
+                                        <MenuItem Header="{loc:Tr History_Ctx_AddTag}" Command="{Binding $parent[Grid].((vm:WorkspaceViewModel)DataContext).AddTagCommand}" />
+                                        <MenuItem Header="{loc:Tr History_Ctx_CreateBranch}" Command="{Binding $parent[Grid].((vm:WorkspaceViewModel)DataContext).CreateBranchHereCommand}" />
                                         <Separator />
                                         <MenuItem Header="{loc:Tr History_Ctx_Checkout}"
-                                                  Command="{Binding CheckoutCommitCommand}"
+                                                  Command="{Binding $parent[Grid].((vm:WorkspaceViewModel)DataContext).CheckoutCommitCommand}"
                                                   ToolTip.Tip="{loc:Tr History_Ctx_Checkout_Tooltip}" />
                                         <MenuItem Header="{loc:Tr History_Ctx_CherryPick}"
-                                                  Command="{Binding CherryPickCommand}"
+                                                  Command="{Binding $parent[Grid].((vm:WorkspaceViewModel)DataContext).CherryPickCommand}"
                                                   ToolTip.Tip="{loc:Tr History_Ctx_CherryPick_Tooltip}" />
-                                        <MenuItem Header="{loc:Tr History_Ctx_Revert}" Command="{Binding RevertCommitCommand}" />
+                                        <MenuItem Header="{loc:Tr History_Ctx_Revert}" Command="{Binding $parent[Grid].((vm:WorkspaceViewModel)DataContext).RevertCommitCommand}" />
                                         <Separator />
-                                        <MenuItem Header="{loc:Tr History_Ctx_Merge}" Command="{Binding MergeCommitCommand}" />
-                                        <MenuItem Header="{loc:Tr History_Ctx_Rebase}" Command="{Binding RebaseOntoCommand}" />
-                                        <MenuItem Header="{loc:Tr History_Ctx_Reset}" Command="{Binding ResetToCommitCommand}" />
+                                        <MenuItem Header="{loc:Tr History_Ctx_Merge}" Command="{Binding $parent[Grid].((vm:WorkspaceViewModel)DataContext).MergeCommitCommand}" />
+                                        <MenuItem Header="{loc:Tr History_Ctx_Rebase}" Command="{Binding $parent[Grid].((vm:WorkspaceViewModel)DataContext).RebaseOntoCommand}" />
+                                        <MenuItem Header="{loc:Tr History_Ctx_Reset}" Command="{Binding $parent[Grid].((vm:WorkspaceViewModel)DataContext).ResetToCommitCommand}" />
                                         <Separator />
                                         <MenuItem Header="{loc:Tr History_Ctx_ViewMessage}" Click="OnViewCommitMessageClick" />
                                         <MenuItem Header="{loc:Tr History_Ctx_CopySha}" Click="OnCopyShaClick" />
                                         <MenuItem Header="{loc:Tr History_Ctx_CopySubject}" Click="OnCopySubjectClick" />
                                         <Separator />
-                                        <MenuItem Header="{loc:Tr History_Ctx_OpenOnRemote}" Command="{Binding OpenCommitOnRemoteCommand}" />
-                                        <MenuItem Header="{loc:Tr History_Ctx_CopyLink}" Command="{Binding CopyCommitLinkCommand}" />
+                                        <MenuItem Header="{loc:Tr History_Ctx_OpenOnRemote}" Command="{Binding $parent[Grid].((vm:WorkspaceViewModel)DataContext).OpenCommitOnRemoteCommand}" />
+                                        <MenuItem Header="{loc:Tr History_Ctx_CopyLink}" Command="{Binding $parent[Grid].((vm:WorkspaceViewModel)DataContext).CopyCommitLinkCommand}" />
                                         <Separator />
                                         <MenuItem Header="{loc:Tr History_Ctx_CompareWith}" Click="OnCompareCommitClick" />
                                     </MenuFlyout>
@@ -1230,9 +1234,9 @@
                                         <Grid VerticalAlignment="Center">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="{Binding $parent[ListBox].((vm:WorkspaceViewModel)DataContext).AuthorColumnWidth}" />
-                                                <ColumnDefinition Width="{Binding $parent[ListBox].((vm:WorkspaceViewModel)DataContext).DateColumnWidth}" />
-                                                <ColumnDefinition Width="{Binding $parent[ListBox].((vm:WorkspaceViewModel)DataContext).CommitColumnWidth}" />
+                                                <ColumnDefinition Width="{Binding $parent[ListBox].((vm:HistoryViewModel)DataContext).AuthorColumnWidth}" />
+                                                <ColumnDefinition Width="{Binding $parent[ListBox].((vm:HistoryViewModel)DataContext).DateColumnWidth}" />
+                                                <ColumnDefinition Width="{Binding $parent[ListBox].((vm:HistoryViewModel)DataContext).CommitColumnWidth}" />
                                             </Grid.ColumnDefinitions>
                                             <!-- Message column: ref badges then the subject. ClipToBounds keeps
                                                  long branch decorations from spilling into the Author column, and
@@ -1416,9 +1420,9 @@
                             <Border DockPanel.Dock="Top"
                                     Background="#22588CF0" BorderBrush="#40588CF0" BorderThickness="0,0,0,1" Padding="8,3">
                                 <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
-                                    <ContentControl Grid.Column="0" Content="{Binding SelectedInfo}"
+                                    <ContentControl Grid.Column="0" Content="{Binding History.SelectedInfo}"
                                                     HorizontalAlignment="Left" VerticalAlignment="Center"
-                                                    IsVisible="{Binding SelectedInfo.HasSha}"
+                                                    IsVisible="{Binding History.SelectedInfo.HasSha}"
                                                     ContentTemplate="{StaticResource BranchInfoLine}" />
                                     <!-- Folder tree vs the flat full-path list. Deep repo paths are hard
                                          to scan flat; a shallow commit reads better flat. -->
@@ -1427,8 +1431,8 @@
                                     <ToggleButton Grid.Column="1" Classes="header"
                                                   Content="🗀"
                                                   VerticalAlignment="Center" FontSize="12" Padding="6,1"
-                                                  IsChecked="{Binding ShowFilesAsTree}"
-                                                  IsVisible="{Binding HasCommitFiles}"
+                                                  IsChecked="{Binding History.ShowFilesAsTree}"
+                                                  IsVisible="{Binding History.HasCommitFiles}"
                                                   ToolTip.Tip="{loc:Tr Files_TreeView_Tooltip}" />
                                     <Button Grid.Column="2" Content="✕" Classes="header"
                                             VerticalAlignment="Center" FontSize="12" Padding="6,1"
@@ -1439,9 +1443,9 @@
                         <Panel>
                             <ListBox x:Name="CommitFilesList"
                                      Background="Transparent"
-                                     IsVisible="{Binding !ShowFilesAsTree}"
-                                     ItemsSource="{Binding CommitFiles}"
-                                     SelectedItem="{Binding SelectedCommitFile}">
+                                     IsVisible="{Binding !History.ShowFilesAsTree}"
+                                     ItemsSource="{Binding History.CommitFiles}"
+                                     SelectedItem="{Binding History.SelectedCommitFile}">
                                 <ListBox.ContextFlyout>
                                     <MenuFlyout>
                                         <MenuItem Header="{loc:Tr Changes_OpenFile}" Click="OnOpenCommitFileClick" />
@@ -1466,9 +1470,9 @@
                                  into one row by the builder, so deep paths don't become pure indentation. -->
                             <TreeView x:Name="CommitFilesTree"
                                       Background="Transparent"
-                                      IsVisible="{Binding ShowFilesAsTree}"
-                                      ItemsSource="{Binding CommitFileNodes}"
-                                      SelectedItem="{Binding SelectedCommitFileNode}">
+                                      IsVisible="{Binding History.ShowFilesAsTree}"
+                                      ItemsSource="{Binding History.CommitFileNodes}"
+                                      SelectedItem="{Binding History.SelectedCommitFileNode}">
                                 <TreeView.Styles>
                                     <!-- A commit touches few files, so expanded is the useful default;
                                          collapsed would mean clicking through folders every time. -->
@@ -1498,7 +1502,7 @@
                             </TreeView>
 
                             <TextBlock Text="{loc:Tr Diff_NoFilesChanged}"
-                                       IsVisible="{Binding !HasCommitFiles}"
+                                       IsVisible="{Binding !History.HasCommitFiles}"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"
                                        Opacity="0.35" IsHitTestVisible="False" />
                         </Panel>
@@ -1524,8 +1528,8 @@
                                  no other commit and that a plain log never shows. -->
                             <ToggleButton Grid.Column="1" Classes="header"
                                           Content="{loc:Tr Diff_MergeResolution}"
-                                          IsVisible="{Binding IsMergeCommitSelected}"
-                                          IsChecked="{Binding ShowMergeResolution}"
+                                          IsVisible="{Binding History.IsMergeCommitSelected}"
+                                          IsChecked="{Binding History.ShowMergeResolution}"
                                           ToolTip.Tip="{loc:Tr Diff_MergeResolution_Tooltip}" />
                             <!-- Opens the diff in its own window: two aligned columns need real width,
                                  which this pane doesn't have. -->

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Avalonia;
 using GitFlick.Models;
 
@@ -28,6 +29,50 @@ namespace GitFlick.Services;
 /// </summary>
 internal static class CommitGraphBuilder
 {
+    /// <summary>
+    /// SHAs reachable from the tips that carry any of the given branch names — an in-memory ancestor
+    /// walk over <paramref name="commits"/> (no extra git call, so it composes with the other history
+    /// filters, and the resulting subset stays parent-closed for the lane graph).
+    /// </summary>
+    public static HashSet<string> ReachableFrom(IReadOnlyList<CommitInfo> commits, ISet<string> branchNames)
+    {
+        var bySha = new Dictionary<string, CommitInfo>(StringComparer.Ordinal);
+        foreach (var commit in commits)
+        {
+            bySha[commit.Sha] = commit;
+        }
+
+        var reachable = new HashSet<string>(StringComparer.Ordinal);
+        var stack = new Stack<string>();
+
+        foreach (var commit in commits)
+        {
+            if (commit.Refs.Any(r => branchNames.Contains(r.Name)))
+            {
+                stack.Push(commit.Sha);
+            }
+        }
+
+        while (stack.Count > 0)
+        {
+            var sha = stack.Pop();
+            if (!reachable.Add(sha))
+            {
+                continue;
+            }
+
+            if (bySha.TryGetValue(sha, out var commit))
+            {
+                foreach (var parent in commit.Parents)
+                {
+                    stack.Push(parent);
+                }
+            }
+        }
+
+        return reachable;
+    }
+
     private const double UnitWidth = 12;
     private const double HalfWidth = 6;
     private const double UnitHeight = 1;   // one ROW, not one pixel
