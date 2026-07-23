@@ -1138,6 +1138,11 @@ public sealed class GitService : IGitService
             catch (OperationCanceledException)
             {
                 TryKill(process);
+
+                // The two stream reads were started but not awaited on this path; observe them so an
+                // abandoned faulted read can't resurface later as an unobserved task exception.
+                await ObserveAsync(stdoutTask).ConfigureAwait(false);
+                await ObserveAsync(stderrTask).ConfigureAwait(false);
                 throw;
             }
 
@@ -1187,6 +1192,20 @@ public sealed class GitService : IGitService
         return text.Length > MaxLoggedOutput
             ? "… (truncated)\n" + text[^MaxLoggedOutput..]
             : text;
+    }
+
+    /// <summary>Awaits an abandoned stream-read, swallowing its fault — used to observe the reads that
+    /// were left running when a git call was cancelled.</summary>
+    private static async Task ObserveAsync(Task task)
+    {
+        try
+        {
+            await task.ConfigureAwait(false);
+        }
+        catch
+        {
+            // The call was cancelled; a faulted or cancelled read here is expected and irrelevant.
+        }
     }
 
     /// <summary>Renders the invocation as a copy-pasteable command line, quoting args with spaces.</summary>
