@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using GitFlick.Services.Updates;
 
 namespace GitFlick.Services;
 
@@ -108,6 +109,11 @@ public static class CommitModelCatalog
 
     public static string GetModelPath(CommitModelPreset preset) =>
         Path.Combine(ModelsDirectory, preset.FileName);
+
+    /// <summary>The download descriptor for a preset — what ArtifactDownloader needs to fetch and
+    /// verify it (URL, filename, SHA-256, exact byte size). Lands the file at <see cref="GetModelPath"/>.</summary>
+    public static ArtifactDescriptor DescriptorFor(CommitModelPreset preset) =>
+        new(new Uri(preset.Url), preset.FileName, preset.Sha256, preset.Size);
 
     public static bool IsDownloaded(CommitModelPreset preset) =>
         File.Exists(GetModelPath(preset));
