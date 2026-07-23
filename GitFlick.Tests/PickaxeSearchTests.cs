@@ -16,16 +16,16 @@ public class PickaxeSearchTests
         var vm = new WorkspaceViewModel(git, new RepositoryItem("r", Path.GetTempPath()));
         await vm.ShowHistoryCommand.ExecuteAsync(null);
 
-        await vm.UseContentSearchCommand.ExecuteAsync(null);
-        vm.SearchText = "needle";
+        await vm.History.UseContentSearchCommand.ExecuteAsync(null);
+        vm.History.SearchText = "needle";
         Assert.Null(git.LastContentSearch);          // typing doesn't reload — waits for apply
 
-        vm.ApplySearchCommand.Execute(null);
-        await vm.HistoryLoad;
+        vm.History.ApplySearchCommand.Execute(null);
+        await vm.History.HistoryLoad;
 
         Assert.Equal("needle", git.LastContentSearch);
-        Assert.True(vm.HasContentFilter);
-        Assert.False(vm.ShowGraph);                  // a pickaxe subset isn't parent-closed
+        Assert.True(vm.History.HasContentFilter);
+        Assert.False(vm.History.ShowGraph);                  // a pickaxe subset isn't parent-closed
     }
 
     [Fact]

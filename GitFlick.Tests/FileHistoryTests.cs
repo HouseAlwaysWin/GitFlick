@@ -19,13 +19,13 @@ public class FileHistoryTests
         var vm = new WorkspaceViewModel(git, new RepositoryItem("r", Path.GetTempPath()));
 
         await vm.ShowFileHistory("src/app.cs");
-        await vm.HistoryLoad;
+        await vm.History.HistoryLoad;
 
         Assert.True(vm.IsHistoryMode);          // jumps to History even if invoked from Changes
-        Assert.True(vm.IsFileSearch);           // the search dropdown reflects the File scope
-        Assert.Equal("src/app.cs", vm.FileFilter);
-        Assert.True(vm.HasFileFilter);
-        Assert.False(vm.ShowGraph);             // a path-filtered log isn't parent-closed
+        Assert.True(vm.History.IsFileSearch);           // the search dropdown reflects the File scope
+        Assert.Equal("src/app.cs", vm.History.FileFilter);
+        Assert.True(vm.History.HasFileFilter);
+        Assert.False(vm.History.ShowGraph);             // a path-filtered log isn't parent-closed
         Assert.Equal("src/app.cs", git.LastPathFilter);   // reached git as a path-filtered log
     }
 
@@ -39,10 +39,10 @@ public class FileHistoryTests
 
         var vm = new WorkspaceViewModel(new GitService(), new RepositoryItem("r", repo.Path));
         await vm.ShowFileHistory("app.cs");
-        await vm.HistoryLoad;
+        await vm.History.HistoryLoad;
 
-        Assert.Equal(2, vm.Commits.Count);      // create + edit; "other" excluded
-        Assert.All(vm.Commits, c => Assert.Contains("app", c.Subject));
-        Assert.Equal("app.cs", vm.FileFilter);
+        Assert.Equal(2, vm.History.Commits.Count);      // create + edit; "other" excluded
+        Assert.All(vm.History.Commits, c => Assert.Contains("app", c.Subject));
+        Assert.Equal("app.cs", vm.History.FileFilter);
     }
 }

@@ -113,9 +113,9 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (workspace.IsFileSearch || workspace.IsContentSearch)
+        if (workspace.History.IsFileSearch || workspace.History.IsContentSearch)
         {
-            workspace.ApplySearchCommand.Execute(null);
+            workspace.History.ApplySearchCommand.Execute(null);
         }
 
         SearchDropdownButton.Flyout?.Hide();
@@ -136,7 +136,7 @@ public partial class MainWindow : Window
         {
             Dispatcher.UIThread.Post(() =>
             {
-                workspace.PickPath(path);
+                workspace.History.PickPath(path);
                 list.SelectedItem = null;   // so re-picking the same path fires again
                 SearchDropdownButton.Flyout?.Hide();
             });
@@ -191,7 +191,7 @@ public partial class MainWindow : Window
         if ((e.Source as Visual)?.FindAncestorOfType<ListBoxItem>() is { DataContext: CommitInfo commit }
             && Workspace is { } workspace)
         {
-            workspace.SelectedCommit = commit;
+            workspace.History.SelectedCommit = commit;
         }
     }
 
@@ -220,7 +220,7 @@ public partial class MainWindow : Window
 
     /// <summary>
     /// Right-click selects the History commit-file under the cursor. This list is single-select and bound
-    /// to <see cref="WorkspaceViewModel.SelectedCommitFile"/>, so — like the Changes lists — a right-click
+    /// to <see cref="HistoryViewModel.SelectedCommitFile"/>, so — like the Changes lists — a right-click
     /// must set that selection first, otherwise "Open file" has no target and appears to do nothing.
     /// </summary>
     private void OnCommitFileListPointerPressed(object? sender, PointerPressedEventArgs e)
@@ -233,13 +233,13 @@ public partial class MainWindow : Window
         if ((e.Source as Visual)?.FindAncestorOfType<ListBoxItem>()?.DataContext is CommitFileEntry file
             && Workspace is { } ws)
         {
-            ws.SelectedCommitFile = file;
+            ws.History.SelectedCommitFile = file;
         }
     }
 
     private async void OnCopyShaClick(object? sender, RoutedEventArgs e)
     {
-        if (Workspace?.SelectedCommit is { } commit && Clipboard is { } clipboard)
+        if (Workspace?.History.SelectedCommit is { } commit && Clipboard is { } clipboard)
         {
             await clipboard.SetTextAsync(commit.Sha);
         }
@@ -247,7 +247,7 @@ public partial class MainWindow : Window
 
     private async void OnCopySubjectClick(object? sender, RoutedEventArgs e)
     {
-        if (Workspace is { SelectedCommit: { } commit } workspace && Clipboard is { } clipboard)
+        if (Workspace is { } workspace && workspace.History.SelectedCommit is { } commit && Clipboard is { } clipboard)
         {
             await clipboard.SetTextAsync(commit.Subject);
             workspace.StatusText = Loc["Status_CopiedSubject"];
@@ -274,12 +274,12 @@ public partial class MainWindow : Window
     /// </summary>
     private async void OnViewCommitMessageClick(object? sender, RoutedEventArgs e)
     {
-        if (Workspace is not { SelectedCommit: { } commit } workspace)
+        if (Workspace is not { } workspace || workspace.History.SelectedCommit is not { } commit)
         {
             return;
         }
 
-        var message = await workspace.GetCommitMessageAsync(commit);
+        var message = await workspace.History.GetCommitMessageAsync(commit);
         if (string.IsNullOrWhiteSpace(message))
         {
             message = commit.Subject;   // fall back to what the list already has
@@ -406,7 +406,7 @@ public partial class MainWindow : Window
     /// <summary>Commit context "Compare with…": a picked branch (base) vs the selected commit.</summary>
     private async void OnCompareCommitClick(object? sender, RoutedEventArgs e)
     {
-        if (Workspace is not { SelectedCommit: { } commit } ws)
+        if (Workspace is not { } ws || ws.History.SelectedCommit is not { } commit)
         {
             return;
         }
@@ -455,16 +455,16 @@ public partial class MainWindow : Window
     /// <summary>"Blame" on a file in a history commit: blames it as of that commit.</summary>
     private void OnBlameCommitFileClick(object? sender, RoutedEventArgs e)
     {
-        if (Workspace is { SelectedCommitFile: { } file, SelectedCommit: { } commit })
+        if (Workspace is { } ws && ws.History is { SelectedCommitFile: { } file, SelectedCommit: { } commit })
         {
-            ShowBlame(Workspace.CreateBlame(file.Path, commit.Sha));
+            ShowBlame(ws.CreateBlame(file.Path, commit.Sha));
         }
     }
 
     /// <summary>"File history" on a file in a history commit.</summary>
     private void OnShowCommitFileHistoryClick(object? sender, RoutedEventArgs e)
     {
-        if (Workspace is { SelectedCommitFile: { } file } ws)
+        if (Workspace is { } ws && ws.History.SelectedCommitFile is { } file)
         {
             _ = ws.ShowFileHistory(file.Path);
         }
@@ -548,9 +548,9 @@ public partial class MainWindow : Window
 
         _resizingBoundary = boundary;
         _resizeStartPointerX = e.GetPosition(this).X;
-        _startAuthor = ws.AuthorColumnWidth.Value;
-        _startDate = ws.DateColumnWidth.Value;
-        _startCommit = ws.CommitColumnWidth.Value;
+        _startAuthor = ws.History.AuthorColumnWidth.Value;
+        _startDate = ws.History.DateColumnWidth.Value;
+        _startCommit = ws.History.CommitColumnWidth.Value;
 
         e.Pointer.Capture(grip);
         e.Handled = true;
@@ -568,19 +568,19 @@ public partial class MainWindow : Window
         switch (_resizingBoundary)
         {
             case "MsgAuthor":   // Message is the flexible column, so it just absorbs the change.
-                ws.AuthorColumnWidth = new GridLength(Math.Max(MinColumnWidth, _startAuthor - d));
+                ws.History.AuthorColumnWidth = new GridLength(Math.Max(MinColumnWidth, _startAuthor - d));
                 break;
 
             case "AuthorDate":  // trade between the two fixed neighbours, keeping their sum constant
                 d = Math.Clamp(d, MinColumnWidth - _startAuthor, _startDate - MinColumnWidth);
-                ws.AuthorColumnWidth = new GridLength(_startAuthor + d);
-                ws.DateColumnWidth = new GridLength(_startDate - d);
+                ws.History.AuthorColumnWidth = new GridLength(_startAuthor + d);
+                ws.History.DateColumnWidth = new GridLength(_startDate - d);
                 break;
 
             case "DateCommit":
                 d = Math.Clamp(d, MinColumnWidth - _startDate, _startCommit - MinColumnWidth);
-                ws.DateColumnWidth = new GridLength(_startDate + d);
-                ws.CommitColumnWidth = new GridLength(_startCommit - d);
+                ws.History.DateColumnWidth = new GridLength(_startDate + d);
+                ws.History.CommitColumnWidth = new GridLength(_startCommit - d);
                 break;
         }
     }
@@ -610,7 +610,7 @@ public partial class MainWindow : Window
 
         _graphResizing = true;
         _graphResizeStartX = e.GetPosition(this).X;
-        _graphResizeStartGutter = ws.GraphGutter;
+        _graphResizeStartGutter = ws.History.GraphGutter;
         e.Pointer.Capture(grip);
         e.Handled = true;
     }
@@ -622,7 +622,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        ws.SetGraphGutter(_graphResizeStartGutter + (e.GetPosition(this).X - _graphResizeStartX));
+        ws.History.SetGraphGutter(_graphResizeStartGutter + (e.GetPosition(this).X - _graphResizeStartX));
     }
 
     private void OnGraphGripReleased(object? sender, PointerReleasedEventArgs e)
@@ -668,7 +668,7 @@ public partial class MainWindow : Window
     {
         if (CommitAtGraphY(sender, e) is { } commit && Workspace is { } ws)
         {
-            ws.ShowCommitHoverInfo(commit);
+            ws.History.ShowCommitHoverInfo(commit);
         }
     }
 
@@ -676,7 +676,7 @@ public partial class MainWindow : Window
     {
         if (CommitAtGraphY(sender, e) is { } commit && Workspace is { } ws)
         {
-            ws.SelectedCommit = commit;
+            ws.History.SelectedCommit = commit;
         }
     }
 
@@ -848,7 +848,7 @@ public partial class MainWindow : Window
     /// <summary>Context-menu "Open file" on a History commit's file list: opens the working copy.</summary>
     private void OnOpenCommitFileClick(object? sender, RoutedEventArgs e)
     {
-        if (Workspace is { SelectedCommitFile: { } file } ws)
+        if (Workspace is { } ws && ws.History.SelectedCommitFile is { } file)
         {
             OpenWorkingFile(ws, file.Path);
         }
@@ -1684,7 +1684,7 @@ public partial class MainWindow : Window
     /// <summary>Double-clicking a commit (row or graph dot) opens the diff pane for it.</summary>
     private void OnCommitActivated(object? sender, TappedEventArgs e)
     {
-        if (_observedWorkspace?.SelectedCommit is not null)
+        if (_observedWorkspace?.History.SelectedCommit is not null)
         {
             _historyDiffShown = true;
             SyncHistoryDiff();

@@ -25,7 +25,7 @@ public class OpenOnRemoteTests
         git.StubRemoteUrl = "git@github.com:owner/repo.git";
         string? opened = null;
         vm.OpenUrlInBrowser = u => opened = u;
-        vm.SelectedCommit = Commit("abc123");
+        vm.History.SelectedCommit = Commit("abc123");
 
         await vm.OpenCommitOnRemoteCommand.ExecuteAsync(null);
 
@@ -40,7 +40,7 @@ public class OpenOnRemoteTests
         git.StubRemoteUrl = "https://gitlab.com/g/repo.git";
         string? copied = null;
         vm.SetClipboardText = t => { copied = t; return Task.CompletedTask; };
-        vm.SelectedCommit = Commit("def");
+        vm.History.SelectedCommit = Commit("def");
 
         await vm.CopyCommitLinkCommand.ExecuteAsync(null);
 
@@ -53,7 +53,7 @@ public class OpenOnRemoteTests
         var vm = ForFake(out _);   // no remotes configured
         var opened = false;
         vm.OpenUrlInBrowser = _ => opened = true;
-        vm.SelectedCommit = Commit("abc");
+        vm.History.SelectedCommit = Commit("abc");
 
         await vm.OpenCommitOnRemoteCommand.ExecuteAsync(null);
 

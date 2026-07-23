@@ -247,10 +247,10 @@ public class WorkspaceViewModelTests
         var vm = ForRepo(repo);
         await vm.ShowHistoryCommand.ExecuteAsync(null);
 
-        var commit = vm.Commits.Single();
+        var commit = vm.History.Commits.Single();
         Assert.Contains(commit.Refs, r => r.Name == "feature");
 
-        vm.SelectedCommit = commit;
+        vm.History.SelectedCommit = commit;
         await vm.CheckoutCommitCommand.ExecuteAsync(null);
 
         // Checking out a bare SHA would detach HEAD; a branch on the commit must win.
@@ -968,7 +968,7 @@ public class WorkspaceViewModelTests
         var vm = ForRepo(repo);
         await vm.ShowHistoryCommand.ExecuteAsync(null);
 
-        vm.SelectedCommit = vm.Commits.Single(c => c.Subject == "the one to pick");
+        vm.History.SelectedCommit = vm.History.Commits.Single(c => c.Subject == "the one to pick");
         await vm.CherryPickCommand.ExecuteAsync(null);
 
         // The file it introduced now exists on main.
@@ -986,7 +986,7 @@ public class WorkspaceViewModelTests
 
         var vm = ForRepo(repo);
         await vm.ShowHistoryCommand.ExecuteAsync(null);
-        Assert.Single(vm.Commits);
+        Assert.Single(vm.History.Commits);
 
         // A cherry-pick adds a commit; the graph must not still show the old history.
         repo.Git("checkout", "-b", "side");
@@ -996,10 +996,10 @@ public class WorkspaceViewModelTests
         repo.Git("checkout", "main");
 
         await vm.ShowHistoryCommand.ExecuteAsync(null);
-        vm.SelectedCommit = vm.Commits.Single(c => c.Subject == "second");
+        vm.History.SelectedCommit = vm.History.Commits.Single(c => c.Subject == "second");
         await vm.CherryPickCommand.ExecuteAsync(null);
 
-        Assert.Contains(vm.Commits, c => c.Subject == "second" && c.Refs.Any(r => r.Name == "main"));
+        Assert.Contains(vm.History.Commits, c => c.Subject == "second" && c.Refs.Any(r => r.Name == "main"));
     }
 
     private static void CommitAs(TestRepo repo, string file, string author, string message, string date)
@@ -1019,8 +1019,8 @@ public class WorkspaceViewModelTests
         var vm = ForRepo(repo);
         await vm.ShowHistoryCommand.ExecuteAsync(null);
 
-        Assert.Equal(HistorySortColumn.Graph, vm.SortColumn);
-        Assert.True(vm.ShowGraph);
+        Assert.Equal(HistorySortColumn.Graph, vm.History.SortColumn);
+        Assert.True(vm.History.ShowGraph);
     }
 
     [Fact]
@@ -1034,10 +1034,10 @@ public class WorkspaceViewModelTests
         var vm = ForRepo(repo);
         await vm.ShowHistoryCommand.ExecuteAsync(null);
 
-        vm.SortByCommand.Execute(HistorySortColumn.Author);
+        vm.History.SortByCommand.Execute(HistorySortColumn.Author);
 
-        Assert.False(vm.ShowGraph);   // the lane graph can't align with a name sort
-        Assert.Equal(new[] { "Alice", "Bob", "Charlie" }, vm.Commits.Select(c => c.Author));
+        Assert.False(vm.History.ShowGraph);   // the lane graph can't align with a name sort
+        Assert.Equal(new[] { "Alice", "Bob", "Charlie" }, vm.History.Commits.Select(c => c.Author));
     }
 
     [Fact]
@@ -1051,13 +1051,13 @@ public class WorkspaceViewModelTests
         var vm = ForRepo(repo);
         await vm.ShowHistoryCommand.ExecuteAsync(null);
 
-        vm.SortByCommand.Execute(HistorySortColumn.Date);   // ascending: oldest first
-        Assert.Equal(new[] { "banana", "apple", "cherry" }, vm.Commits.Select(c => c.Subject));
-        Assert.False(vm.SortDescending);
+        vm.History.SortByCommand.Execute(HistorySortColumn.Date);   // ascending: oldest first
+        Assert.Equal(new[] { "banana", "apple", "cherry" }, vm.History.Commits.Select(c => c.Subject));
+        Assert.False(vm.History.SortDescending);
 
-        vm.SortByCommand.Execute(HistorySortColumn.Date);   // descending: newest first
-        Assert.Equal(new[] { "cherry", "apple", "banana" }, vm.Commits.Select(c => c.Subject));
-        Assert.True(vm.SortDescending);
+        vm.History.SortByCommand.Execute(HistorySortColumn.Date);   // descending: newest first
+        Assert.Equal(new[] { "cherry", "apple", "banana" }, vm.History.Commits.Select(c => c.Subject));
+        Assert.True(vm.History.SortDescending);
     }
 
     [Fact]
@@ -1069,15 +1069,15 @@ public class WorkspaceViewModelTests
 
         var vm = ForRepo(repo);
         await vm.ShowHistoryCommand.ExecuteAsync(null);
-        var graphOrder = vm.Commits.Select(c => c.Sha).ToArray();
+        var graphOrder = vm.History.Commits.Select(c => c.Sha).ToArray();
 
-        vm.SortByCommand.Execute(HistorySortColumn.Author);
-        Assert.False(vm.ShowGraph);
+        vm.History.SortByCommand.Execute(HistorySortColumn.Author);
+        Assert.False(vm.History.ShowGraph);
 
-        vm.ResetSortCommand.Execute(null);
+        vm.History.ResetSortCommand.Execute(null);
 
-        Assert.True(vm.ShowGraph);
-        Assert.Equal(graphOrder, vm.Commits.Select(c => c.Sha));
+        Assert.True(vm.History.ShowGraph);
+        Assert.Equal(graphOrder, vm.History.Commits.Select(c => c.Sha));
     }
 
     [Fact]
@@ -1092,15 +1092,15 @@ public class WorkspaceViewModelTests
         var vm = ForRepo(repo);
         await vm.ShowHistoryCommand.ExecuteAsync(null);
 
-        Assert.Equal(3, vm.AuthorFilters.Count);   // Alice, Bob, Charlie — distinct
-        Assert.True(vm.ShowGraph);
+        Assert.Equal(3, vm.History.AuthorFilters.Count);   // Alice, Bob, Charlie — distinct
+        Assert.True(vm.History.ShowGraph);
 
-        vm.AuthorFilters.Single(a => a.Name == "Alice").IsSelected = true;
+        vm.History.AuthorFilters.Single(a => a.Name == "Alice").IsSelected = true;
 
-        Assert.True(vm.HasAuthorFilter);
-        Assert.False(vm.ShowGraph);               // a filtered subset can't carry the graph
-        Assert.Equal(2, vm.Commits.Count);
-        Assert.All(vm.Commits, c => Assert.Equal("Alice", c.Author));
+        Assert.True(vm.History.HasAuthorFilter);
+        Assert.False(vm.History.ShowGraph);               // a filtered subset can't carry the graph
+        Assert.Equal(2, vm.History.Commits.Count);
+        Assert.All(vm.History.Commits, c => Assert.Equal("Alice", c.Author));
     }
 
     [Fact]
@@ -1114,13 +1114,13 @@ public class WorkspaceViewModelTests
         var vm = ForRepo(repo);
         await vm.ShowHistoryCommand.ExecuteAsync(null);
 
-        vm.AuthorFilters.Single(a => a.Name == "Alice").IsSelected = true;
-        vm.AuthorFilters.Single(a => a.Name == "Charlie").IsSelected = true;
+        vm.History.AuthorFilters.Single(a => a.Name == "Alice").IsSelected = true;
+        vm.History.AuthorFilters.Single(a => a.Name == "Charlie").IsSelected = true;
 
-        Assert.Equal(2, vm.Commits.Count);
-        Assert.Contains(vm.Commits, c => c.Author == "Alice");
-        Assert.Contains(vm.Commits, c => c.Author == "Charlie");
-        Assert.DoesNotContain(vm.Commits, c => c.Author == "Bob");
+        Assert.Equal(2, vm.History.Commits.Count);
+        Assert.Contains(vm.History.Commits, c => c.Author == "Alice");
+        Assert.Contains(vm.History.Commits, c => c.Author == "Charlie");
+        Assert.DoesNotContain(vm.History.Commits, c => c.Author == "Bob");
     }
 
     [Fact]
@@ -1132,14 +1132,14 @@ public class WorkspaceViewModelTests
 
         var vm = ForRepo(repo);
         await vm.ShowHistoryCommand.ExecuteAsync(null);
-        vm.AuthorFilters.Single(a => a.Name == "Alice").IsSelected = true;
-        Assert.Single(vm.Commits);
+        vm.History.AuthorFilters.Single(a => a.Name == "Alice").IsSelected = true;
+        Assert.Single(vm.History.Commits);
 
-        vm.ClearAuthorFilterCommand.Execute(null);
+        vm.History.ClearAuthorFilterCommand.Execute(null);
 
-        Assert.False(vm.HasAuthorFilter);
-        Assert.True(vm.ShowGraph);
-        Assert.Equal(2, vm.Commits.Count);
+        Assert.False(vm.History.HasAuthorFilter);
+        Assert.True(vm.History.ShowGraph);
+        Assert.Equal(2, vm.History.Commits.Count);
     }
 
     [Fact]
@@ -1175,15 +1175,15 @@ public class WorkspaceViewModelTests
         var vm = ForRepo(repo);
         await vm.ShowHistoryCommand.ExecuteAsync(null);
 
-        vm.SelectedCommit = vm.Commits.Single();
+        vm.History.SelectedCommit = vm.History.Commits.Single();
         await vm.DiffLoad;                     // file list load
-        Assert.Equal(2, vm.CommitFiles.Count);
-        Assert.True(vm.HasCommitFiles);
-        Assert.NotNull(vm.SelectedCommitFile);
+        Assert.Equal(2, vm.History.CommitFiles.Count);
+        Assert.True(vm.History.HasCommitFiles);
+        Assert.NotNull(vm.History.SelectedCommitFile);
 
         await vm.DiffLoad;                     // first file's diff
         Assert.True(vm.HasDiff);
-        Assert.Equal(vm.SelectedCommitFile!.Path, vm.DiffPath);
+        Assert.Equal(vm.History.SelectedCommitFile!.Path, vm.DiffPath);
     }
 
     [Fact]
@@ -1200,8 +1200,8 @@ public class WorkspaceViewModelTests
         var vm = ForRepo(repo);
         await vm.ShowHistoryCommand.ExecuteAsync(null);
 
-        Assert.Equal(12, vm.Commits.Count);
-        Assert.Equal(12, vm.Graph!.Dots.Count);   // the builder never drops the last commits
+        Assert.Equal(12, vm.History.Commits.Count);
+        Assert.Equal(12, vm.History.Graph!.Dots.Count);   // the builder never drops the last commits
     }
 
     [Fact]
@@ -1222,16 +1222,16 @@ public class WorkspaceViewModelTests
 
         var vm = ForRepo(repo);
         await vm.ShowHistoryCommand.ExecuteAsync(null);
-        Assert.Equal(3, vm.Commits.Count);     // all branches shown by default
+        Assert.Equal(3, vm.History.Commits.Count);     // all branches shown by default
 
-        vm.BranchFilters.Single(b => b.Name == "feature").IsSelected = true;
+        vm.History.BranchFilters.Single(b => b.Name == "feature").IsSelected = true;
 
-        Assert.True(vm.HasBranchFilter);
-        Assert.True(vm.ShowGraph);   // reachable subset is a valid sub-DAG, so the graph stays
-        Assert.Equal(vm.Commits.Count, vm.Graph!.Dots.Count);   // graph rebuilt for the subset
-        Assert.Contains(vm.Commits, c => c.Subject == "feature work");
-        Assert.Contains(vm.Commits, c => c.Subject == "base");
-        Assert.DoesNotContain(vm.Commits, c => c.Subject == "main work");
+        Assert.True(vm.History.HasBranchFilter);
+        Assert.True(vm.History.ShowGraph);   // reachable subset is a valid sub-DAG, so the graph stays
+        Assert.Equal(vm.History.Commits.Count, vm.History.Graph!.Dots.Count);   // graph rebuilt for the subset
+        Assert.Contains(vm.History.Commits, c => c.Subject == "feature work");
+        Assert.Contains(vm.History.Commits, c => c.Subject == "base");
+        Assert.DoesNotContain(vm.History.Commits, c => c.Subject == "main work");
     }
 
     [Fact]
@@ -1244,15 +1244,15 @@ public class WorkspaceViewModelTests
 
         var vm = ForRepo(repo);
         await vm.ShowHistoryCommand.ExecuteAsync(null);
-        Assert.Equal(3, vm.FilteredAuthorFilters.Count);
+        Assert.Equal(3, vm.History.FilteredAuthorFilters.Count);
 
         // "alic" is a subsequence of "Alice" only (Charlie has a…l…i but no trailing c).
-        vm.AuthorFilterSearch = "alic";
-        Assert.Single(vm.FilteredAuthorFilters);
-        Assert.Equal("Alice", vm.FilteredAuthorFilters[0].Name);
+        vm.History.AuthorFilterSearch = "alic";
+        Assert.Single(vm.History.FilteredAuthorFilters);
+        Assert.Equal("Alice", vm.History.FilteredAuthorFilters[0].Name);
 
-        vm.AuthorFilterSearch = "";
-        Assert.Equal(3, vm.FilteredAuthorFilters.Count);
+        vm.History.AuthorFilterSearch = "";
+        Assert.Equal(3, vm.History.FilteredAuthorFilters.Count);
     }
 
     [Fact]

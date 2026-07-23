@@ -40,18 +40,18 @@ public class HistoryPagingTests
     {
         var vm = Workspace(350, out _);
 
-        await vm.LoadHistoryAsync();
-        Assert.Equal(300, vm.Commits.Count);   // only the first page
-        Assert.True(vm.HasMoreCommits);
+        await vm.History.LoadHistoryAsync();
+        Assert.Equal(300, vm.History.Commits.Count);   // only the first page
+        Assert.True(vm.History.HasMoreCommits);
 
-        vm.SelectedCommit = vm.Commits[42];
-        var keptSha = vm.SelectedCommit!.Sha;
+        vm.History.SelectedCommit = vm.History.Commits[42];
+        var keptSha = vm.History.SelectedCommit!.Sha;
 
-        await vm.LoadMoreCommitsCommand.ExecuteAsync(null);
+        await vm.History.LoadMoreCommitsCommand.ExecuteAsync(null);
 
-        Assert.Equal(350, vm.Commits.Count);           // everything is now loaded
-        Assert.False(vm.HasMoreCommits);               // nothing left to fetch
-        Assert.Equal(keptSha, vm.SelectedCommit?.Sha); // selection survived the reload
+        Assert.Equal(350, vm.History.Commits.Count);           // everything is now loaded
+        Assert.False(vm.History.HasMoreCommits);               // nothing left to fetch
+        Assert.Equal(keptSha, vm.History.SelectedCommit?.Sha); // selection survived the reload
     }
 
     [Fact]
@@ -59,17 +59,17 @@ public class HistoryPagingTests
     {
         var vm = Workspace(12, out _);
 
-        await vm.LoadHistoryAsync();
+        await vm.History.LoadHistoryAsync();
 
-        Assert.Equal(12, vm.Commits.Count);
-        Assert.False(vm.HasMoreCommits);
+        Assert.Equal(12, vm.History.Commits.Count);
+        Assert.False(vm.History.HasMoreCommits);
     }
 
     [Fact]
     public async Task Commit_operations_invoke_the_expected_git_commands()
     {
         var vm = Workspace(1, out var git);
-        await vm.LoadHistoryAsync();
+        await vm.History.LoadHistoryAsync();
         var sha = Sha(0);
 
         vm.PromptTagName = () => Task.FromResult<string?>("v1");
@@ -79,7 +79,7 @@ public class HistoryPagingTests
 
         async Task Run(Func<Task> op)
         {
-            vm.SelectedCommit = vm.Commits[0];
+            vm.History.SelectedCommit = vm.History.Commits[0];
             await op();
         }
 
@@ -100,8 +100,8 @@ public class HistoryPagingTests
     public async Task Cancelling_a_prompt_runs_no_git_command()
     {
         var vm = Workspace(1, out var git);
-        await vm.LoadHistoryAsync();
-        vm.SelectedCommit = vm.Commits[0];
+        await vm.History.LoadHistoryAsync();
+        vm.History.SelectedCommit = vm.History.Commits[0];
 
         vm.PromptTagName = () => Task.FromResult<string?>(null);        // cancelled
         vm.PromptResetMode = _ => Task.FromResult<GitResetMode?>(null); // cancelled

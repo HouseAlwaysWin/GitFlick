@@ -31,14 +31,14 @@ public class HistoryFilterTests
         using var repo = BuildRepo();
         var vm = ForRepo(repo);
         await vm.ShowHistoryCommand.ExecuteAsync(null);
-        Assert.Equal(4, vm.Commits.Count);
+        Assert.Equal(4, vm.History.Commits.Count);
 
-        vm.MessageFilter = "login";
+        vm.History.MessageFilter = "login";
 
-        Assert.Equal(2, vm.Commits.Count);
-        Assert.All(vm.Commits, c => Assert.Contains("login", c.Subject));
-        Assert.True(vm.HasMessageFilter);
-        Assert.False(vm.ShowGraph);   // a message subset isn't parent-closed → no lane graph
+        Assert.Equal(2, vm.History.Commits.Count);
+        Assert.All(vm.History.Commits, c => Assert.Contains("login", c.Subject));
+        Assert.True(vm.History.HasMessageFilter);
+        Assert.False(vm.History.ShowGraph);   // a message subset isn't parent-closed → no lane graph
     }
 
     [Fact]
@@ -49,10 +49,10 @@ public class HistoryFilterTests
         await vm.ShowHistoryCommand.ExecuteAsync(null);
 
         // "flgn" is a subsequence of "fix: login redirect" / "feat: add login" but not a substring.
-        vm.MessageFilter = "lgn";
+        vm.History.MessageFilter = "lgn";
 
-        Assert.NotEmpty(vm.Commits);
-        Assert.All(vm.Commits, c => Assert.Contains("login", c.Subject));
+        Assert.NotEmpty(vm.History.Commits);
+        Assert.All(vm.History.Commits, c => Assert.Contains("login", c.Subject));
     }
 
     [Fact]
@@ -62,9 +62,9 @@ public class HistoryFilterTests
         var vm = ForRepo(repo);
         await vm.ShowHistoryCommand.ExecuteAsync(null);
 
-        vm.MessageFilter = "報告";
+        vm.History.MessageFilter = "報告";
 
-        var only = Assert.Single(vm.Commits);
+        var only = Assert.Single(vm.History.Commits);
         Assert.Equal("新增報告", only.Subject);
     }
 
@@ -75,14 +75,14 @@ public class HistoryFilterTests
         var vm = ForRepo(repo);
         await vm.ShowHistoryCommand.ExecuteAsync(null);
 
-        vm.MessageFilter = "login";
-        Assert.Equal(2, vm.Commits.Count);
+        vm.History.MessageFilter = "login";
+        Assert.Equal(2, vm.History.Commits.Count);
 
-        vm.MessageFilter = "";
+        vm.History.MessageFilter = "";
 
-        Assert.Equal(4, vm.Commits.Count);
-        Assert.False(vm.HasMessageFilter);
-        Assert.True(vm.ShowGraph);
+        Assert.Equal(4, vm.History.Commits.Count);
+        Assert.False(vm.History.HasMessageFilter);
+        Assert.True(vm.History.ShowGraph);
     }
 
     [Fact]
@@ -91,16 +91,16 @@ public class HistoryFilterTests
         using var repo = BuildRepo();
         var vm = ForRepo(repo);
         await vm.ShowHistoryCommand.ExecuteAsync(null);
-        Assert.Equal(4, vm.Commits.Count);
+        Assert.Equal(4, vm.History.Commits.Count);
 
         // app.cs was touched by exactly the two login commits.
-        vm.FileFilter = "app.cs";
-        await vm.HistoryLoad;
+        vm.History.FileFilter = "app.cs";
+        await vm.History.HistoryLoad;
 
-        Assert.Equal(2, vm.Commits.Count);
-        Assert.All(vm.Commits, c => Assert.Contains("login", c.Subject));
-        Assert.True(vm.HasFileFilter);
-        Assert.False(vm.ShowGraph);
+        Assert.Equal(2, vm.History.Commits.Count);
+        Assert.All(vm.History.Commits, c => Assert.Contains("login", c.Subject));
+        Assert.True(vm.History.HasFileFilter);
+        Assert.False(vm.History.ShowGraph);
     }
 
     [Fact]
@@ -116,11 +116,11 @@ public class HistoryFilterTests
             var vm = ForRepo(repo);
             await vm.ShowHistoryCommand.ExecuteAsync(null);
 
-            vm.FileFilter = "報告.txt";
-            await vm.HistoryLoad;
+            vm.History.FileFilter = "報告.txt";
+            await vm.History.HistoryLoad;
 
-            Assert.Equal(2, vm.Commits.Count);
-            Assert.All(vm.Commits, c => Assert.Contains("report", c.Subject));
+            Assert.Equal(2, vm.History.Commits.Count);
+            Assert.All(vm.History.Commits, c => Assert.Contains("report", c.Subject));
         }
     }
 
@@ -131,10 +131,10 @@ public class HistoryFilterTests
         var vm = ForRepo(repo);
         await vm.ShowHistoryCommand.ExecuteAsync(null);
 
-        vm.FileFilter = "*.md";
-        await vm.HistoryLoad;
+        vm.History.FileFilter = "*.md";
+        await vm.History.HistoryLoad;
 
-        var only = Assert.Single(vm.Commits);
+        var only = Assert.Single(vm.History.Commits);
         Assert.Equal("docs: update readme", only.Subject);
     }
 
@@ -145,16 +145,16 @@ public class HistoryFilterTests
         var vm = ForRepo(repo);
         await vm.ShowHistoryCommand.ExecuteAsync(null);
 
-        vm.FileFilter = "app.cs";
-        await vm.HistoryLoad;
-        Assert.Equal(2, vm.Commits.Count);
+        vm.History.FileFilter = "app.cs";
+        await vm.History.HistoryLoad;
+        Assert.Equal(2, vm.History.Commits.Count);
 
-        vm.FileFilter = string.Empty;
-        await vm.HistoryLoad;
+        vm.History.FileFilter = string.Empty;
+        await vm.History.HistoryLoad;
 
-        Assert.Equal(4, vm.Commits.Count);
-        Assert.False(vm.HasFileFilter);
-        Assert.True(vm.ShowGraph);
+        Assert.Equal(4, vm.History.Commits.Count);
+        Assert.False(vm.History.HasFileFilter);
+        Assert.True(vm.History.ShowGraph);
     }
 
     [Fact]
@@ -165,11 +165,11 @@ public class HistoryFilterTests
         await vm.ShowHistoryCommand.ExecuteAsync(null);
 
         // File narrows to the two app.cs commits; message then narrows those to the "fix" one.
-        vm.FileFilter = "app.cs";
-        await vm.HistoryLoad;
-        vm.MessageFilter = "redirect";
+        vm.History.FileFilter = "app.cs";
+        await vm.History.HistoryLoad;
+        vm.History.MessageFilter = "redirect";
 
-        var only = Assert.Single(vm.Commits);
+        var only = Assert.Single(vm.History.Commits);
         Assert.Equal("fix: login redirect", only.Subject);
     }
 
@@ -182,15 +182,15 @@ public class HistoryFilterTests
         var vm = ForRepo(repo);
         await vm.ShowHistoryCommand.ExecuteAsync(null);
 
-        Assert.Equal(HistorySearchType.Message, vm.SearchType);
-        Assert.True(vm.IsMessageSearch);
-        Assert.Empty(vm.FilteredPathSuggestions);   // Message scope shows no path pick list.
+        Assert.Equal(HistorySearchType.Message, vm.History.SearchType);
+        Assert.True(vm.History.IsMessageSearch);
+        Assert.Empty(vm.History.FilteredPathSuggestions);   // Message scope shows no path pick list.
 
-        vm.SearchText = "login";
+        vm.History.SearchText = "login";
 
-        Assert.Equal("login", vm.MessageFilter);
-        Assert.Equal(2, vm.Commits.Count);
-        Assert.All(vm.Commits, c => Assert.Contains("login", c.Subject));
+        Assert.Equal("login", vm.History.MessageFilter);
+        Assert.Equal(2, vm.History.Commits.Count);
+        Assert.All(vm.History.Commits, c => Assert.Contains("login", c.Subject));
     }
 
     [Fact]
@@ -200,14 +200,14 @@ public class HistoryFilterTests
         var vm = ForRepo(repo);
         await vm.ShowHistoryCommand.ExecuteAsync(null);
 
-        await vm.UseFileSearchCommand.ExecuteAsync(null);
+        await vm.History.UseFileSearchCommand.ExecuteAsync(null);
 
-        Assert.True(vm.IsFileSearch);
-        Assert.Contains("app.cs", vm.PathSuggestions);
-        Assert.Contains("readme.md", vm.PathSuggestions);
-        Assert.Contains("report.txt", vm.PathSuggestions);
+        Assert.True(vm.History.IsFileSearch);
+        Assert.Contains("app.cs", vm.History.PathSuggestions);
+        Assert.Contains("readme.md", vm.History.PathSuggestions);
+        Assert.Contains("report.txt", vm.History.PathSuggestions);
         // With an empty query the pick list shows every loaded path.
-        Assert.Contains("app.cs", vm.FilteredPathSuggestions);
+        Assert.Contains("app.cs", vm.History.FilteredPathSuggestions);
     }
 
     [Fact]
@@ -216,14 +216,14 @@ public class HistoryFilterTests
         using var repo = BuildRepo();
         var vm = ForRepo(repo);
         await vm.ShowHistoryCommand.ExecuteAsync(null);
-        await vm.UseFileSearchCommand.ExecuteAsync(null);
+        await vm.History.UseFileSearchCommand.ExecuteAsync(null);
 
-        vm.SearchText = "app";   // narrows the pick list; doesn't touch the commit list yet
+        vm.History.SearchText = "app";   // narrows the pick list; doesn't touch the commit list yet
 
-        Assert.Contains("app.cs", vm.FilteredPathSuggestions);
-        Assert.DoesNotContain("readme.md", vm.FilteredPathSuggestions);
-        Assert.Equal(4, vm.Commits.Count);       // still whole — nothing applied
-        Assert.False(vm.HasFileFilter);
+        Assert.Contains("app.cs", vm.History.FilteredPathSuggestions);
+        Assert.DoesNotContain("readme.md", vm.History.FilteredPathSuggestions);
+        Assert.Equal(4, vm.History.Commits.Count);       // still whole — nothing applied
+        Assert.False(vm.History.HasFileFilter);
     }
 
     [Fact]
@@ -232,15 +232,15 @@ public class HistoryFilterTests
         using var repo = BuildRepo();
         var vm = ForRepo(repo);
         await vm.ShowHistoryCommand.ExecuteAsync(null);
-        await vm.UseFileSearchCommand.ExecuteAsync(null);
+        await vm.History.UseFileSearchCommand.ExecuteAsync(null);
 
-        vm.PickPath("app.cs");
-        await vm.HistoryLoad;
+        vm.History.PickPath("app.cs");
+        await vm.History.HistoryLoad;
 
-        Assert.Equal("app.cs", vm.SearchText);
-        Assert.Equal("app.cs", vm.FileFilter);
-        Assert.Equal(2, vm.Commits.Count);
-        Assert.All(vm.Commits, c => Assert.Contains("login", c.Subject));
+        Assert.Equal("app.cs", vm.History.SearchText);
+        Assert.Equal("app.cs", vm.History.FileFilter);
+        Assert.Equal(2, vm.History.Commits.Count);
+        Assert.All(vm.History.Commits, c => Assert.Contains("login", c.Subject));
     }
 
     [Fact]
@@ -258,18 +258,18 @@ public class HistoryFilterTests
         {
             var vm = ForRepo(repo);
             await vm.ShowHistoryCommand.ExecuteAsync(null);
-            await vm.UseFileSearchCommand.ExecuteAsync(null);
+            await vm.History.UseFileSearchCommand.ExecuteAsync(null);
 
-            vm.SearchText = "src";
-            var before = vm.FilteredPathSuggestions.Count;
+            vm.History.SearchText = "src";
+            var before = vm.History.FilteredPathSuggestions.Count;
             Assert.True(before >= 3);
 
-            vm.PickPath("src/login.cs");   // a non-first item — the crash case
+            vm.History.PickPath("src/login.cs");   // a non-first item — the crash case
 
-            Assert.Equal(before, vm.FilteredPathSuggestions.Count);   // list untouched
-            Assert.Equal("src/login.cs", vm.SearchText);
-            await vm.HistoryLoad;
-            Assert.Equal("src/login.cs", vm.FileFilter);
+            Assert.Equal(before, vm.History.FilteredPathSuggestions.Count);   // list untouched
+            Assert.Equal("src/login.cs", vm.History.SearchText);
+            await vm.History.HistoryLoad;
+            Assert.Equal("src/login.cs", vm.History.FileFilter);
         }
     }
 
@@ -279,20 +279,20 @@ public class HistoryFilterTests
         using var repo = BuildRepo();
         var vm = ForRepo(repo);
         await vm.ShowHistoryCommand.ExecuteAsync(null);
-        await vm.UseFileSearchCommand.ExecuteAsync(null);
+        await vm.History.UseFileSearchCommand.ExecuteAsync(null);
 
         // Typing a path doesn't hit git yet — the list is still whole.
-        vm.SearchText = "app.cs";
-        Assert.Equal(4, vm.Commits.Count);
-        Assert.False(vm.HasFileFilter);
+        vm.History.SearchText = "app.cs";
+        Assert.Equal(4, vm.History.Commits.Count);
+        Assert.False(vm.History.HasFileFilter);
 
         // Enter commits it as the git-level filter (ApplySearch).
-        vm.ApplySearchCommand.Execute(null);
-        await vm.HistoryLoad;
+        vm.History.ApplySearchCommand.Execute(null);
+        await vm.History.HistoryLoad;
 
-        Assert.Equal(2, vm.Commits.Count);
-        Assert.True(vm.HasFileFilter);
-        Assert.All(vm.Commits, c => Assert.Contains("login", c.Subject));
+        Assert.Equal(2, vm.History.Commits.Count);
+        Assert.True(vm.History.HasFileFilter);
+        Assert.All(vm.History.Commits, c => Assert.Contains("login", c.Subject));
     }
 
     [Fact]
@@ -303,25 +303,25 @@ public class HistoryFilterTests
         await vm.ShowHistoryCommand.ExecuteAsync(null);
 
         // A live message filter is dropped when we move to File scope.
-        vm.SearchText = "login";
-        Assert.Equal(2, vm.Commits.Count);
+        vm.History.SearchText = "login";
+        Assert.Equal(2, vm.History.Commits.Count);
 
-        await vm.UseFileSearchCommand.ExecuteAsync(null);
-        Assert.Equal(string.Empty, vm.SearchText);
-        Assert.False(vm.HasMessageFilter);
-        Assert.Equal(4, vm.Commits.Count);
+        await vm.History.UseFileSearchCommand.ExecuteAsync(null);
+        Assert.Equal(string.Empty, vm.History.SearchText);
+        Assert.False(vm.History.HasMessageFilter);
+        Assert.Equal(4, vm.History.Commits.Count);
 
         // An applied file filter is dropped when we move back to Message scope.
-        vm.SearchText = "app.cs";
-        vm.ApplySearchCommand.Execute(null);
-        await vm.HistoryLoad;
-        Assert.Equal(2, vm.Commits.Count);
+        vm.History.SearchText = "app.cs";
+        vm.History.ApplySearchCommand.Execute(null);
+        await vm.History.HistoryLoad;
+        Assert.Equal(2, vm.History.Commits.Count);
 
-        await vm.UseMessageSearchCommand.ExecuteAsync(null);
-        await vm.HistoryLoad;
-        Assert.False(vm.HasFileFilter);
-        Assert.Equal(4, vm.Commits.Count);
-        Assert.True(vm.ShowGraph);   // back to a clean, parent-closed history → lane graph returns
+        await vm.History.UseMessageSearchCommand.ExecuteAsync(null);
+        await vm.History.HistoryLoad;
+        Assert.False(vm.History.HasFileFilter);
+        Assert.Equal(4, vm.History.Commits.Count);
+        Assert.True(vm.History.ShowGraph);   // back to a clean, parent-closed history → lane graph returns
     }
 
     [Fact]
@@ -336,11 +336,11 @@ public class HistoryFilterTests
         {
             var vm = ForRepo(repo);
             await vm.ShowHistoryCommand.ExecuteAsync(null);
-            await vm.UseFileSearchCommand.ExecuteAsync(null);
+            await vm.History.UseFileSearchCommand.ExecuteAsync(null);
 
             // gone.txt no longer exists in the tree, but it lived in history — so it's suggestable.
-            Assert.Contains("gone.txt", vm.PathSuggestions);
-            Assert.Contains("keep.txt", vm.PathSuggestions);
+            Assert.Contains("gone.txt", vm.History.PathSuggestions);
+            Assert.Contains("keep.txt", vm.History.PathSuggestions);
         }
     }
 }
