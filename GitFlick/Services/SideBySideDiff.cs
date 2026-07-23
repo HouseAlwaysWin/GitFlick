@@ -59,15 +59,13 @@ public static class SideBySideDiff
             added.Clear();
         }
 
-        foreach (var raw in (unifiedDiff ?? string.Empty).Split('\n'))
+        foreach (var line in GitOutput.NonEmptyLines(unifiedDiff ?? string.Empty))
         {
-            var line = raw.TrimEnd('\r');
-
-            // Real diff lines always carry a prefix char (' ', '+', '-'); a length-0 line is the
-            // trailing split artifact or noise, not a blank source line (git renders that as " ").
-            if (line.Length == 0 || line.StartsWith("\\", StringComparison.Ordinal))
+            // Real diff lines always carry a prefix char (' ', '+', '-'); skip a "\ No newline at end
+            // of file" marker (NonEmptyLines already drops blank and split-artifact lines).
+            if (line.StartsWith("\\", StringComparison.Ordinal))
             {
-                continue;   // empty split tail, or "\ No newline at end of file"
+                continue;
             }
 
             var kind = DiffLineClassifier.Classify(line);

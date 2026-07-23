@@ -20,14 +20,8 @@ internal static class PorcelainV2Parser
         var behind = 0;
         var entries = new List<GitStatusEntry>();
 
-        foreach (var raw in output.Split('\n'))
+        foreach (var line in GitOutput.NonEmptyLines(output))
         {
-            var line = raw.TrimEnd('\r');
-            if (line.Length == 0)
-            {
-                continue;
-            }
-
             switch (line[0])
             {
                 case '#':
