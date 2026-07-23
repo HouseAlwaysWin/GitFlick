@@ -1,9 +1,9 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <!-- TargetFramework and Nullable are set in Directory.Build.props (shared with the test project). -->
     <!-- Bumped by release.ps1. CI passes AssemblyVersion/FileVersion/InformationalVersion from the tag. -->
-    <Version>0.2.0</Version>
+    <Version>0.3.0</Version>
     <LangVersion>latest</LangVersion>
     <!-- Required by the [LibraryImport] source generator, which emits unsafe marshalling stubs. -->
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>

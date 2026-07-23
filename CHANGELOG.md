@@ -3,7 +3,7 @@
 All notable changes to GitFlick are recorded here. `release.ps1` promotes the `## Unreleased`
 section to `## v<version> - <date>` when it cuts a release, so keep this list current as you go.
 
-## Unreleased
+## v0.3.0 - 2026-07-23
 
 - **Git accounts & identity:** see the signed-in GitHub account, switch accounts, and sign in — plus set your commit name/email globally or per repository.
 - **Remotes:** add and remove remotes from within the app, and an opt-in background auto-fetch keeps the ahead/behind counts and history current without a manual refresh.
