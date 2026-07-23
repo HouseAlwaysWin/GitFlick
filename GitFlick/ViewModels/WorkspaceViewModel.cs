@@ -2212,7 +2212,16 @@ public partial class WorkspaceViewModel : ViewModelBase
     {
         try
         {
-            var status = await _git.GetStatusAsync(Repository.Path);
+            // Status, branches, stashes and tags are independent reads, so fire them together and let
+            // them run as concurrent git processes instead of one-after-another. RefreshBaseRefsAsync
+            // stays sequential below because it reads the freshly-refreshed Branches list.
+            var statusTask = _git.GetStatusAsync(Repository.Path);
+            var branchesTask = _git.GetBranchesAsync(Repository.Path);
+            var stashesTask = _git.GetStashesAsync(Repository.Path);
+            var tagsTask = _git.GetTagsAsync(Repository.Path);
+            await Task.WhenAll(statusTask, branchesTask, stashesTask, tagsTask);
+
+            var status = await statusTask;
 
             BranchName = status.IsDetached ? "(detached)" : status.BranchName ?? string.Empty;
             IsDetachedHead = status.IsDetached;
@@ -2232,8 +2241,7 @@ public partial class WorkspaceViewModel : ViewModelBase
             IsCleanTree = !HasStagedFiles && !HasUnstagedFiles;
 
             var branchName = SelectedBranch?.Name;
-            var branches = await _git.GetBranchesAsync(Repository.Path);
-            Replace(Branches, branches);
+            Replace(Branches, await branchesTask);
             SelectedBranch = Branches.FirstOrDefault(b => b.Name == branchName)
                 ?? Branches.FirstOrDefault(b => b.IsCurrent);
             NarrowBranches();   // keep the Branch-flyout's filtered view in sync with the refreshed list
@@ -2241,12 +2249,10 @@ public partial class WorkspaceViewModel : ViewModelBase
             await RefreshBaseRefsAsync();
             await RefreshIdentityAsync();
 
-            var stashes = await _git.GetStashesAsync(Repository.Path);
-            Replace(Stashes, stashes);
+            Replace(Stashes, await stashesTask);
             HasStashes = Stashes.Count > 0;
 
-            var tags = await _git.GetTagsAsync(Repository.Path);
-            RebuildTags(tags);
+            RebuildTags(await tagsTask);
         }
         catch (GitException ex)
         {
