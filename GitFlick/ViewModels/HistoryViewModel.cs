@@ -93,11 +93,20 @@ public partial class HistoryViewModel : ViewModelBase
     /// <summary>Row height of the commit list. The graph is drawn in row units, so it must match.</summary>
     public const double CommitRowHeight = 26;
 
-    /// <summary>History loads in pages so a huge repo can't stall the UI; "Load more" grows the window.</summary>
-    private const int CommitPageSize = 300;
+    /// <summary>Fallback page size when there's no configured value.</summary>
+    private const int DefaultPageSize = 300;
+
+    /// <summary>
+    /// Cap on how many pages one "Load more" click pages through while a client-side filter is active,
+    /// so a sparse author in a huge repo can't scan the entire history in a single click.
+    /// </summary>
+    private const int MaxLoadMorePagesPerClick = 20;
+
+    /// <summary>Commits fetched per page (and per "Load more"), from settings, clamped to a sane range.</summary>
+    private int PageSize => System.Math.Clamp(_settings?.Current.HistoryPageSize ?? DefaultPageSize, 50, 2000);
 
     /// <summary>How many commits the current history load asks git for. Grows via "Load more".</summary>
-    private int _commitLimit = CommitPageSize;
+    private int _commitLimit = DefaultPageSize;
 
     /// <summary>True when the last load hit the limit, so there are (probably) older commits to fetch.</summary>
     [ObservableProperty]
@@ -237,6 +246,95 @@ public partial class HistoryViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(ShowGraph))]
     public partial bool MergesOnly { get; set; }
 
+    // ── Date range (git-level --since/--until) ────────────────────────────────────
+    // A git-level filter, so it pages correctly (git applies the date bound before --max-count).
+    // It cuts out middle commits though, so it isn't parent-closed — the lane graph steps aside.
+
+    /// <summary>Inclusive "from" day; null means no lower bound. Bound to the flyout's From picker.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasDateFilter))]
+    [NotifyPropertyChangedFor(nameof(ShowGraph))]
+    [NotifyPropertyChangedFor(nameof(DateFilterLabel))]
+    public partial DateTime? SinceDate { get; set; }
+
+    /// <summary>Inclusive "to" day (the whole day); null means no upper bound. Bound to the To picker.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasDateFilter))]
+    [NotifyPropertyChangedFor(nameof(ShowGraph))]
+    [NotifyPropertyChangedFor(nameof(DateFilterLabel))]
+    public partial DateTime? UntilDate { get; set; }
+
+    /// <summary>Set while a preset sets both dates at once, so we reload once instead of twice.</summary>
+    private bool _bulkDateChange;
+
+    public bool HasDateFilter => SinceDate is not null || UntilDate is not null;
+
+    /// <summary>The "from" day at 00:00 local — what actually goes to <c>git --since</c>.</summary>
+    private DateTimeOffset? SinceBound => SinceDate is { } d ? DayStart(d) : null;
+
+    /// <summary>The "to" day at 23:59:59 local (the whole day) — what goes to <c>git --until</c>.</summary>
+    private DateTimeOffset? UntilBound => UntilDate is { } d ? DayStart(d).AddDays(1).AddSeconds(-1) : null;
+
+    private static DateTimeOffset DayStart(DateTime day) =>
+        new(DateTime.SpecifyKind(day.Date, DateTimeKind.Unspecified), DateTimeOffset.Now.Offset);
+
+    /// <summary>Compact label for the "Dates ▾" button; shows the active range once one is set.</summary>
+    public string DateFilterLabel => (SinceDate, UntilDate) switch
+    {
+        (null, null) => Loc["History_DateFilter"] + " ▾",
+        ({ } s, { } u) => $"{s:M/d}–{u:M/d} ▾",
+        ({ } s, null) => $"≥{s:M/d} ▾",
+        (null, { } u) => $"≤{u:M/d} ▾",
+    };
+
+    partial void OnSinceDateChanged(DateTime? value) => ReloadForDateChange();
+    partial void OnUntilDateChanged(DateTime? value) => ReloadForDateChange();
+
+    private void ReloadForDateChange()
+    {
+        if (!_bulkDateChange && _host.IsHistoryMode)
+        {
+            HistoryLoad = LoadHistoryAsync();
+        }
+    }
+
+    // Presets set both ends at once; SetDateRange suppresses the per-property reload and reloads once.
+    [RelayCommand]
+    private void Today()
+    {
+        var t = DateTime.Today;
+        SetDateRange(t, t);
+    }
+
+    [RelayCommand]
+    private void Last7Days() => SetDateRange(DateTime.Today.AddDays(-6), DateTime.Today);
+
+    [RelayCommand]
+    private void Last30Days() => SetDateRange(DateTime.Today.AddDays(-29), DateTime.Today);
+
+    [RelayCommand]
+    private void ThisMonth()
+    {
+        var now = DateTime.Today;
+        SetDateRange(new DateTime(now.Year, now.Month, 1), now);
+    }
+
+    [RelayCommand]
+    private void ClearDateFilter() => SetDateRange(null, null);
+
+    private void SetDateRange(DateTime? from, DateTime? to)
+    {
+        _bulkDateChange = true;
+        SinceDate = from;
+        UntilDate = to;
+        _bulkDateChange = false;
+
+        if (_host.IsHistoryMode)
+        {
+            HistoryLoad = LoadHistoryAsync();
+        }
+    }
+
     [ObservableProperty]
     public partial bool HasCommits { get; set; }
 
@@ -259,7 +357,8 @@ public partial class HistoryViewModel : ViewModelBase
     /// stays hidden there.
     /// </summary>
     public bool ShowGraph => SortColumn == HistorySortColumn.Graph
-        && !HasAuthorFilter && !HasMessageFilter && !HasFileFilter && !HasContentFilter && !MergesOnly;
+        && !HasAuthorFilter && !HasMessageFilter && !HasFileFilter && !HasContentFilter && !MergesOnly
+        && !HasDateFilter;
 
     // The active column wears an arrow; the rest show nothing.
     public string AuthorSortGlyph => GlyphFor(HistorySortColumn.Author);
@@ -607,6 +706,9 @@ public partial class HistoryViewModel : ViewModelBase
     /// <summary>Enters History: starts a fresh load and hands the caller (the host's ShowHistory) the task.</summary>
     public Task Load()
     {
+        // Start each visit at one page, honouring the (possibly changed) configured size, rather than
+        // inheriting however far a previous visit had grown the window.
+        _commitLimit = PageSize;
         HistoryLoad = LoadHistoryAsync();
         return HistoryLoad;
     }
@@ -620,7 +722,8 @@ public partial class HistoryViewModel : ViewModelBase
                 _repository.Path, _commitLimit, FirstParentOnly,
                 HasFileFilter ? FileFilter.Trim() : null,
                 HasContentFilter ? ContentFilter.Trim() : null,
-                MergesOnly);
+                MergesOnly,
+                SinceBound, UntilBound);
 
             _graphOrder = commits.ToList();
 
@@ -647,14 +750,27 @@ public partial class HistoryViewModel : ViewModelBase
         }
     }
 
-    /// <summary>Grows the history window by another page and reloads, keeping the selected commit.</summary>
+    /// <summary>
+    /// Grows the history window and reloads, keeping the selected commit. The client-side filters
+    /// (author/branch/message) whittle the loaded window, so one more raw page can add no *visible*
+    /// rows; keep paging until the visible list actually grows, history ends, or a per-click cap is
+    /// hit — so one click always makes visible progress instead of "nothing happened". With no
+    /// client-side filter the visible list grows on the first page, so the loop runs exactly once.
+    /// </summary>
     [RelayCommand]
     private async Task LoadMoreCommits()
     {
         var keepSha = SelectedCommit?.Sha;
-        _commitLimit += CommitPageSize;
+        var before = Commits.Count;
+        var pages = 0;
 
-        await LoadHistoryAsync();
+        do
+        {
+            _commitLimit += PageSize;
+            await LoadHistoryAsync();
+            pages++;
+        }
+        while (Commits.Count == before && HasMoreCommits && pages < MaxLoadMorePagesPerClick);
 
         if (keepSha is not null)
         {

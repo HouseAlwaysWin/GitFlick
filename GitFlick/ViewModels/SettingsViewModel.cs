@@ -269,6 +269,24 @@ public partial class SettingsViewModel : ViewModelBase
         }
     }
 
+    /// <summary>Commits History loads per page (and per "Load more"). Clamped to a sane 50–2000.</summary>
+    public int HistoryPageSize
+    {
+        get => _settings.Current.HistoryPageSize;
+        set
+        {
+            var clamped = Math.Clamp(value, 50, 2000);
+            if (clamped == _settings.Current.HistoryPageSize)
+            {
+                return;
+            }
+
+            _settings.Current.HistoryPageSize = clamped;
+            _settings.Save();
+            OnPropertyChanged();
+        }
+    }
+
     /// <summary>Fetches the release catalog, selects the running (or newest) version, and reports status.</summary>
     [RelayCommand]
     private async Task CheckForUpdates()

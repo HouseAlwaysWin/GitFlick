@@ -216,6 +216,13 @@
   "History_ShowOnlyBranches": "仅显示这些分支",
   "History_SearchBranches": "搜索分支…",
   "History_GraphOrder": "↕ 图形顺序",
+  "History_DateFilter": "日期范围",
+  "History_DateFrom": "从",
+  "History_DateTo": "到",
+  "History_DateToday": "今天",
+  "History_DateLast7": "近 7 天",
+  "History_DateLast30": "近 30 天",
+  "History_DateThisMonth": "本月",
   "History_GraphOrder_Tooltip": "取消排序／筛选，回到 git 的原始顺序（会显示泳道图形）。",
   "History_FirstParentOnly": "仅第一父节点",
   "History_FirstParentOnly_Tooltip": "将每个合并的分支折叠成单行 — 也就是实际并入此分支的内容。",
@@ -323,6 +330,9 @@
   "Settings_Hotkey_Hint": "点击方块,再按下用来随处唤出 GitFlick 的组合键。按 Esc 取消。",
   "Settings_Hotkey_NeedModifier": "必须包含 Ctrl、Alt 或 Win,否则该按键会在整个系统中被拦截。",
   "Settings_Hotkey_UnusableKey": "“{0}”无法作为全局快捷键。",
+
+  "Settings_HistoryPageSize": "历史每页条数",
+  "Settings_HistoryPageSize_Hint": "History 每页加载的 commit 条数(每次“Load more”也用这个)。50–2000。",
 
   "Settings_Updates": "更新",
   "Update_CurrentVersion": "当前版本",

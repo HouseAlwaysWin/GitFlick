@@ -167,12 +167,20 @@ internal sealed class FakeGitService : IGitService
     public bool LastFirstParentOnly { get; private set; }
     public bool LastMergesOnly { get; private set; }
 
-    public Task<IReadOnlyList<CommitInfo>> GetCommitsAsync(string repoPath, int maxCount = 300, bool firstParentOnly = false, string? pathFilter = null, string? contentSearch = null, bool mergesOnly = false, CancellationToken cancellationToken = default)
+    /// <summary>The last date bounds and maxCount GetCommitsAsync was called with, so tests can assert them.</summary>
+    public System.DateTimeOffset? LastSince { get; private set; }
+    public System.DateTimeOffset? LastUntil { get; private set; }
+    public int LastMaxCount { get; private set; }
+
+    public Task<IReadOnlyList<CommitInfo>> GetCommitsAsync(string repoPath, int maxCount = 300, bool firstParentOnly = false, string? pathFilter = null, string? contentSearch = null, bool mergesOnly = false, System.DateTimeOffset? since = null, System.DateTimeOffset? until = null, CancellationToken cancellationToken = default)
     {
         LastPathFilter = pathFilter;
         LastContentSearch = contentSearch;
         LastFirstParentOnly = firstParentOnly;
         LastMergesOnly = mergesOnly;
+        LastSince = since;
+        LastUntil = until;
+        LastMaxCount = maxCount;
         return Task.FromResult<IReadOnlyList<CommitInfo>>(StubCommits.Take(maxCount).ToList());
     }
 

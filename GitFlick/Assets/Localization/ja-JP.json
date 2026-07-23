@@ -216,6 +216,13 @@
   "History_ShowOnlyBranches": "これらのブランチのみ表示",
   "History_SearchBranches": "ブランチを検索…",
   "History_GraphOrder": "↕ グラフ順",
+  "History_DateFilter": "期間",
+  "History_DateFrom": "開始",
+  "History_DateTo": "終了",
+  "History_DateToday": "今日",
+  "History_DateLast7": "過去 7 日",
+  "History_DateLast30": "過去 30 日",
+  "History_DateThisMonth": "今月",
   "History_GraphOrder_Tooltip": "並べ替え／フィルターを解除し、git の順序（レーングラフを表示）に戻します。",
   "History_FirstParentOnly": "第一親のみ",
   "History_FirstParentOnly_Tooltip": "マージされた各ブランチを 1 行に折りたたみます — 実際にこのブランチに入った内容です。",
@@ -323,6 +330,9 @@
   "Settings_Hotkey_Hint": "ボックスをクリックし、どこからでも GitFlick を呼び出す組み合わせを押します。Esc で取り消せます。",
   "Settings_Hotkey_NeedModifier": "Ctrl・Alt・Win のいずれかを含めてください。ないとそのキーをシステム全体で奪ってしまいます。",
   "Settings_Hotkey_UnusableKey": "「{0}」はグローバルホットキーとして使用できません。",
+
+  "Settings_HistoryPageSize": "履歴のページサイズ",
+  "Settings_HistoryPageSize_Hint": "History で1ページに読み込むコミット数(「Load more」も同数)。50〜2000。",
 
   "Settings_Updates": "アップデート",
   "Update_CurrentVersion": "現在のバージョン",

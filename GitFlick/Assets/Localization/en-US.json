@@ -217,6 +217,13 @@
   "History_SearchBranches": "Search branches…",
   "History_GraphOrder": "↕ Graph order",
   "History_GraphOrder_Tooltip": "Drop the sort/filter and return to git's order (which shows the lane graph).",
+  "History_DateFilter": "Date range",
+  "History_DateFrom": "From",
+  "History_DateTo": "To",
+  "History_DateToday": "Today",
+  "History_DateLast7": "Last 7 days",
+  "History_DateLast30": "Last 30 days",
+  "History_DateThisMonth": "This month",
   "History_FirstParentOnly": "First-parent only",
   "History_FirstParentOnly_Tooltip": "Collapse each merged branch to a single row — what actually landed on this branch.",
   "History_Col_Message": "Message",
@@ -323,6 +330,9 @@
   "Settings_Hotkey_Hint": "Click the box, then press the combination that summons GitFlick from anywhere. Esc cancels.",
   "Settings_Hotkey_NeedModifier": "Include Ctrl, Alt or Win — without one, that key would be swallowed system-wide.",
   "Settings_Hotkey_UnusableKey": "'{0}' cannot be used as a global hotkey.",
+
+  "Settings_HistoryPageSize": "HISTORY PAGE SIZE",
+  "Settings_HistoryPageSize_Hint": "Commits loaded per page in History (and each “Load more”). 50–2000.",
 
   "Settings_Updates": "UPDATES",
   "Update_CurrentVersion": "Current version",

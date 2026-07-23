@@ -331,6 +331,8 @@ public sealed class GitService : IGitService
         string? pathFilter = null,
         string? contentSearch = null,
         bool mergesOnly = false,
+        DateTimeOffset? since = null,
+        DateTimeOffset? until = null,
         CancellationToken cancellationToken = default)
     {
         // A repo with no commits has an unborn HEAD, and `git log ... HEAD` then fails outright
@@ -368,6 +370,18 @@ public sealed class GitService : IGitService
         if (mergesOnly)
         {
             args.Add("--merges");
+        }
+
+        // Date range (git bounds by commit date). Applied before --max-count, so paging counts only
+        // in-range commits. Cuts out middle commits, so it isn't parent-closed — the caller hides the graph.
+        if (since is { } from)
+        {
+            args.Add("--since=" + from.ToString("yyyy-MM-ddTHH:mm:sszzz", CultureInfo.InvariantCulture));
+        }
+
+        if (until is { } to)
+        {
+            args.Add("--until=" + to.ToString("yyyy-MM-ddTHH:mm:sszzz", CultureInfo.InvariantCulture));
         }
 
         if (firstParentOnly)

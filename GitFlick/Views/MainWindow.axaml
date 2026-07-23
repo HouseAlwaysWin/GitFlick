@@ -1118,6 +1118,44 @@
                                     </Flyout>
                                 </Button.Flyout>
                             </Button>
+                            <!-- Date range maps to git since/until: a git-level filter, so it pages correctly. -->
+                            <Button Classes="header" FontWeight="Normal"
+                                    Content="{Binding DateFilterLabel}">
+                                <Button.Flyout>
+                                    <Flyout Placement="BottomEdgeAlignedRight">
+                                        <StackPanel Width="260" Spacing="8" x:DataType="vm:HistoryViewModel">
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <TextBlock Grid.Column="0" Text="{loc:Tr History_DateFilter}"
+                                                           FontSize="10" Opacity="0.5" VerticalAlignment="Center" />
+                                                <Button Grid.Column="1" Content="{loc:Tr History_Clear}" FontSize="11" Padding="8,2"
+                                                        IsEnabled="{Binding HasDateFilter}"
+                                                        Command="{Binding ClearDateFilterCommand}" />
+                                            </Grid>
+                                            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto"
+                                                  ColumnSpacing="8" RowSpacing="6">
+                                                <TextBlock Grid.Row="0" Grid.Column="0" Text="{loc:Tr History_DateFrom}"
+                                                           FontSize="12" VerticalAlignment="Center" />
+                                                <CalendarDatePicker Grid.Row="0" Grid.Column="1" HorizontalAlignment="Stretch"
+                                                                    SelectedDate="{Binding SinceDate, Mode=TwoWay}" />
+                                                <TextBlock Grid.Row="1" Grid.Column="0" Text="{loc:Tr History_DateTo}"
+                                                           FontSize="12" VerticalAlignment="Center" />
+                                                <CalendarDatePicker Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch"
+                                                                    SelectedDate="{Binding UntilDate, Mode=TwoWay}" />
+                                            </Grid>
+                                            <WrapPanel>
+                                                <Button Content="{loc:Tr History_DateToday}" FontSize="11" Margin="0,0,6,6"
+                                                        Command="{Binding TodayCommand}" />
+                                                <Button Content="{loc:Tr History_DateLast7}" FontSize="11" Margin="0,0,6,6"
+                                                        Command="{Binding Last7DaysCommand}" />
+                                                <Button Content="{loc:Tr History_DateLast30}" FontSize="11" Margin="0,0,6,6"
+                                                        Command="{Binding Last30DaysCommand}" />
+                                                <Button Content="{loc:Tr History_DateThisMonth}" FontSize="11" Margin="0,0,6,6"
+                                                        Command="{Binding ThisMonthCommand}" />
+                                            </WrapPanel>
+                                        </StackPanel>
+                                    </Flyout>
+                                </Button.Flyout>
+                            </Button>
                             <Button Classes="header"
                                     Margin="12,2,0,2"
                                     Content="{loc:Tr History_GraphOrder}"

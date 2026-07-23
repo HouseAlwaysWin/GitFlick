@@ -54,6 +54,9 @@ public sealed class AppSettings
     /// a manual refresh. On by default; git has no push channel, so this is a poll.
     /// </summary>
     public bool AutoFetch { get; set; } = true;
+
+    /// <summary>How many commits History loads per page (and per "Load more"). Clamped to 50–2000 on use.</summary>
+    public int HistoryPageSize { get; set; } = 300;
 }
 
 /// <summary>How commit messages are generated.</summary>
