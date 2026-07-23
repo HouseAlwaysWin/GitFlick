@@ -1,0 +1,60 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:GitFlick.ViewModels"
+        xmlns:models="using:GitFlick.Models"
+        xmlns:loc="using:GitFlick.Markup"
+        x:Class="GitFlick.Views.RemotesWindow"
+        x:DataType="vm:WorkspaceViewModel"
+        Title="{loc:Tr Remotes_Title}"
+        Icon="/Assets/gitflick.ico"
+        Width="560" Height="420"
+        MinWidth="420" MinHeight="280"
+        WindowStartupLocation="CenterOwner">
+
+    <DockPanel Margin="16">
+        <TextBlock DockPanel.Dock="Top" Text="{loc:Tr Remotes_Header}"
+                   FontWeight="SemiBold" Margin="0,0,0,10" />
+
+        <!-- Add row pinned to the bottom so the list can grow. -->
+        <Border DockPanel.Dock="Bottom" Margin="0,12,0,0">
+            <StackPanel Spacing="6">
+                <TextBlock Text="{loc:Tr Remotes_AddHeader}" FontSize="10" Opacity="0.5" />
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
+                    <TextBox Grid.Column="0" Width="120" FontSize="12" VerticalContentAlignment="Center"
+                             Text="{Binding NewRemoteName}" PlaceholderText="{loc:Tr Remotes_Name}" />
+                    <TextBox Grid.Column="1" FontSize="12" VerticalContentAlignment="Center"
+                             Text="{Binding NewRemoteUrl}" PlaceholderText="{loc:Tr Remotes_Url}" />
+                    <Button Grid.Column="2" Classes="primary" Content="{loc:Tr Remotes_Add}"
+                            Command="{Binding AddRemoteCommand}" />
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <Border BorderBrush="#30808080" BorderThickness="1" CornerRadius="4" ClipToBounds="True">
+            <Panel>
+                <ScrollViewer>
+                    <ItemsControl ItemsSource="{Binding Remotes}" Margin="6">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="models:GitRemote">
+                                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10" Margin="2,4">
+                                    <TextBlock Grid.Column="0" Text="{Binding Name}" FontWeight="SemiBold"
+                                               VerticalAlignment="Center" MinWidth="70"
+                                               FontFamily="Cascadia Mono,Consolas,monospace" />
+                                    <TextBlock Grid.Column="1" Text="{Binding Url}" Opacity="0.7" FontSize="12"
+                                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                               ToolTip.Tip="{Binding Url}" />
+                                    <Button Grid.Column="2" Classes="danger" FontSize="11"
+                                            Content="{loc:Tr Remotes_Remove}"
+                                            Click="OnRemoveRemoteClick" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+                <TextBlock Text="{loc:Tr Remotes_None}" IsVisible="{Binding HasNoRemote}"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.45"
+                           TextWrapping="Wrap" MaxWidth="360" TextAlignment="Center" />
+            </Panel>
+        </Border>
+    </DockPanel>
+</Window>

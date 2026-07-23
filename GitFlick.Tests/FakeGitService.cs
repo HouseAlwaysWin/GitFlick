@@ -27,8 +27,14 @@ internal sealed class FakeGitService : IGitService
     /// <summary>The status GetStatusAsync serves; tests set ahead/behind on it.</summary>
     public GitStatus StubStatus { get; set; } = new();
 
+    /// <summary>How many times status was read — a proxy for "did the view refresh".</summary>
+    public int StatusCallCount { get; private set; }
+
     public Task<GitStatus> GetStatusAsync(string repoPath, CancellationToken cancellationToken = default)
-        => Task.FromResult(StubStatus);
+    {
+        StatusCallCount++;
+        return Task.FromResult(StubStatus);
+    }
 
     /// <summary>Optional override for GetDiffAsync, letting tests control its completion timing and content.</summary>
     public Func<string, Task<string>>? DiffOverride { get; set; }
@@ -118,6 +124,30 @@ internal sealed class FakeGitService : IGitService
     public List<string> StubRemotes { get; } = [];
 
     public Task<IReadOnlyList<string>> GetRemotesAsync(string repoPath, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<string>>(StubRemotes);
+
+    /// <summary>Remotes (name+url) GetRemoteListAsync serves.</summary>
+    public List<GitRemote> StubRemoteList { get; } = [];
+
+    /// <summary>The last (name, url) AddRemoteAsync was called with.</summary>
+    public (string Name, string Url)? LastRemoteAdded { get; private set; }
+
+    /// <summary>The last name RemoveRemoteAsync was called with.</summary>
+    public string? LastRemoteRemoved { get; private set; }
+
+    public Task<IReadOnlyList<GitRemote>> GetRemoteListAsync(string repoPath, CancellationToken cancellationToken = default)
+        => Task.FromResult<IReadOnlyList<GitRemote>>(StubRemoteList.ToList());
+
+    public Task<GitCommandResult> AddRemoteAsync(string repoPath, string name, string url, CancellationToken cancellationToken = default)
+    {
+        LastRemoteAdded = (name, url);
+        return Task.FromResult(Ok);
+    }
+
+    public Task<GitCommandResult> RemoveRemoteAsync(string repoPath, string name, CancellationToken cancellationToken = default)
+    {
+        LastRemoteRemoved = name;
+        return Task.FromResult(Ok);
+    }
 
     /// <summary>The remote URL GetRemoteUrlAsync serves.</summary>
     public string? StubRemoteUrl { get; set; }

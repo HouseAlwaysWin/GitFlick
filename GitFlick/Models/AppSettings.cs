@@ -48,6 +48,12 @@ public sealed class AppSettings
 
     /// <summary>Identities kept for one-click switching (personal vs work).</summary>
     public List<SavedIdentity> SavedIdentities { get; set; } = [];
+
+    /// <summary>
+    /// Periodically fetch in the background so the ahead/behind counts and history stay current without
+    /// a manual refresh. On by default; git has no push channel, so this is a poll.
+    /// </summary>
+    public bool AutoFetch { get; set; } = true;
 }
 
 /// <summary>How commit messages are generated.</summary>

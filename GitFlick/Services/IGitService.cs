@@ -125,6 +125,15 @@ public interface IGitService
     /// <summary>The names of the configured remotes (<c>git remote</c>), empty if none.</summary>
     Task<IReadOnlyList<string>> GetRemotesAsync(string repoPath, CancellationToken cancellationToken = default);
 
+    /// <summary>The configured remotes with their fetch URLs, for the manage-remotes UI.</summary>
+    Task<IReadOnlyList<GitRemote>> GetRemoteListAsync(string repoPath, CancellationToken cancellationToken = default);
+
+    /// <summary>Adds a remote (<c>git remote add</c>).</summary>
+    Task<GitCommandResult> AddRemoteAsync(string repoPath, string name, string url, CancellationToken cancellationToken = default);
+
+    /// <summary>Removes a remote (<c>git remote remove</c>).</summary>
+    Task<GitCommandResult> RemoveRemoteAsync(string repoPath, string name, CancellationToken cancellationToken = default);
+
     /// <summary>A remote's fetch URL (<c>git remote get-url</c>), for building web links. Null if unset.</summary>
     Task<string?> GetRemoteUrlAsync(string repoPath, string remote, CancellationToken cancellationToken = default);
 

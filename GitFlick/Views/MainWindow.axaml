@@ -626,6 +626,8 @@
                                           ToolTip.Tip="{loc:Tr Toolbar_PullRebase_Tooltip}" />
                                 <MenuItem Header="{loc:Tr Toolbar_PullFrom}" Command="{Binding PullFromCommand}"
                                           ToolTip.Tip="{loc:Tr Toolbar_PullFrom_Tooltip}" />
+                                <Separator />
+                                <MenuItem Header="{loc:Tr Toolbar_ManageRemotes}" Click="OnManageRemotesClick" />
                             </MenuFlyout>
                         </SplitButton.Flyout>
                     </SplitButton>

@@ -264,6 +264,54 @@ public sealed class GitService : IGitService
         return result.StandardOutput.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
     }
 
+    public async Task<IReadOnlyList<GitRemote>> GetRemoteListAsync(string repoPath, CancellationToken cancellationToken = default)
+    {
+        // "git remote -v" prints two lines per remote — "<name>\t<url> (fetch)" and "… (push)". We keep
+        // the fetch URL, one entry per remote, in git's own order.
+        var result = await RunAsync(repoPath, ["remote", "-v"], null, cancellationToken).ConfigureAwait(false);
+        if (!result.Succeeded)
+        {
+            return [];
+        }
+
+        var remotes = new List<GitRemote>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var raw in result.StandardOutput.Split('\n'))
+        {
+            var line = raw.Trim();
+            if (line.Length == 0 || !line.EndsWith("(fetch)", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            // "<name>\t<url> (fetch)"
+            var tab = line.IndexOf('\t');
+            if (tab <= 0)
+            {
+                continue;
+            }
+
+            var name = line[..tab].Trim();
+            var rest = line[(tab + 1)..];
+            var space = rest.LastIndexOf(' ');   // strip the trailing " (fetch)"
+            var url = (space > 0 ? rest[..space] : rest).Trim();
+
+            if (name.Length > 0 && seen.Add(name))
+            {
+                remotes.Add(new GitRemote(name, url));
+            }
+        }
+
+        return remotes;
+    }
+
+    public Task<GitCommandResult> AddRemoteAsync(string repoPath, string name, string url, CancellationToken cancellationToken = default)
+        => RunAsync(repoPath, ["remote", "add", name, url], null, cancellationToken);
+
+    public Task<GitCommandResult> RemoveRemoteAsync(string repoPath, string name, CancellationToken cancellationToken = default)
+        => RunAsync(repoPath, ["remote", "remove", name], null, cancellationToken);
+
     public async Task<string?> GetRemoteUrlAsync(string repoPath, string remote, CancellationToken cancellationToken = default)
     {
         var result = await RunAsync(repoPath, ["remote", "get-url", remote], null, cancellationToken).ConfigureAwait(false);

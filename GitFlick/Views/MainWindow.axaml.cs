@@ -58,6 +58,44 @@ public partial class MainWindow : Window
 
         DataContextChanged += (_, _) => ObserveViewModel();
         ObserveViewModel();
+
+        // Auto-sync: git has no push channel, so poll. Every few minutes plus whenever the window is
+        // brought back to the foreground, quietly fetch and — only if the remote actually moved —
+        // refresh, so new remote commits appear without a manual ↻.
+        _autoFetchTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(3) };
+        _autoFetchTimer.Tick += (_, _) => TriggerAutoSync();
+        _autoFetchTimer.Start();
+        Activated += (_, _) => TriggerAutoSync();
+    }
+
+    private readonly DispatcherTimer _autoFetchTimer;
+    private DateTime _lastAutoSync = DateTime.MinValue;
+
+    /// <summary>
+    /// Kicks off a background auto-sync if one's warranted: a repo is open, the window is on screen,
+    /// auto-fetch is enabled, and we didn't just do one. Throttled because window activation can fire
+    /// in bursts (alt-tab), while the 3-minute timer is never blocked by that short window.
+    /// </summary>
+    private void TriggerAutoSync()
+    {
+        if (!IsVisible || Workspace is not { } workspace)
+        {
+            return;
+        }
+
+        if ((DataContext as MainViewModel)?.Settings is { Current.AutoFetch: false })
+        {
+            return;
+        }
+
+        var now = DateTime.UtcNow;
+        if (now - _lastAutoSync < TimeSpan.FromSeconds(20))
+        {
+            return;
+        }
+
+        _lastAutoSync = now;
+        _ = workspace.AutoSyncAsync();
     }
 
     private void OnWindowVisibilityChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
@@ -340,6 +378,31 @@ public partial class MainWindow : Window
 
         close.Click += (_, _) => dialog.Close();
         await dialog.ShowDialog(this);
+    }
+
+    private RemotesWindow? _remotesWindow;
+
+    /// <summary>Opens the add/remove-remotes window (reusing one if it's already open).</summary>
+    private void OnManageRemotesClick(object? sender, RoutedEventArgs e)
+    {
+        if (Workspace is not { } workspace)
+        {
+            return;
+        }
+
+        _ = workspace.RefreshRemotesAsync();
+
+        if (_remotesWindow is null)
+        {
+            _remotesWindow = new RemotesWindow { DataContext = workspace };
+            _remotesWindow.Closed += (_, _) => _remotesWindow = null;
+            _remotesWindow.Show(this);
+        }
+        else
+        {
+            _remotesWindow.DataContext = workspace;
+            _remotesWindow.Activate();
+        }
     }
 
     private CommandLogWindow? _commandLogWindow;

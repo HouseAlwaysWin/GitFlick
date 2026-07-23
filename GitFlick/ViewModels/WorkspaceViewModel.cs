@@ -1215,6 +1215,7 @@ public partial class WorkspaceViewModel : ViewModelBase
             History.InvalidateContainment();   // branch tips / HEAD moved, so cached commit-containment is stale
             await RefreshBaseRefsAsync();
             await RefreshIdentityAsync();
+            await RefreshRemotesAsync();
 
             Replace(Stashes, await stashesTask);
             HasStashes = Stashes.Count > 0;
@@ -1293,6 +1294,105 @@ public partial class WorkspaceViewModel : ViewModelBase
     {
         await RefreshAsync();
         await CheckRemoteAsync();
+    }
+
+    // ── Remotes ─────────────────────────────────────────────────────────────────────────────────
+
+    /// <summary>Configured remotes (name + URL), shown in the manage-remotes dialog.</summary>
+    public ObservableCollection<GitRemote> Remotes { get; } = [];
+
+    /// <summary>No remote configured — the UI offers to add one instead of showing empty push/pull.</summary>
+    [ObservableProperty]
+    public partial bool HasNoRemote { get; set; }
+
+    [ObservableProperty]
+    public partial string NewRemoteName { get; set; } = "origin";
+
+    [ObservableProperty]
+    public partial string NewRemoteUrl { get; set; } = string.Empty;
+
+    /// <summary>Reloads the remote list; refreshed when a repo opens and after add/remove.</summary>
+    public async Task RefreshRemotesAsync()
+    {
+        try
+        {
+            Replace(Remotes, await _git.GetRemoteListAsync(Repository.Path));
+        }
+        catch (GitException)
+        {
+            Remotes.Clear();
+        }
+
+        HasNoRemote = Remotes.Count == 0;
+    }
+
+    [RelayCommand]
+    private async Task AddRemote()
+    {
+        var name = NewRemoteName.Trim();
+        var url = NewRemoteUrl.Trim();
+        if (name.Length == 0 || url.Length == 0)
+        {
+            return;
+        }
+
+        await RunAsync(
+            () => _git.AddRemoteAsync(Repository.Path, name, url),
+            string.Format(Loc["Status_RemoteAdded"], name));
+
+        NewRemoteUrl = string.Empty;
+        await RefreshRemotesAsync();
+
+        // A freshly-added remote should populate the ahead/behind counts right away.
+        await CheckRemoteAsync();
+    }
+
+    [RelayCommand]
+    private async Task RemoveRemote(GitRemote? remote)
+    {
+        if (remote is null)
+        {
+            return;
+        }
+
+        await RunAsync(
+            () => _git.RemoveRemoteAsync(Repository.Path, remote.Name),
+            string.Format(Loc["Status_RemoteRemoved"], remote.Name));
+
+        await RefreshRemotesAsync();
+    }
+
+    /// <summary>
+    /// Periodic/on-focus auto-sync (the timer and window activation call this). Fetches in the
+    /// background, then — only if the remote actually moved — reloads the file lists and history so new
+    /// remote commits show without a manual refresh. Skips the reload when a command is running or
+    /// nothing changed, so it never yanks the view out from under an active edit for no reason.
+    /// </summary>
+    public async Task AutoSyncAsync()
+    {
+        if (IsBusy || IsCheckingRemote)
+        {
+            return;
+        }
+
+        // Remember the sync position; the fetch updates it. A change means the remote (or our branch)
+        // moved and the view is now stale.
+        var before = (Ahead, Behind, Upstream);
+        await CheckRemoteAsync();
+
+        if (IsBusy)
+        {
+            return;   // a command started while we were fetching — leave it alone
+        }
+
+        if (before != (Ahead, Behind, Upstream))
+        {
+            await RefreshAsync();
+            if (IsHistoryMode)
+            {
+                await History.LoadHistoryAsync();
+            }
+        }
     }
 
     /// <summary>
