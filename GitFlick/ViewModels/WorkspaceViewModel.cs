@@ -267,10 +267,18 @@ public partial class WorkspaceViewModel : ViewModelBase
 
     public bool HasCommandLog => CommandLog.Count > 0;
 
+    /// <summary>The command whose output the log window shows below the list.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSelectedCommandOutput))]
+    public partial GitCommandLogEntry? SelectedCommandLogEntry { get; set; }
+
+    public bool HasSelectedCommandOutput => SelectedCommandLogEntry is { HasOutput: true };
+
     /// <summary>Pull the newest most-recent-first snapshot of the git command log into the view.</summary>
     public void RefreshCommandLog()
     {
         Replace(CommandLog, _git.CommandLog.Snapshot());
+        SelectedCommandLogEntry = null;
         OnPropertyChanged(nameof(HasCommandLog));
     }
 

@@ -24,13 +24,23 @@
                     Command="{Binding ClearCommandLogCommand}" IsEnabled="{Binding HasCommandLog}" />
         </Grid>
 
-        <Border BorderBrush="#30808080" BorderThickness="1" CornerRadius="4" ClipToBounds="True">
-            <Panel>
-                <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-                    <ItemsControl ItemsSource="{Binding CommandLog}" Margin="4">
-                        <ItemsControl.ItemTemplate>
+        <!-- Master/detail: pick a command above, read exactly what git printed below — a push's
+             "…master -> master" summary, or why something failed. The divider is draggable. -->
+        <Grid RowDefinitions="2*,6,*">
+            <Border Grid.Row="0" BorderBrush="#30808080" BorderThickness="1" CornerRadius="4" ClipToBounds="True">
+                <Panel>
+                    <ListBox x:Name="LogList" Background="Transparent" Padding="4"
+                             ItemsSource="{Binding CommandLog}"
+                             SelectedItem="{Binding SelectedCommandLogEntry}">
+                        <ListBox.Styles>
+                            <Style Selector="ListBoxItem">
+                                <Setter Property="Padding" Value="4,2" />
+                                <Setter Property="MinHeight" Value="0" />
+                            </Style>
+                        </ListBox.Styles>
+                        <ListBox.ItemTemplate>
                             <DataTemplate x:DataType="services:GitCommandLogEntry">
-                                <Grid ColumnDefinitions="Auto,Auto,*,Auto" Margin="4,3">
+                                <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto">
                                     <TextBlock Grid.Column="0" Text="{Binding Glyph}" Width="16" FontWeight="SemiBold"
                                                Foreground="{Binding Succeeded, Converter={StaticResource SuccessBrush}}" />
                                     <TextBlock Grid.Column="1" Text="{Binding TimeDisplay}" Opacity="0.45" FontSize="11"
@@ -40,16 +50,39 @@
                                                FontFamily="Cascadia Mono,Consolas,monospace" FontSize="12"
                                                TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
                                                ToolTip.Tip="{Binding Command}" />
-                                    <TextBlock Grid.Column="3" Text="{Binding DurationDisplay}" Opacity="0.4" FontSize="11"
+                                    <!-- A dot marks rows that actually have output to show. -->
+                                    <TextBlock Grid.Column="3" Text="●" FontSize="9" Opacity="0.35"
+                                               VerticalAlignment="Center" Margin="8,0,0,0"
+                                               IsVisible="{Binding HasOutput}" />
+                                    <TextBlock Grid.Column="4" Text="{Binding DurationDisplay}" Opacity="0.4" FontSize="11"
                                                Margin="10,0,0,0" VerticalAlignment="Center" />
                                 </Grid>
                             </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </ScrollViewer>
-                <TextBlock Text="{loc:Tr CmdLog_None}" IsVisible="{Binding !HasCommandLog}"
-                           HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.4" />
-            </Panel>
-        </Border>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                    <TextBlock Text="{loc:Tr CmdLog_None}" IsVisible="{Binding !HasCommandLog}"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.4" />
+                </Panel>
+            </Border>
+
+            <GridSplitter Grid.Row="1" Height="6" Background="Transparent"
+                          ResizeDirection="Rows" ResizeBehavior="PreviousAndNext"
+                          HorizontalAlignment="Stretch" />
+
+            <Border Grid.Row="2" BorderBrush="#30808080" BorderThickness="1" CornerRadius="4" ClipToBounds="True">
+                <Panel>
+                    <TextBox IsReadOnly="True" Background="Transparent" BorderThickness="0"
+                             IsVisible="{Binding HasSelectedCommandOutput}"
+                             Text="{Binding SelectedCommandLogEntry.Output, Mode=OneWay}"
+                             FontFamily="Cascadia Mono,Consolas,monospace" FontSize="12"
+                             TextWrapping="NoWrap"
+                             ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto" />
+                    <TextBlock Text="{loc:Tr CmdLog_OutputHint}" IsVisible="{Binding !HasSelectedCommandOutput}"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.4"
+                               TextWrapping="Wrap" MaxWidth="360" TextAlignment="Center" />
+                </Panel>
+            </Border>
+        </Grid>
     </DockPanel>
 </Window>

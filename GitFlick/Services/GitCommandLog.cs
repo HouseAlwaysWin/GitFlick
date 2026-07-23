@@ -3,14 +3,20 @@ using System.Collections.Generic;
 
 namespace GitFlick.Services;
 
-/// <summary>One git invocation as it was run: the command line, whether it succeeded, and how long it took.</summary>
-public sealed record GitCommandLogEntry(string Command, bool Succeeded, long DurationMs, DateTime When)
+/// <summary>
+/// One git invocation as it was run: the command line, whether it succeeded, how long it took, and
+/// what git printed. <see cref="Output"/> is what makes the log a diagnostic rather than just a list —
+/// a push's "…master -> master" summary, or the reason a command failed, live only here.
+/// </summary>
+public sealed record GitCommandLogEntry(string Command, bool Succeeded, long DurationMs, DateTime When, string Output = "")
 {
     public string Glyph => Succeeded ? "✓" : "✗";
 
     public string TimeDisplay => When.ToString("HH:mm:ss");
 
     public string DurationDisplay => $"{DurationMs} ms";
+
+    public bool HasOutput => Output.Length > 0;
 }
 
 /// <summary>

@@ -290,6 +290,7 @@
   "CmdLog_Copy": "复制",
   "CmdLog_Clear": "清除",
   "CmdLog_None": "尚未执行任何命令。",
+  "CmdLog_OutputHint": "选一个命令，看 git 实际打印了什么——推送或拉取的摘要，或失败的原因。",
 
   "Settings_Title": "设置",
   "Settings_Header": "设置",

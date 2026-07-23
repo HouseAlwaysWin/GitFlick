@@ -290,6 +290,7 @@
   "CmdLog_Copy": "Copy",
   "CmdLog_Clear": "Clear",
   "CmdLog_None": "No commands run yet.",
+  "CmdLog_OutputHint": "Select a command to see what git printed — a push or pull's summary, or why it failed.",
 
   "Settings_Title": "Settings",
   "Settings_Header": "Settings",

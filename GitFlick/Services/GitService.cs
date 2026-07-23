@@ -1083,6 +1083,7 @@ public sealed class GitService : IGitService
         var command = FormatCommand(args);
         var stopwatch = Stopwatch.StartNew();
         var succeeded = false;
+        var output = string.Empty;
 
         try
         {
@@ -1145,13 +1146,47 @@ public sealed class GitService : IGitService
 
             var result = new GitCommandResult(process.ExitCode, stdout, stderr);
             succeeded = result.Succeeded;
+            output = BuildLogOutput(stdout, stderr);
             return result;
         }
         finally
         {
             stopwatch.Stop();
-            CommandLog.Record(new GitCommandLogEntry(command, succeeded, stopwatch.ElapsedMilliseconds, DateTime.Now));
+            CommandLog.Record(new GitCommandLogEntry(command, succeeded, stopwatch.ElapsedMilliseconds, DateTime.Now, output));
         }
+    }
+
+    private const int MaxLoggedOutput = 8000;
+
+    /// <summary>
+    /// What to keep of git's output for the command log: both streams, minus the transient progress
+    /// redraws (fetch/push spray "Counting objects: 50% (7/13)" lines that only clutter a static log).
+    /// Capped, keeping the TAIL — a push/pull summary sits at the end, and a failure message is short
+    /// enough to survive whole.
+    /// </summary>
+    internal static string BuildLogOutput(string stdout, string stderr)
+    {
+        // git redraws progress with a bare CR (no newline), so normalise every CR to a line break —
+        // then each redraw is its own line and can be dropped individually.
+        var normalised = (stdout + "\n" + stderr).Replace("\r\n", "\n").Replace('\r', '\n');
+        var combined = new StringBuilder();
+
+        foreach (var line in normalised.Split('\n'))
+        {
+            // git progress: "<phase>: NN% (a/b)". The final line of each phase ends "done." and is
+            // kept; the intermediate redraws are noise here.
+            if (line.Contains("% (", StringComparison.Ordinal) && !line.Contains("done", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            combined.Append(line).Append('\n');
+        }
+
+        var text = combined.ToString().Trim();
+        return text.Length > MaxLoggedOutput
+            ? "… (truncated)\n" + text[^MaxLoggedOutput..]
+            : text;
     }
 
     /// <summary>Renders the invocation as a copy-pasteable command line, quoting args with spaces.</summary>

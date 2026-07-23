@@ -290,6 +290,7 @@
   "CmdLog_Copy": "コピー",
   "CmdLog_Clear": "クリア",
   "CmdLog_None": "まだコマンドは実行されていません。",
+  "CmdLog_OutputHint": "コマンドを選ぶと、git が実際に出力した内容（プッシュ／プルの概要や失敗理由）が表示されます。",
 
   "Settings_Title": "設定",
   "Settings_Header": "設定",
