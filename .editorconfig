@@ -1,0 +1,28 @@
+# EditorConfig codifying GitFlick's existing house style. Kept at suggestion severity so it guides
+# without turning the build red; tighten deliberately later if desired.
+root = true
+
+[*]
+charset = utf-8
+indent_style = space
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+[*.cs]
+indent_size = 4
+# File-scoped namespaces, `var`, and System-first usings — the conventions already used throughout.
+csharp_style_namespace_declarations = file_scoped:suggestion
+csharp_style_var_for_built_in_types = true:suggestion
+csharp_style_var_when_type_is_apparent = true:suggestion
+csharp_style_var_elsewhere = true:suggestion
+dotnet_sort_system_directives_first = true
+csharp_prefer_braces = true:suggestion
+
+[*.{csproj,props,targets}]
+indent_size = 2
+
+[*.{json,yml,yaml}]
+indent_size = 2
+
+[*.{axaml,xaml}]
+indent_size = 2

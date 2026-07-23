@@ -30,8 +30,11 @@ internal sealed class FakeGitService : IGitService
     public Task<GitStatus> GetStatusAsync(string repoPath, CancellationToken cancellationToken = default)
         => Task.FromResult(StubStatus);
 
+    /// <summary>Optional override for GetDiffAsync, letting tests control its completion timing and content.</summary>
+    public Func<string, Task<string>>? DiffOverride { get; set; }
+
     public Task<string> GetDiffAsync(string repoPath, string path, bool staged, bool untracked = false, CancellationToken cancellationToken = default)
-        => Task.FromResult(string.Empty);
+        => DiffOverride is { } hook ? hook(path) : Task.FromResult(string.Empty);
 
     public Task<GitCommandResult> StageAsync(string repoPath, string path, CancellationToken cancellationToken = default) => Task.FromResult(Ok);
 
@@ -43,7 +46,10 @@ internal sealed class FakeGitService : IGitService
 
     public Task<string> GetStagedDiffAsync(string repoPath, CancellationToken cancellationToken = default) => Task.FromResult(string.Empty);
 
-    public Task<GitCommandResult> CommitAsync(string repoPath, string message, bool signOff = false, CancellationToken cancellationToken = default) => Task.FromResult(Ok);
+    /// <summary>Result CommitAsync returns; defaults to success. Lets tests force a commit failure.</summary>
+    public GitCommandResult? CommitResult { get; set; }
+
+    public Task<GitCommandResult> CommitAsync(string repoPath, string message, bool signOff = false, CancellationToken cancellationToken = default) => Task.FromResult(CommitResult ?? Ok);
 
     public Task<GitCommandResult> CommitAmendAsync(string repoPath, string? message, bool signOff = false, CancellationToken cancellationToken = default) => Task.FromResult(Ok);
 

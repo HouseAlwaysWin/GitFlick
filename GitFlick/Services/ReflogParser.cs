@@ -17,14 +17,8 @@ internal static class ReflogParser
     {
         var entries = new List<ReflogEntry>();
 
-        foreach (var raw in output.Split('\n'))
+        foreach (var line in GitOutput.NonEmptyLines(output))
         {
-            var line = raw.TrimEnd('\r');
-            if (line.Length == 0)
-            {
-                continue;
-            }
-
             var f = line.Split('\0');
             if (f.Length < 4)
             {

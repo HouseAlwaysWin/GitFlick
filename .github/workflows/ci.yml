@@ -1,0 +1,27 @@
+name: CI
+
+# Runs the same gate as release (build + full test suite) on every branch push and PR, so
+# regressions surface before a tag is cut. Tag pushes are owned by release.yml, so this only
+# matches branches (the '**' branch filter excludes tags).
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Verify (build + test)
+        shell: powershell
+        run: powershell -ExecutionPolicy Bypass -File scripts/verify.ps1

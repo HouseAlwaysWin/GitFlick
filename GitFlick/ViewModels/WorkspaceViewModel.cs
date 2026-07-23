@@ -2200,33 +2200,28 @@ public partial class WorkspaceViewModel : ViewModelBase
         DiffLoad = ShowCommitFileDiffAsync(_selectedCommitSha, value);
     }
 
-    private async Task ShowCommitFileDiffAsync(string sha, CommitFileEntry file)
-    {
-        DiffPath = file.Path;
-        DiffText = Loc["Diff_Loading"];
-
-        try
-        {
-            var diff = ShowMergeResolution && SelectedCommit?.IsMerge == true
-                ? await _git.GetMergeResolutionFileDiffAsync(Repository.Path, sha, file.Path)
-                : await _git.GetCommitFileDiffAsync(Repository.Path, sha, file.Path);
-
-            DiffText = diff.Trim().Length == 0
-                ? "(no textual changes)"
-                : diff;
-        }
-        catch (GitException ex)
-        {
-            DiffText = ex.Message;
-        }
-    }
+    private Task ShowCommitFileDiffAsync(string sha, CommitFileEntry file)
+        => LoadDiffAsync(
+            file.Path,
+            () => ShowMergeResolution && SelectedCommit?.IsMerge == true
+                ? _git.GetMergeResolutionFileDiffAsync(Repository.Path, sha, file.Path)
+                : _git.GetCommitFileDiffAsync(Repository.Path, sha, file.Path));
 
     /// <summary>Reloads status, branches and stashes from git. Never throws.</summary>
     public async Task RefreshAsync()
     {
         try
         {
-            var status = await _git.GetStatusAsync(Repository.Path);
+            // Status, branches, stashes and tags are independent reads, so fire them together and let
+            // them run as concurrent git processes instead of one-after-another. RefreshBaseRefsAsync
+            // stays sequential below because it reads the freshly-refreshed Branches list.
+            var statusTask = _git.GetStatusAsync(Repository.Path);
+            var branchesTask = _git.GetBranchesAsync(Repository.Path);
+            var stashesTask = _git.GetStashesAsync(Repository.Path);
+            var tagsTask = _git.GetTagsAsync(Repository.Path);
+            await Task.WhenAll(statusTask, branchesTask, stashesTask, tagsTask);
+
+            var status = await statusTask;
 
             BranchName = status.IsDetached ? "(detached)" : status.BranchName ?? string.Empty;
             IsDetachedHead = status.IsDetached;
@@ -2246,8 +2241,7 @@ public partial class WorkspaceViewModel : ViewModelBase
             IsCleanTree = !HasStagedFiles && !HasUnstagedFiles;
 
             var branchName = SelectedBranch?.Name;
-            var branches = await _git.GetBranchesAsync(Repository.Path);
-            Replace(Branches, branches);
+            Replace(Branches, await branchesTask);
             SelectedBranch = Branches.FirstOrDefault(b => b.Name == branchName)
                 ?? Branches.FirstOrDefault(b => b.IsCurrent);
             NarrowBranches();   // keep the Branch-flyout's filtered view in sync with the refreshed list
@@ -2255,12 +2249,10 @@ public partial class WorkspaceViewModel : ViewModelBase
             await RefreshBaseRefsAsync();
             await RefreshIdentityAsync();
 
-            var stashes = await _git.GetStashesAsync(Repository.Path);
-            Replace(Stashes, stashes);
+            Replace(Stashes, await stashesTask);
             HasStashes = Stashes.Count > 0;
 
-            var tags = await _git.GetTagsAsync(Repository.Path);
-            RebuildTags(tags);
+            RebuildTags(await tagsTask);
         }
         catch (GitException ex)
         {
@@ -2497,10 +2489,9 @@ public partial class WorkspaceViewModel : ViewModelBase
         }
 
         var message = CommitMessage;
-        await RunAsync(() => _git.CommitAsync(Repository.Path, message), Loc["Status_Committed"]);
 
         // Only clear the box on success (a failed commit keeps the message for the retry).
-        if (StatusText == Loc["Status_Committed"])
+        if (await RunAsync(() => _git.CommitAsync(Repository.Path, message), Loc["Status_Committed"]))
         {
             CommitMessage = TemplateOrEmpty;
         }
@@ -2517,7 +2508,7 @@ public partial class WorkspaceViewModel : ViewModelBase
         }
 
         var message = CommitMessage;
-        await RunAsync(
+        var committed = await RunAsync(
             async () =>
             {
                 var staged = await _git.StageAllAsync(Repository.Path);
@@ -2525,7 +2516,7 @@ public partial class WorkspaceViewModel : ViewModelBase
             },
             Loc["Status_CommittedAll"]);
 
-        if (StatusText == Loc["Status_CommittedAll"])
+        if (committed)
         {
             CommitMessage = TemplateOrEmpty;
         }
@@ -2541,9 +2532,8 @@ public partial class WorkspaceViewModel : ViewModelBase
         }
 
         var message = CommitMessage;
-        await RunAsync(() => _git.CommitAsync(Repository.Path, message, signOff: true), Loc["Status_CommittedSignedOff"]);
 
-        if (StatusText == Loc["Status_CommittedSignedOff"])
+        if (await RunAsync(() => _git.CommitAsync(Repository.Path, message, signOff: true), Loc["Status_CommittedSignedOff"]))
         {
             CommitMessage = TemplateOrEmpty;
         }
@@ -2555,9 +2545,9 @@ public partial class WorkspaceViewModel : ViewModelBase
     {
         var message = CommitMessage;
         var reworded = !string.IsNullOrWhiteSpace(message);
-        await RunAsync(() => _git.CommitAmendAsync(Repository.Path, reworded ? message : null), Loc["Status_AmendedLast"]);
+        var amended = await RunAsync(() => _git.CommitAmendAsync(Repository.Path, reworded ? message : null), Loc["Status_AmendedLast"]);
 
-        if (reworded && StatusText == Loc["Status_AmendedLast"])
+        if (reworded && amended)
         {
             CommitMessage = TemplateOrEmpty;
         }
@@ -2569,7 +2559,7 @@ public partial class WorkspaceViewModel : ViewModelBase
     {
         var message = CommitMessage;
         var reworded = !string.IsNullOrWhiteSpace(message);
-        await RunAsync(
+        var amended = await RunAsync(
             async () =>
             {
                 var staged = await _git.StageAllAsync(Repository.Path);
@@ -2579,7 +2569,7 @@ public partial class WorkspaceViewModel : ViewModelBase
             },
             Loc["Status_AmendedLast"]);
 
-        if (reworded && StatusText == Loc["Status_AmendedLast"])
+        if (reworded && amended)
         {
             CommitMessage = TemplateOrEmpty;
         }
@@ -2983,29 +2973,18 @@ public partial class WorkspaceViewModel : ViewModelBase
         : RunAsync(() => _git.StashDropAsync(Repository.Path, entry.Index), Loc["Status_StashDropped"]);
 
     [RelayCommand]
-    private async Task ViewStash(StashEntry? entry)
+    private Task ViewStash(StashEntry? entry)
     {
         if (entry is null)
         {
-            return;
+            return Task.CompletedTask;
         }
 
         // Drop any file/commit selection so the diff pane shows the stash's patch.
         SelectedUnstagedFile = null;
         SelectedStagedFile = null;
         ClearDiff();
-        DiffPath = entry.Description;
-        DiffText = Loc["Diff_Loading"];
-
-        try
-        {
-            var diff = await _git.GetStashDiffAsync(Repository.Path, entry.Index);
-            DiffText = diff.Trim().Length == 0 ? Loc["Diff_NoTextualChanges"] : diff;
-        }
-        catch (GitException ex)
-        {
-            DiffText = ex.Message;
-        }
+        return LoadDiffAsync(entry.Description, () => _git.GetStashDiffAsync(Repository.Path, entry.Index));
     }
 
     // Selecting in one list clears the other, so the diff always corresponds to exactly one file.
@@ -3031,26 +3010,45 @@ public partial class WorkspaceViewModel : ViewModelBase
         DiffLoad = ShowDiffAsync(value, staged: true);
     }
 
-    private async Task ShowDiffAsync(GitStatusEntry entry, bool staged)
+    private Task ShowDiffAsync(GitStatusEntry entry, bool staged)
+        => LoadDiffAsync(
+            entry.Path,
+            () => _git.GetDiffAsync(
+                Repository.Path,
+                entry.Path,
+                staged,
+                untracked: entry.Kind == GitChangeKind.Untracked));
+
+    private int _diffLoadToken;
+
+    /// <summary>
+    /// Loads a diff into the pane with a staleness guard: each call supersedes the previous one, so a
+    /// slower earlier load can't overwrite a faster later selection (last-writer-wins on rapid
+    /// re-selection). Empty output shows the localized "no textual changes" placeholder; a git
+    /// failure shows its message.
+    /// </summary>
+    private async Task LoadDiffAsync(string path, Func<Task<string>> fetch)
     {
-        DiffPath = entry.Path;
+        var token = ++_diffLoadToken;
+        DiffPath = path;
         DiffText = Loc["Diff_Loading"];
 
         try
         {
-            var diff = await _git.GetDiffAsync(
-                Repository.Path,
-                entry.Path,
-                staged,
-                untracked: entry.Kind == GitChangeKind.Untracked);
+            var diff = await fetch();
+            if (token != _diffLoadToken)
+            {
+                return;   // a newer load started while we were awaiting — drop this result
+            }
 
-            DiffText = diff.Trim().Length == 0
-                ? "(no textual changes)"
-                : diff;
+            DiffText = diff.Trim().Length == 0 ? Loc["Diff_NoTextualChanges"] : diff;
         }
         catch (GitException ex)
         {
-            DiffText = ex.Message;
+            if (token == _diffLoadToken)
+            {
+                DiffText = ex.Message;
+            }
         }
     }
 
@@ -3068,22 +3066,25 @@ public partial class WorkspaceViewModel : ViewModelBase
 
     /// <summary>
     /// Runs one git operation with busy-state and error handling, then refreshes. Sets
-    /// <see cref="StatusText"/> to the success message or git's own failure text.
+    /// <see cref="StatusText"/> to the success message or git's own failure text, and returns whether
+    /// the operation succeeded so callers can react (e.g. clear the commit box only on success).
     /// </summary>
-    private async Task RunAsync(Func<Task<GitCommandResult>> operation, string successMessage)
+    private async Task<bool> RunAsync(Func<Task<GitCommandResult>> operation, string successMessage)
     {
         if (IsBusy)
         {
-            return;
+            return false;
         }
 
         IsBusy = true;
         StatusText = Loc["Status_Working"];
 
+        var succeeded = false;
         try
         {
             var result = await operation();
-            StatusText = result.Succeeded ? successMessage : result.FailureMessage;
+            succeeded = result.Succeeded;
+            StatusText = succeeded ? successMessage : result.FailureMessage;
         }
         catch (GitException ex)
         {
@@ -3100,6 +3101,8 @@ public partial class WorkspaceViewModel : ViewModelBase
                 await LoadHistoryAsync();
             }
         }
+
+        return succeeded;
     }
 
     private static void Replace<T>(ObservableCollection<T> target, System.Collections.Generic.IEnumerable<T> items)
