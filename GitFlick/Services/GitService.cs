@@ -57,10 +57,7 @@ public sealed class GitService : IGitService
         var result = await RunAsync(repoPath, ["status", "--porcelain=v2", "--branch"], null, cancellationToken)
             .ConfigureAwait(false);
 
-        if (!result.Succeeded)
-        {
-            throw new GitException($"git status failed: {result.FailureMessage}");
-        }
+        result.EnsureSuccess("git status");
 
         return PorcelainV2Parser.Parse(result.StandardOutput);
     }
@@ -355,10 +352,7 @@ public sealed class GitService : IGitService
 
         var result = await RunAsync(repoPath, args, null, cancellationToken).ConfigureAwait(false);
 
-        if (!result.Succeeded)
-        {
-            throw new GitException($"git log failed: {result.FailureMessage}");
-        }
+        result.EnsureSuccess("git log");
 
         return CommitLogParser.Parse(result.StandardOutput);
     }
@@ -377,10 +371,7 @@ public sealed class GitService : IGitService
 
         var result = await RunAsync(repoPath, args, null, cancellationToken).ConfigureAwait(false);
 
-        if (!result.Succeeded)
-        {
-            throw new GitException($"git blame failed: {result.FailureMessage}");
-        }
+        result.EnsureSuccess("git blame");
 
         return BlameParser.Parse(result.StandardOutput);
     }
@@ -424,10 +415,7 @@ public sealed class GitService : IGitService
             null,
             cancellationToken).ConfigureAwait(false);
 
-        if (!result.Succeeded)
-        {
-            throw new GitException($"git show failed: {result.FailureMessage}");
-        }
+        result.EnsureSuccess("git show");
 
         return result.StandardOutput;
     }
@@ -455,10 +443,7 @@ public sealed class GitService : IGitService
             null,
             cancellationToken).ConfigureAwait(false);
 
-        if (!result.Succeeded)
-        {
-            throw new GitException($"git show --name-status failed: {result.FailureMessage}");
-        }
+        result.EnsureSuccess("git show --name-status");
 
         return ParseNameStatus(result.StandardOutput);
     }
@@ -644,10 +629,7 @@ public sealed class GitService : IGitService
             null,
             cancellationToken).ConfigureAwait(false);
 
-        if (!result.Succeeded)
-        {
-            throw new GitException($"git log {baseRef}..{compareRef} failed: {result.FailureMessage}");
-        }
+        result.EnsureSuccess($"git log {baseRef}..{compareRef}");
 
         return CommitLogParser.Parse(result.StandardOutput);
     }
@@ -660,10 +642,7 @@ public sealed class GitService : IGitService
             null,
             cancellationToken).ConfigureAwait(false);
 
-        if (!result.Succeeded)
-        {
-            throw new GitException($"git diff --name-status failed: {result.FailureMessage}");
-        }
+        result.EnsureSuccess("git diff --name-status");
 
         return ParseNameStatus(result.StandardOutput);
     }
@@ -750,10 +729,7 @@ public sealed class GitService : IGitService
             null,
             cancellationToken).ConfigureAwait(false);
 
-        if (!result.Succeeded)
-        {
-            throw new GitException($"git show (file) failed: {result.FailureMessage}");
-        }
+        result.EnsureSuccess("git show (file)");
 
         return result.StandardOutput;
     }
@@ -765,10 +741,7 @@ public sealed class GitService : IGitService
         var result = await RunAsync(repoPath, ["for-each-ref", "--format=" + format, "refs/heads"], null, cancellationToken)
             .ConfigureAwait(false);
 
-        if (!result.Succeeded)
-        {
-            throw new GitException($"git for-each-ref failed: {result.FailureMessage}");
-        }
+        result.EnsureSuccess("git for-each-ref");
 
         var branches = new List<GitBranch>();
 
@@ -873,10 +846,7 @@ public sealed class GitService : IGitService
         var result = await RunAsync(repoPath, ["tag", "--sort=-creatordate"], null, cancellationToken)
             .ConfigureAwait(false);
 
-        if (!result.Succeeded)
-        {
-            throw new GitException($"git tag failed: {result.FailureMessage}");
-        }
+        result.EnsureSuccess("git tag");
 
         var tags = new List<GitTag>();
         foreach (var raw in result.StandardOutput.Split('\n'))
@@ -917,10 +887,7 @@ public sealed class GitService : IGitService
         var result = await RunAsync(repoPath, ["ls-remote", "--tags", remote], null, cancellationToken)
             .ConfigureAwait(false);
 
-        if (!result.Succeeded)
-        {
-            throw new GitException($"git ls-remote failed: {result.FailureMessage}");
-        }
+        result.EnsureSuccess("git ls-remote");
 
         var names = new HashSet<string>(StringComparer.Ordinal);
         foreach (var raw in result.StandardOutput.Split('\n'))
@@ -976,10 +943,7 @@ public sealed class GitService : IGitService
         var result = await RunAsync(repoPath, ["stash", "list", "--format=%gd%x00%gs"], null, cancellationToken)
             .ConfigureAwait(false);
 
-        if (!result.Succeeded)
-        {
-            throw new GitException($"git stash list failed: {result.FailureMessage}");
-        }
+        result.EnsureSuccess("git stash list");
 
         var stashes = new List<StashEntry>();
 
