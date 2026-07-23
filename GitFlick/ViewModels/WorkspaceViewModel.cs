@@ -90,10 +90,14 @@ public partial class WorkspaceViewModel : ViewModelBase
         Repository = repository;
         _settings = settings;
         _ai = ai;
+        History = new HistoryViewModel(git, repository, settings, this);
         CommitMessage = TemplateOrEmpty;   // start a fresh commit from the template
     }
 
     public RepositoryItem Repository { get; }
+
+    /// <summary>The commit-history / lane-graph subsystem for this workspace (extracted God-object slice).</summary>
+    public HistoryViewModel History { get; }
 
     /// <summary>The configured commit template, or empty when none is set.</summary>
     private string TemplateOrEmpty =>
