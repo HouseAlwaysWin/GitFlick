@@ -3,6 +3,18 @@
 All notable changes to GitFlick are recorded here. `release.ps1` promotes the `## Unreleased`
 section to `## v<version> - <date>` when it cuts a release, so keep this list current as you go.
 
+## Unreleased
+
+- **Git accounts & identity:** see the signed-in GitHub account, switch accounts, and sign in — plus set your commit name/email globally or per repository.
+- **Remotes:** add and remove remotes from within the app, and an opt-in background auto-fetch keeps the ahead/behind counts and history current without a manual refresh.
+- **Branch flyout:** branches are split into LOCAL and REMOTE sections; publish an unpushed branch in one click, and checking out a remote branch creates a local tracking branch.
+- **History — date-range filter:** filter commits by a date range, with quick presets (Today, Last 7 days, Last 30 days, This month).
+- **History — configurable page size**, and a smarter "Load more" that keeps paging until more matching commits actually appear when a filter is active.
+- **History:** show a commit's files as a folder tree, and view what a merge resolved by hand.
+- **Command log:** a panel showing exactly what git printed for each operation.
+- A loading indicator for long-running operations, a dismissable hotkey-conflict warning, and commit-card refs coloured by kind.
+- Fixes: the History filter row no longer paints over the diff pane, and a transient identity read no longer shows as "no identity".
+
 ## v0.1.0 - 2026-07-20
 
 - Built-in updater: check GitHub for new releases and install (or roll back to) any version from Settings, with an opt-in startup check.
