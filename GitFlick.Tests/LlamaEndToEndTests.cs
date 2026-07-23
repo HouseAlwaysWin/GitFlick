@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using GitFlick.Services;
+using GitFlick.Services.Updates;
 
 namespace GitFlick.Tests;
 
@@ -27,7 +28,8 @@ public class LlamaEndToEndTests
                 return;   // model not present — nothing to exercise locally
             }
 
-            await new ModelDownloader().DownloadAsync(preset);
+            await new ArtifactDownloader(SharedHttpClient.Instance)
+                .DownloadAsync(CommitModelCatalog.DescriptorFor(preset), CommitModelCatalog.ModelsDirectory);
         }
 
         var settings = new FakeSettingsService();

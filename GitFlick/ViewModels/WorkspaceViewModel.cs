@@ -10,6 +10,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GitFlick.Models;
 using GitFlick.Services;
+using GitFlick.Services.Updates;
 
 namespace GitFlick.ViewModels;
 
@@ -201,11 +202,9 @@ public partial class WorkspaceViewModel : ViewModelBase
         StatusText = string.Format(Loc["Status_DownloadingModel"], preset.FileName);
         try
         {
-            var progress = new Progress<double>(fraction =>
-            {
-                ModelDownloadProgress = fraction * 100;
-            });
-            await new ModelDownloader().DownloadAsync(preset, progress);
+            var progress = new Progress<ArtifactDownloadProgress>(p => ModelDownloadProgress = p.Percentage);
+            await new ArtifactDownloader(SharedHttpClient.Instance).DownloadAsync(
+                CommitModelCatalog.DescriptorFor(preset), CommitModelCatalog.ModelsDirectory, progress);
             StatusText = Loc["Status_ModelDownloaded"];
         }
         catch (Exception ex)

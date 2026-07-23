@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using GitFlick.Models;
 using GitFlick.Services;
+using GitFlick.Services.Updates;
 using GitFlick.ViewModels;
 
 namespace GitFlick.Tests;
@@ -36,7 +37,8 @@ public class CommitModelTests
 
         try
         {
-            var path = await new ModelDownloader().DownloadAsync(preset);
+            var path = await new ArtifactDownloader(SharedHttpClient.Instance)
+                .DownloadAsync(CommitModelCatalog.DescriptorFor(preset), CommitModelCatalog.ModelsDirectory);
 
             Assert.Equal(destination, path);
             Assert.Equal(payload, await File.ReadAllBytesAsync(destination));
@@ -59,7 +61,8 @@ public class CommitModelTests
 
         try
         {
-            await Assert.ThrowsAsync<IOException>(() => new ModelDownloader().DownloadAsync(preset));
+            await Assert.ThrowsAsync<ArtifactIntegrityException>(() => new ArtifactDownloader(SharedHttpClient.Instance)
+                .DownloadAsync(CommitModelCatalog.DescriptorFor(preset), CommitModelCatalog.ModelsDirectory));
 
             Assert.False(File.Exists(destination));           // never promoted
             Assert.False(File.Exists(destination + ".part")); // partial cleaned up
