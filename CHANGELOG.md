@@ -3,7 +3,7 @@
 All notable changes to GitFlick are recorded here. `release.ps1` promotes the `## Unreleased`
 section to `## v<version> - <date>` when it cuts a release, so keep this list current as you go.
 
-## Unreleased
+## v0.4.0 - 2026-07-24
 
 - **History search, reworked to a VS Code-style panel:** a query box with case-sensitive (`Aa`) and regex (`.*`) toggles, plus separate "files to include" / "files to exclude" path filters that combine with the query. Message searches commit text, File searches paths, Content is a pickaxe over file contents — each shows only the boxes that apply, and the path autocomplete drops down as you type and honours the exclusion live.
 - **History adapts to a narrow window:** the filter row, the commit table's columns, and the "Load more" button now fit (or scroll) instead of being clipped when the pane is shrunk.

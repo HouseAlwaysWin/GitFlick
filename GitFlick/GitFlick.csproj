@@ -3,7 +3,7 @@
     <OutputType>WinExe</OutputType>
     <!-- TargetFramework and Nullable are set in Directory.Build.props (shared with the test project). -->
     <!-- Bumped by release.ps1. CI passes AssemblyVersion/FileVersion/InformationalVersion from the tag. -->
-    <Version>0.3.0</Version>
+    <Version>0.4.0</Version>
     <LangVersion>latest</LangVersion>
     <!-- Required by the [LibraryImport] source generator, which emits unsafe marshalling stubs. -->
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -42,7 +42,7 @@
     </PackageReference>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <!-- Built-in commit-message AI: llama.cpp bindings running GGUF models in-process (no Ollama
-         install needed). CPU backend only — commit diffs are short, and it keeps the app portable. -->
+         install needed). CPU backend only ??commit diffs are short, and it keeps the app portable. -->
     <PackageReference Include="LLamaSharp" Version="0.27.0" />
     <PackageReference Include="LLamaSharp.Backend.Cpu" Version="0.27.0" />
     <PackageReference Include="TextMateSharp.Grammars" Version="2.0.4" />
