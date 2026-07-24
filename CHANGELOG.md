@@ -3,6 +3,13 @@
 All notable changes to GitFlick are recorded here. `release.ps1` promotes the `## Unreleased`
 section to `## v<version> - <date>` when it cuts a release, so keep this list current as you go.
 
+## Unreleased
+
+- **History search, reworked to a VS Code-style panel:** a query box with case-sensitive (`Aa`) and regex (`.*`) toggles, plus separate "files to include" / "files to exclude" path filters that combine with the query. Message searches commit text, File searches paths, Content is a pickaxe over file contents — each shows only the boxes that apply, and the path autocomplete drops down as you type and honours the exclusion live.
+- **History adapts to a narrow window:** the filter row, the commit table's columns, and the "Load more" button now fit (or scroll) instead of being clipped when the pane is shrunk.
+- **Loading indicator** is now a slim accent-coloured bar pinned to the top edge, so it no longer shifts the rest of the window as operations start and finish.
+- Finished the Traditional/Simplified Chinese and Japanese translations for the History filter labels, column headers, and a few status messages that were still showing in English.
+
 ## v0.3.0 - 2026-07-23
 
 - **Git accounts & identity:** see the signed-in GitHub account, switch accounts, and sign in — plus set your commit name/email globally or per repository.
