@@ -48,6 +48,24 @@ public partial class FilterOption : ObservableObject
 }
 
 /// <summary>
+/// One row of the File-scope path autocomplete, split the way VS Code's file picker splits it: the
+/// file name leads, the folder trails it in dimmer text. Whole paths alone pushed the part you're
+/// actually looking for off the right edge of a narrow flyout.
+/// </summary>
+public sealed record PathSuggestion(string Path)
+{
+    private int LastSlash => Path.LastIndexOfAny(['/', '\\']);
+
+    /// <summary>The file name — what the row leads with.</summary>
+    public string Name => LastSlash >= 0 && LastSlash < Path.Length - 1 ? Path[(LastSlash + 1)..] : Path;
+
+    /// <summary>The containing folder, empty at the repo root (nothing to show, so nothing is shown).</summary>
+    public string Folder => LastSlash > 0 ? Path[..LastSlash] : string.Empty;
+
+    public bool HasFolder => Folder.Length > 0;
+}
+
+/// <summary>
 /// The commit-history / lane-graph half of a repository workspace: the commit list, the lane graph,
 /// filters and unified search, sort and view toggles, and per-commit detail. Extracted from
 /// <see cref="WorkspaceViewModel"/> (the God object it used to live inside), which it reaches back
@@ -702,7 +720,7 @@ public partial class HistoryViewModel : ViewModelBase
     public ObservableCollection<string> PathSuggestions { get; } = [];
 
     /// <summary>The paths matching the current input — what the File pick list shows.</summary>
-    public ObservableCollection<string> FilteredPathSuggestions { get; } = [];
+    public ObservableCollection<PathSuggestion> FilteredPathSuggestions { get; } = [];
 
     /// <summary>Drives the pick list's visibility: it drops down only once the query matches something.</summary>
     [ObservableProperty]
@@ -834,7 +852,7 @@ public partial class HistoryViewModel : ViewModelBase
 
         for (var i = 0; i < scored.Count && i < Max; i++)
         {
-            FilteredPathSuggestions.Add(scored[i].Path);
+            FilteredPathSuggestions.Add(new PathSuggestion(scored[i].Path));
         }
 
         HasPathSuggestions = FilteredPathSuggestions.Count > 0;

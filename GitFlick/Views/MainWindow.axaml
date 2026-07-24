@@ -1025,7 +1025,14 @@
                                             </Grid>
                                             <!-- VS Code's Search panel, in order: the query (with Aa / .* inside
                                                  it), then the two path-scoping boxes. The query box searches
-                                                 whatever the scope says; the path boxes are orthogonal. -->
+                                                 whatever the scope says; the path boxes are orthogonal.
+
+                                                 In File scope the query box IS the include pathspec, so it wears
+                                                 the "files to include" heading — unlabelled above a labelled
+                                                 "files to exclude", it read as though include had gone missing. -->
+                                            <TextBlock Text="{loc:Tr History_IncludePaths}"
+                                                       IsVisible="{Binding IsFileSearch}"
+                                                       FontSize="10" Opacity="0.5" Margin="0,0,0,-3" />
                                             <TextBox x:Name="SearchInput"
                                                      Text="{Binding SearchText}"
                                                      PlaceholderText="{Binding SearchPlaceholder}"
@@ -1064,7 +1071,25 @@
                                                          MaxHeight="200"
                                                          ItemsSource="{Binding FilteredPathSuggestions}"
                                                          SelectionChanged="OnPathSuggestionSelected"
-                                                         Background="Transparent" FontSize="12" />
+                                                         Background="Transparent" FontSize="12">
+                                                    <ListBox.ItemTemplate>
+                                                        <!-- File name first, folder trailing in dimmer text (VS Code's
+                                                             file picker): a full path put the name you're scanning for
+                                                             off the right edge of the flyout. The folder gets the
+                                                             ellipsis, since the name is the part that must stay. -->
+                                                        <DataTemplate x:DataType="vm:PathSuggestion">
+                                                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                                                                <TextBlock Grid.Column="0" Text="{Binding Name}" />
+                                                                <TextBlock Grid.Column="1" Text="{Binding Folder}"
+                                                                           IsVisible="{Binding HasFolder}"
+                                                                           Opacity="0.5" FontSize="11"
+                                                                           VerticalAlignment="Center"
+                                                                           TextTrimming="CharacterEllipsis"
+                                                                           ToolTip.Tip="{Binding Path}" />
+                                                            </Grid>
+                                                        </DataTemplate>
+                                                    </ListBox.ItemTemplate>
+                                                </ListBox>
                                             </Border>
 
                                             <!-- "files to include" — Content only: File's query box already IS

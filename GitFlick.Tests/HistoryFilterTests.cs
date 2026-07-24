@@ -213,7 +213,7 @@ public class HistoryFilterTests
         Assert.Empty(vm.History.FilteredPathSuggestions);
 
         vm.History.SearchText = "app";
-        Assert.Contains("app.cs", vm.History.FilteredPathSuggestions);
+        Assert.Contains(vm.History.FilteredPathSuggestions, s => s.Path == "app.cs");
     }
 
     [Fact]
@@ -226,8 +226,8 @@ public class HistoryFilterTests
 
         vm.History.SearchText = "app";   // narrows the pick list; doesn't touch the commit list yet
 
-        Assert.Contains("app.cs", vm.History.FilteredPathSuggestions);
-        Assert.DoesNotContain("readme.md", vm.History.FilteredPathSuggestions);
+        Assert.Contains(vm.History.FilteredPathSuggestions, s => s.Path == "app.cs");
+        Assert.DoesNotContain(vm.History.FilteredPathSuggestions, s => s.Path == "readme.md");
         Assert.Equal(4, vm.History.Commits.Count);       // still whole — nothing applied
         Assert.False(vm.History.HasFileFilter);
     }

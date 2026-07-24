@@ -210,11 +210,11 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (list.SelectedItem is string path && path.Length > 0)
+        if (list.SelectedItem is PathSuggestion { Path.Length: > 0 } suggestion)
         {
             Dispatcher.UIThread.Post(() =>
             {
-                workspace.History.PickPath(path);
+                workspace.History.PickPath(suggestion.Path);
                 list.SelectedItem = null;   // so re-picking the same path fires again
                 SearchDropdownButton.Flyout?.Hide();
             });

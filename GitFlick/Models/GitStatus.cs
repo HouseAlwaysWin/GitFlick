@@ -115,4 +115,14 @@ public sealed record GitStatus
     public IEnumerable<GitStatusEntry> Unstaged => Entries.Where(e => e.IsUnstaged);
 
     public bool IsClean => Entries.Count == 0;
+
+    /// <summary>
+    /// A cheap value that changes exactly when the displayed state would. The file watcher compares it
+    /// before rebuilding anything, so the churn it can't help seeing — build output under bin/obj,
+    /// git's own index rewrites — costs nothing and can't loop back into another refresh.
+    /// </summary>
+    public string Fingerprint => string.Join(
+        '\n',
+        new[] { BranchName, Oid, Upstream, Ahead.ToString(), Behind.ToString() }
+            .Concat(Entries.Select(e => $"{e.Path}|{e.OriginalPath}|{e.Kind}|{e.StagedState}|{e.UnstagedState}")));
 }

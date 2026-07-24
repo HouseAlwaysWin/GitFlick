@@ -54,7 +54,10 @@ public sealed class GitService : IGitService
 
     public async Task<GitStatus> GetStatusAsync(string repoPath, CancellationToken cancellationToken = default)
     {
-        var result = await RunAsync(repoPath, ["status", "--porcelain=v2", "--branch"], null, cancellationToken)
+        // --no-optional-locks: reading status normally rewrites .git/index (the stat cache) and takes
+        // index.lock. Both are poison here — the write re-triggers our own file watcher in a loop, and
+        // the lock fights whatever the user has open in another tool. We only ever read this.
+        var result = await RunAsync(repoPath, ["--no-optional-locks", "status", "--porcelain=v2", "--branch"], null, cancellationToken)
             .ConfigureAwait(false);
 
         result.EnsureSuccess("git status");
@@ -889,6 +892,32 @@ public sealed class GitService : IGitService
 
     public Task<GitCommandResult> MergeAsync(string repoPath, string branch, CancellationToken cancellationToken = default)
         => RunAsync(repoPath, ["merge", branch], null, cancellationToken);
+
+    // ── A merge that stopped on conflicts ────────────────────────────────────────
+
+    public async Task<bool> IsMergeInProgressAsync(string repoPath, CancellationToken cancellationToken = default)
+    {
+        // Ask git rather than looking for .git/MERGE_HEAD: in a worktree or submodule ".git" is a
+        // file pointing elsewhere, so the path check would quietly answer "no merge" every time.
+        var result = await RunAsync(repoPath, ["rev-parse", "--verify", "--quiet", "MERGE_HEAD"], null, cancellationToken)
+            .ConfigureAwait(false);
+
+        return result.Succeeded;
+    }
+
+    public Task<GitCommandResult> AbortMergeAsync(string repoPath, CancellationToken cancellationToken = default)
+        => RunAsync(repoPath, ["merge", "--abort"], null, cancellationToken);
+
+    public Task<GitCommandResult> CommitMergeAsync(string repoPath, CancellationToken cancellationToken = default)
+        => RunAsync(repoPath, ["commit", "--no-edit"], null, cancellationToken);
+
+    // "--ours"/"--theirs" only mean anything for an unmerged path, which is exactly when we offer them.
+    // They rewrite the working-tree file; the caller stages it to mark the conflict resolved.
+    public Task<GitCommandResult> TakeOursAsync(string repoPath, string path, CancellationToken cancellationToken = default)
+        => RunAsync(repoPath, ["checkout", "--ours", "--", path], null, cancellationToken);
+
+    public Task<GitCommandResult> TakeTheirsAsync(string repoPath, string path, CancellationToken cancellationToken = default)
+        => RunAsync(repoPath, ["checkout", "--theirs", "--", path], null, cancellationToken);
 
     public Task<GitCommandResult> RenameBranchAsync(string repoPath, string oldName, string newName, CancellationToken cancellationToken = default)
         => RunAsync(repoPath, ["branch", "-m", oldName, newName], null, cancellationToken);

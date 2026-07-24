@@ -331,6 +331,44 @@ internal sealed class FakeGitService : IGitService
 
     public Task<GitCommandResult> MergeAsync(string repoPath, string branch, CancellationToken cancellationToken = default) => Task.FromResult(Ok);
 
+    /// <summary>Whether the fake reports a merge stopped mid-flight.</summary>
+    public bool StubMergeInProgress { get; set; }
+
+    /// <summary>Paths the last take-ours / take-theirs were given, and how often the merge was ended.</summary>
+    public string? LastTakeOurs { get; private set; }
+    public string? LastTakeTheirs { get; private set; }
+    public int AbortMergeCount { get; private set; }
+    public int CommitMergeCount { get; private set; }
+
+    public Task<bool> IsMergeInProgressAsync(string repoPath, CancellationToken cancellationToken = default)
+        => Task.FromResult(StubMergeInProgress);
+
+    public Task<GitCommandResult> AbortMergeAsync(string repoPath, CancellationToken cancellationToken = default)
+    {
+        AbortMergeCount++;
+        StubMergeInProgress = false;
+        return Task.FromResult(Ok);
+    }
+
+    public Task<GitCommandResult> CommitMergeAsync(string repoPath, CancellationToken cancellationToken = default)
+    {
+        CommitMergeCount++;
+        StubMergeInProgress = false;
+        return Task.FromResult(Ok);
+    }
+
+    public Task<GitCommandResult> TakeOursAsync(string repoPath, string path, CancellationToken cancellationToken = default)
+    {
+        LastTakeOurs = path;
+        return Task.FromResult(Ok);
+    }
+
+    public Task<GitCommandResult> TakeTheirsAsync(string repoPath, string path, CancellationToken cancellationToken = default)
+    {
+        LastTakeTheirs = path;
+        return Task.FromResult(Ok);
+    }
+
     public Task<GitCommandResult> RenameBranchAsync(string repoPath, string oldName, string newName, CancellationToken cancellationToken = default) => Record($"branch -m {oldName} {newName}");
 
     public Task<GitCommandResult> SetUpstreamAsync(string repoPath, string branch, string upstream, CancellationToken cancellationToken = default) => Record($"branch --set-upstream-to={upstream} {branch}");

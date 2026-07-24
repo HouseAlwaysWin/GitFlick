@@ -214,6 +214,28 @@ public interface IGitService
 
     Task<GitCommandResult> MergeAsync(string repoPath, string branch, CancellationToken cancellationToken = default);
 
+    // ── A merge that stopped on conflicts ────────────────────────────────────────
+    // git leaves the merge half-finished: MERGE_HEAD is set, the conflicted paths are unmerged in the
+    // index, and nothing moves until they're resolved and committed (or the whole thing is aborted).
+
+    /// <summary>Whether a merge is stopped mid-flight (MERGE_HEAD exists), conflicts or not.</summary>
+    Task<bool> IsMergeInProgressAsync(string repoPath, CancellationToken cancellationToken = default);
+
+    /// <summary>Throws the merge away and restores the pre-merge working tree (<c>merge --abort</c>).</summary>
+    Task<GitCommandResult> AbortMergeAsync(string repoPath, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Commits the resolved merge using the message git prepared (<c>commit --no-edit</c>), so the
+    /// user isn't made to retype "Merge branch 'x'". Fails while any path is still unmerged.
+    /// </summary>
+    Task<GitCommandResult> CommitMergeAsync(string repoPath, CancellationToken cancellationToken = default);
+
+    /// <summary>Resolves one conflicted path to our side of the merge (the branch being merged into).</summary>
+    Task<GitCommandResult> TakeOursAsync(string repoPath, string path, CancellationToken cancellationToken = default);
+
+    /// <summary>Resolves one conflicted path to their side (the branch being merged in).</summary>
+    Task<GitCommandResult> TakeTheirsAsync(string repoPath, string path, CancellationToken cancellationToken = default);
+
     /// <summary>Renames a branch (<c>git branch -m</c>).</summary>
     Task<GitCommandResult> RenameBranchAsync(string repoPath, string oldName, string newName, CancellationToken cancellationToken = default);
 

@@ -64,7 +64,22 @@ public class PathGlobTests
         vm.History.ExcludeText = "*.md,*.json";
 
         var only = Assert.Single(vm.History.FilteredPathSuggestions);
-        Assert.Equal("GitFlick/Services/BrowserLauncher.cs", only);
+        Assert.Equal("GitFlick/Services/BrowserLauncher.cs", only.Path);
+    }
+
+    [Theory]
+    // The row leads with the file name and trails the folder, so a long path can't push the name
+    // you're scanning for off the edge of the flyout.
+    [InlineData("GitFlick/Services/BrowserLauncher.cs", "BrowserLauncher.cs", "GitFlick/Services")]
+    [InlineData(".vscode/launch.json", "launch.json", ".vscode")]
+    [InlineData("README.md", "README.md", "")]
+    public void A_suggestion_splits_into_name_and_folder(string path, string name, string folder)
+    {
+        var suggestion = new PathSuggestion(path);
+
+        Assert.Equal(name, suggestion.Name);
+        Assert.Equal(folder, suggestion.Folder);
+        Assert.Equal(folder.Length > 0, suggestion.HasFolder);
     }
 
     [Fact]

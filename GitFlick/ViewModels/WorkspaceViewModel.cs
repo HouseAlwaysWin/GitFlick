@@ -1293,6 +1293,7 @@ public partial class WorkspaceViewModel : ViewModelBase
             await Task.WhenAll(statusTask, branchesTask, remoteBranchesTask, stashesTask, tagsTask);
 
             var status = await statusTask;
+            _lastStatusFingerprint = status.Fingerprint;   // what the watcher compares against
 
             BranchName = status.IsDetached ? "(detached)" : status.BranchName ?? string.Empty;
             IsDetachedHead = status.IsDetached;
@@ -1330,11 +1331,6 @@ public partial class WorkspaceViewModel : ViewModelBase
         catch (GitException ex)
         {
             StatusText = ex.Message;
-        }
-        finally
-        {
-            // Stamped even on failure: a refresh that threw still churned the repo we're watching.
-            _lastRefreshUtc = DateTime.UtcNow;
         }
     }
 
@@ -1472,8 +1468,8 @@ public partial class WorkspaceViewModel : ViewModelBase
         await RefreshRemotesAsync();
     }
 
-    /// <summary>When the view last reloaded, so a watcher event caused by our own command is ignored.</summary>
-    private DateTime _lastRefreshUtc = DateTime.MinValue;
+    /// <summary>Status as of the last reload; the watcher compares against it before doing any work.</summary>
+    private string _lastStatusFingerprint = string.Empty;
 
     /// <summary>
     /// A change landed on disk from outside GitFlick — a commit from VS Code, a CLI checkout, an editor
@@ -1490,18 +1486,39 @@ public partial class WorkspaceViewModel : ViewModelBase
             return;   // our own command owns the view and refreshes when it finishes
         }
 
-        // Our commands touch the same files the watcher is watching, so their churn arrives right after
-        // they've already refreshed. Ignore anything that close behind a reload we just did.
-        if (DateTime.UtcNow - _lastRefreshUtc < TimeSpan.FromSeconds(1))
+        // Look before rebuilding. The watcher can't tell a real edit from build output landing in
+        // bin/obj, or from git rewriting its own index — and blindly reloading on each one both
+        // thrashed the view and fed itself, since a reload touches the very files being watched.
+        // Comparing the status first makes all of that free: no change, no work.
+        GitStatus status;
+        try
+        {
+            status = await _git.GetStatusAsync(Repository.Path);
+        }
+        catch (GitException)
+        {
+            return;   // mid-operation (an index.lock, say) — the next event will catch up
+        }
+
+        if (status.Fingerprint == _lastStatusFingerprint)
         {
             return;
         }
+
+        // Something genuinely moved. Keep the commit the user is reading open across the reload —
+        // a background refresh has no business closing the pane they're looking at.
+        var openCommit = History.SelectedCommit?.Sha;
 
         await RefreshAsync();
 
         if (IsHistoryMode)
         {
             await History.LoadHistoryAsync();
+
+            if (openCommit is not null)
+            {
+                History.SelectedCommit = History.Commits.FirstOrDefault(c => c.Sha == openCommit);
+            }
         }
     }
 

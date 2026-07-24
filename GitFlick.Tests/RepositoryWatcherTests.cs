@@ -115,28 +115,64 @@ public class RepositoryWatcherTests
         var vm = new WorkspaceViewModel(git, new RepositoryItem("r", Path.GetTempPath()));
         await vm.RefreshAsync();
 
-        await Task.Delay(1100);                  // clear the "we just refreshed" window
+        // Something actually changed on disk since that refresh.
+        git.StubStatus = new GitStatus { BranchName = "main", Entries = [Modified("a.txt")] };
         var statusBefore = git.StatusCallCount;
 
         await vm.RefreshFromDiskAsync();
 
         Assert.True(git.StatusCallCount > statusBefore);   // the view reloaded…
         Assert.Equal(0, git.FetchCount);                   // …without a network round-trip
+        Assert.Single(vm.UnstagedFiles);
     }
 
     [Fact]
-    public async Task Our_own_command_churn_does_not_cause_a_second_reload()
+    public async Task Churn_that_changes_nothing_costs_one_status_read_and_no_reload()
     {
         var git = new FakeGitService();
         var vm = new WorkspaceViewModel(git, new RepositoryItem("r", Path.GetTempPath()));
 
-        await vm.RefreshAsync();                 // stands in for a command finishing
+        await vm.RefreshAsync();
         var statusBefore = git.StatusCallCount;
 
-        await vm.RefreshFromDiskAsync();         // the watcher seeing that same churn
+        // Build output landing in bin/obj, or git rewriting its own index: the watcher can't help
+        // seeing it, but the repo state is identical, so it must not rebuild anything.
+        await vm.RefreshFromDiskAsync();
 
-        Assert.Equal(statusBefore, git.StatusCallCount);
+        Assert.Equal(1, git.StatusCallCount - statusBefore);   // the compare, and nothing more
     }
+
+    [Fact]
+    public async Task A_background_reload_keeps_the_commit_the_user_has_open()
+    {
+        var git = new FakeGitService();
+        git.StubCommits.Add(new CommitInfo
+        {
+            Sha = "a".PadLeft(40, '0'),
+            Parents = System.Array.Empty<string>(),
+            Author = "Dev",
+            When = System.DateTimeOffset.UnixEpoch,
+            Subject = "the commit being read",
+        });
+
+        var vm = new WorkspaceViewModel(git, new RepositoryItem("r", Path.GetTempPath()));
+        await vm.ShowHistoryCommand.ExecuteAsync(null);
+        vm.History.SelectedCommit = vm.History.Commits[0];
+
+        // A background refresh has no business closing the pane the user is reading.
+        git.StubStatus = new GitStatus { BranchName = "main", Entries = [Modified("a.txt")] };
+        await vm.RefreshFromDiskAsync();
+
+        Assert.NotNull(vm.History.SelectedCommit);
+        Assert.Equal("the commit being read", vm.History.SelectedCommit!.Subject);
+    }
+
+    private static GitStatusEntry Modified(string path) => new()
+    {
+        Path = path,
+        Kind = GitChangeKind.Ordinary,
+        UnstagedState = GitFileState.Modified,
+    };
 
     [Fact]
     public async Task It_stands_down_while_a_command_is_running()
