@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -358,7 +359,7 @@ public partial class HistoryViewModel : ViewModelBase
     /// </summary>
     public bool ShowGraph => SortColumn == HistorySortColumn.Graph
         && !HasAuthorFilter && !HasMessageFilter && !HasFileFilter && !HasContentFilter && !MergesOnly
-        && !HasDateFilter;
+        && !HasDateFilter && !HasFileExclude;
 
     // The active column wears an arrow; the rest show nothing.
     public string AuthorSortGlyph => GlyphFor(HistorySortColumn.Author);
@@ -470,6 +471,9 @@ public partial class HistoryViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(IsMessageSearch))]
     [NotifyPropertyChangedFor(nameof(IsContentSearch))]
     [NotifyPropertyChangedFor(nameof(SearchPlaceholder))]
+    [NotifyPropertyChangedFor(nameof(ShowIncludeBox))]
+    [NotifyPropertyChangedFor(nameof(ShowExcludeBox))]
+    [NotifyPropertyChangedFor(nameof(CanUseRegex))]
     public partial HistorySearchType SearchType { get; set; } = HistorySearchType.Message;
 
     public bool IsFileSearch => SearchType == HistorySearchType.File;
@@ -483,14 +487,39 @@ public partial class HistoryViewModel : ViewModelBase
         _ => Loc["History_SearchMessages"],
     };
 
-    /// <summary>The dropdown button's label — echoes the active filter, the way "Authors (2) ▾" does.</summary>
-    public string SearchFilterLabel =>
-        HasMessageFilter ? $"“{MessageFilter.Trim()}” ▾"
-        : HasFileFilter ? $"{FileLeaf(FileFilter)} ▾"
-        : HasContentFilter ? $"⌕ {ContentFilter.Trim()} ▾"
-        : Loc["History_Search"] + " ▾";
+    /// <summary>The dropdown button's label — echoes every active filter, the way "Authors (2) ▾" does.
+    /// The excluded paths wear a ≠, so a narrowed result set is never a mystery.</summary>
+    public string SearchFilterLabel
+    {
+        get
+        {
+            var parts = new List<string>();
+            if (HasMessageFilter)
+            {
+                parts.Add($"“{MessageFilter.Trim()}”");
+            }
 
-    public bool HasSearchFilter => HasMessageFilter || HasFileFilter || HasContentFilter;
+            if (HasContentFilter)
+            {
+                parts.Add($"⌕ {ContentFilter.Trim()}");
+            }
+
+            if (HasFileFilter)
+            {
+                parts.Add(FileLeaf(FileFilter));
+            }
+
+            if (HasFileExclude)
+            {
+                parts.Add($"≠{FileLeaf(FileExcludeFilter)}");
+            }
+
+            return parts.Count == 0 ? Loc["History_Search"] + " ▾" : string.Join(" ", parts) + " ▾";
+        }
+    }
+
+    public bool HasSearchFilter =>
+        HasMessageFilter || HasFileFilter || HasContentFilter || HasFileExclude;
 
     /// <summary>What's typed in the search input. Message applies live; File narrows the pick list.</summary>
     [ObservableProperty]
@@ -515,11 +544,129 @@ public partial class HistoryViewModel : ViewModelBase
         // Content scope waits for Enter/Apply (a git reload), like File's pathspec.
     }
 
+    // ── Search modifiers and path scoping (VS Code-style) ───────────────────────
+    // Laid out like VS Code's Search panel: the query box (with Aa / .* inside it) searches, and two
+    // separate boxes scope it to file paths — "include paths" and "exclude paths", both plain git
+    // pathspecs. The query and the path scope are orthogonal, so "message contains fix, only under
+    // src/, ignoring *.md" is one search. The scope radio only decides what the QUERY box searches;
+    // in File scope the query IS the path, so its include box would be a duplicate and hides.
+
+    /// <summary>Treat the query as a regular expression (Message: .NET; Content: git --pickaxe-regex).</summary>
+    [ObservableProperty]
+    public partial bool SearchUseRegex { get; set; }
+
+    /// <summary>Match the query's letter case exactly (Message: fuzzy/regex; File: pathspec; Content: git -i).</summary>
+    [ObservableProperty]
+    public partial bool SearchCaseSensitive { get; set; }
+
+    /// <summary>Regex mode is on but the query doesn't parse — shown inline; the filter doesn't apply.</summary>
+    [ObservableProperty]
+    public partial bool SearchRegexInvalid { get; set; }
+
+    // Flipping a modifier re-runs whichever filter kind is active: content (pickaxe) and File
+    // (pathspec) live in git, so they reload; the message filter is client-side and just re-applies.
+    partial void OnSearchUseRegexChanged(bool value) => ReapplySearchModifiers();
+    partial void OnSearchCaseSensitiveChanged(bool value) => ReapplySearchModifiers();
+
+    private void ReapplySearchModifiers()
+    {
+        if (HasContentFilter || (IsFileSearch && HasFileFilter))
+        {
+            HistoryLoad = LoadHistoryAsync();
+        }
+        else
+        {
+            ApplyView();
+        }
+    }
+
+    /// <summary>What's typed in the "include paths" box (Message/Content scope). Applies on Enter.</summary>
+    [ObservableProperty]
+    public partial string IncludeText { get; set; } = string.Empty;
+
+    /// <summary>What's typed in the "exclude paths" box. Applies to history on Enter.</summary>
+    [ObservableProperty]
+    public partial string ExcludeText { get; set; } = string.Empty;
+
+    // The pick list is client-side, so it can honour the exclusion as you type — without that, typing
+    // an exclude and still being offered the very paths it drops reads as "the exclude did nothing".
+    partial void OnExcludeTextChanged(string value)
+    {
+        if (IsFileSearch && !_suppressPathNarrow)
+        {
+            NarrowPathSuggestions(SearchText);
+        }
+    }
+
+    /// <summary>Drop commits that only touched these paths — git pathspec ":(exclude)". Reloads.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowGraph))]
+    [NotifyPropertyChangedFor(nameof(HasFileExclude))]
+    [NotifyPropertyChangedFor(nameof(SearchFilterLabel))]
+    [NotifyPropertyChangedFor(nameof(HasSearchFilter))]
+    public partial string FileExcludeFilter { get; set; } = string.Empty;
+
+    public bool HasFileExclude => FileExcludeFilter.Trim().Length > 0;
+
+    partial void OnFileExcludeFilterChanged(string value) => HistoryLoad = LoadHistoryAsync();
+
+    /// <summary>Enter in the include-paths box: commit it as the pathspec (a git reload).</summary>
+    [RelayCommand]
+    private void ApplyInclude() => FileFilter = IncludeText.Trim();
+
+    /// <summary>Enter in the exclude-paths box: commit it as the ":(exclude)" pathspec (a git reload).</summary>
+    [RelayCommand]
+    private void ApplyExclude() => FileExcludeFilter = ExcludeText.Trim();
+
+    // Path scoping only belongs to the scopes with a file dimension. Message searches commit text, so
+    // it's just the query box; File's query already IS the include path, leaving it only an exclude;
+    // Content searches inside files, so both path boxes narrow it usefully.
+
+    /// <summary>Only Content needs a separate include box — File's query is the include, Message has no paths.</summary>
+    public bool ShowIncludeBox => IsContentSearch;
+
+    /// <summary>Excluding paths applies wherever files are involved — File and Content.</summary>
+    public bool ShowExcludeBox => !IsMessageSearch;
+
+    /// <summary>git pathspec has no regex form, so .* can't apply to a File-scope query.</summary>
+    public bool CanUseRegex => !IsFileSearch;
+
+    /// <summary>Case folding for the File-scope query only — the include/exclude boxes stay git-default.</summary>
+    private bool PathQueryIgnoreCase => IsFileSearch && !SearchCaseSensitive;
+
+    /// <summary>
+    /// Builds a subject predicate for the current modifiers, or null when the regex doesn't parse —
+    /// the caller then skips that filter, which beats blanking the whole history (or, for the
+    /// exclude side, hiding everything) while a pattern is half-typed.
+    /// </summary>
+    private Func<string, bool>? BuildMessagePredicate(string query)
+    {
+        if (SearchUseRegex)
+        {
+            try
+            {
+                var regex = new Regex(query, SearchCaseSensitive ? RegexOptions.None : RegexOptions.IgnoreCase);
+                return s => regex.IsMatch(s);
+            }
+            catch (ArgumentException)
+            {
+                return null;
+            }
+        }
+
+        var caseSensitive = SearchCaseSensitive;
+        return s => FuzzyMatcher.TryMatch(s, query, caseSensitive, out _);
+    }
+
     /// <summary>Every path the repo has ever had (incl. deleted/renamed). Loaded once, lazily.</summary>
     public ObservableCollection<string> PathSuggestions { get; } = [];
 
     /// <summary>The paths matching the current input — what the File pick list shows.</summary>
     public ObservableCollection<string> FilteredPathSuggestions { get; } = [];
+
+    /// <summary>Drives the pick list's visibility: it drops down only once the query matches something.</summary>
+    [ObservableProperty]
+    public partial bool HasPathSuggestions { get; set; }
 
     private bool _pathsLoaded;
 
@@ -537,6 +684,8 @@ public partial class HistoryViewModel : ViewModelBase
     {
         SearchText = string.Empty;
         MessageFilter = string.Empty;
+        IncludeText = string.Empty;
+        ExcludeText = string.Empty;
         if (HasFileFilter)
         {
             FileFilter = string.Empty;
@@ -544,6 +693,10 @@ public partial class HistoryViewModel : ViewModelBase
         if (HasContentFilter)
         {
             ContentFilter = string.Empty;
+        }
+        if (HasFileExclude)
+        {
+            FileExcludeFilter = string.Empty;
         }
     }
 
@@ -556,10 +709,16 @@ public partial class HistoryViewModel : ViewModelBase
 
         SearchType = type;
 
-        // A clean slate on every switch: drop the input and every scope's applied filter, so the list
+        // A clean slate on every switch: drop the inputs and every scope's applied filter, so the list
         // is never left showing a stale filter from the scope we just left.
         SearchText = string.Empty;
         MessageFilter = string.Empty;
+        IncludeText = string.Empty;
+        ExcludeText = string.Empty;
+        if (HasFileExclude)
+        {
+            FileExcludeFilter = string.Empty;   // reloads the full history
+        }
         if (HasFileFilter)
         {
             FileFilter = string.Empty;   // reloads the full history
@@ -573,6 +732,10 @@ public partial class HistoryViewModel : ViewModelBase
         {
             await EnsurePathsLoadedAsync();
             NarrowPathSuggestions(SearchText);
+        }
+        else
+        {
+            HasPathSuggestions = false;   // the pick list belongs to File scope only
         }
     }
 
@@ -600,28 +763,29 @@ public partial class HistoryViewModel : ViewModelBase
     }
 
     // Narrow the historical-path list to the query, best fuzzy matches first, capped so a huge repo
-    // doesn't render thousands of rows. An empty query shows the head of the (already sorted) list.
+    // doesn't render thousands of rows. An empty query shows nothing — the list is an autocomplete,
+    // so it drops down only once you've typed, like every other suggestion list here.
+    // The exclude box applies too, live: it's the same set of paths the filter will drop, so
+    // still offering them would contradict what the user just typed.
     private void NarrowPathSuggestions(string query)
     {
         const int Max = 60;
         FilteredPathSuggestions.Clear();
 
+        var excluded = ExcludeText.Trim();
+        bool Kept(string path) => excluded.Length == 0 || !PathGlob.MatchesAny(path, excluded);
+
         var q = query.Trim();
         if (q.Length == 0)
         {
-            var shown = 0;
-            foreach (var p in PathSuggestions)
-            {
-                FilteredPathSuggestions.Add(p);
-                if (++shown >= Max) break;
-            }
+            HasPathSuggestions = false;
             return;
         }
 
         var scored = new List<(string Path, int Score)>();
         foreach (var p in PathSuggestions)
         {
-            if (FuzzyMatcher.TryMatch(p, q, out var score))
+            if (Kept(p) && FuzzyMatcher.TryMatch(p, q, out var score))
             {
                 scored.Add((p, score));
             }
@@ -632,6 +796,8 @@ public partial class HistoryViewModel : ViewModelBase
         {
             FilteredPathSuggestions.Add(scored[i].Path);
         }
+
+        HasPathSuggestions = FilteredPathSuggestions.Count > 0;
     }
 
     // Pulls every path the repo has ever seen for the File pick list. Lazy — a session that never
@@ -684,6 +850,60 @@ public partial class HistoryViewModel : ViewModelBase
     [ObservableProperty]
     public partial GridLength CommitColumnWidth { get; set; } = new(66);
 
+    /// <summary>Keep the Message column at least this readable — matches its MinWidth in the XAML.</summary>
+    internal const double MinMessageColumnWidth = 80;
+
+    /// <summary>Floor for each fixed column — matches the grips' MinColumnWidth in the view.</summary>
+    internal const double MinFixedColumnWidth = 50;
+
+    /// <summary>
+    /// Clamp the three fixed columns so they and a minimum Message column fit in
+    /// <paramref name="availableWidth"/>. Widths that already fit come back untouched; overflow is
+    /// shrunk proportionally, flooring each column — so a narrowed pane squeezes the table instead
+    /// of pushing Date and Commit off the edge.
+    /// </summary>
+    internal static (double Author, double Date, double Commit) ClampColumns(
+        double availableWidth, double author, double date, double commit)
+    {
+        var budget = Math.Max(availableWidth - MinMessageColumnWidth, 3 * MinFixedColumnWidth);
+        var total = author + date + commit;
+        if (total <= budget)
+        {
+            return (author, date, commit);
+        }
+
+        // Proportional shrink with a floor. The floor can leave a few px of overflow at extreme
+        // widths, which clips gracefully rather than fighting the minimums.
+        var scale = budget / total;
+        return (Math.Max(MinFixedColumnWidth, author * scale),
+                Math.Max(MinFixedColumnWidth, date * scale),
+                Math.Max(MinFixedColumnWidth, commit * scale));
+    }
+
+    /// <summary>Re-fit the fixed columns to the pane — called by the view whenever the pane resizes.</summary>
+    public void ClampColumnsToPane(double paneWidth)
+    {
+        var margin = HistoryHeaderMargin;   // absorbs the graph gutter (left) and scrollbar (right)
+        var (author, date, commit) = ClampColumns(
+            paneWidth - margin.Left - margin.Right,
+            AuthorColumnWidth.Value, DateColumnWidth.Value, CommitColumnWidth.Value);
+
+        if (Math.Abs(author - AuthorColumnWidth.Value) > 0.5)
+        {
+            AuthorColumnWidth = new GridLength(author);
+        }
+
+        if (Math.Abs(date - DateColumnWidth.Value) > 0.5)
+        {
+            DateColumnWidth = new GridLength(date);
+        }
+
+        if (Math.Abs(commit - CommitColumnWidth.Value) > 0.5)
+        {
+            CommitColumnWidth = new GridLength(commit);
+        }
+    }
+
     /// <summary>
     /// Left/right inset on the header row so its columns line up with the list rows despite the
     /// graph gutter (left) and the item padding + scrollbar (right). Tracks <see cref="ShowGraph"/>.
@@ -723,7 +943,11 @@ public partial class HistoryViewModel : ViewModelBase
                 HasFileFilter ? FileFilter.Trim() : null,
                 HasContentFilter ? ContentFilter.Trim() : null,
                 MergesOnly,
-                SinceBound, UntilBound);
+                SinceBound, UntilBound,
+                HasFileExclude ? FileExcludeFilter.Trim() : null,
+                contentRegex: HasContentFilter && SearchUseRegex,
+                contentIgnoreCase: HasContentFilter && !SearchCaseSensitive,
+                pathIncludeIgnoreCase: PathQueryIgnoreCase);
 
             _graphOrder = commits.ToList();
 
@@ -915,10 +1139,21 @@ public partial class HistoryViewModel : ViewModelBase
             filtered = filtered.Where(c => authors.Contains(c.Author));
         }
 
+        // Include and exclude are two independent filters that combine (VS Code-style). A regex that
+        // doesn't parse skips just that side and raises the inline flag.
+        SearchRegexInvalid = false;
         if (HasMessageFilter)
         {
-            filtered = filtered.Where(c => FuzzyMatcher.TryMatch(c.Subject, message, out _));
+            if (BuildMessagePredicate(message) is { } matches)
+            {
+                filtered = filtered.Where(c => matches(c.Subject));
+            }
+            else
+            {
+                SearchRegexInvalid = true;
+            }
         }
+
 
         var gitOrder = filtered.ToList();
 

@@ -333,6 +333,10 @@ public sealed class GitService : IGitService
         bool mergesOnly = false,
         DateTimeOffset? since = null,
         DateTimeOffset? until = null,
+        string? pathExclude = null,
+        bool contentRegex = false,
+        bool contentIgnoreCase = false,
+        bool pathIncludeIgnoreCase = false,
         CancellationToken cancellationToken = default)
     {
         // A repo with no commits has an unborn HEAD, and `git log ... HEAD` then fails outright
@@ -363,6 +367,15 @@ public sealed class GitService : IGitService
         if (!string.IsNullOrWhiteSpace(contentSearch))
         {
             args.Add("-S" + contentSearch);
+            if (contentRegex)
+            {
+                args.Add("--pickaxe-regex");   // treat the -S string as a POSIX extended regex
+            }
+
+            if (contentIgnoreCase)
+            {
+                args.Add("-i");   // case-insensitive pickaxe (we never pass --grep, so -i touches nothing else)
+            }
         }
 
         // Merges only: just the merge commits — "what merges/PRs landed", the complement of
@@ -402,14 +415,26 @@ public sealed class GitService : IGitService
 
         // Path filter (spec §5⑥/⑦): only commits that touched this pathspec. "--" separates it
         // from revisions so a path that looks like a ref can't be misread. git's own pathspec
-        // rules apply, so a file, a folder, or a glob like *.cs all work.
-        if (!string.IsNullOrWhiteSpace(pathFilter))
+        // rules apply, so a file, a folder, or a glob like *.cs all work. The exclude side maps to
+        // pathspec magic — ":(exclude)glob" — and stands alone too (exclude-only filters the whole tree).
+        var hasPathInclude = !string.IsNullOrWhiteSpace(pathFilter);
+        var hasPathExclude = !string.IsNullOrWhiteSpace(pathExclude);
+        if (hasPathInclude || hasPathExclude)
         {
             // --full-history keeps merge commits that touched the file, which git's default history
             // simplification would otherwise prune — so a file's merges show up, not just linear edits.
             args.Add("--full-history");
             args.Add("--");
-            args.Add(pathFilter);
+            if (hasPathInclude)
+            {
+                // ":(icase)" is pathspec magic for a case-folded match — git's only case knob here.
+                args.Add(pathIncludeIgnoreCase ? ":(icase)" + pathFilter!.Trim() : pathFilter!);
+            }
+
+            if (hasPathExclude)
+            {
+                args.Add(":(exclude)" + pathExclude!.Trim());
+            }
         }
 
         var result = await RunAsync(repoPath, args, null, cancellationToken).ConfigureAwait(false);

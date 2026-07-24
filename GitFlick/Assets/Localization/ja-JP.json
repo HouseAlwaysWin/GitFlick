@@ -24,6 +24,14 @@
 
   "History_SearchType_Content": "内容",
   "History_ContentPlaceholder": "追加または削除された文字…",
+  "History_Search_Case_Tooltip": "大文字と小文字を区別",
+  "History_Search_Regex_Tooltip": "正規表現として検索",
+  "History_Search_InvalidRegex": "正規表現が無効です",
+  "History_IncludePaths": "含めるファイル",
+  "History_IncludePathsPlaceholder": "例: src/、*.cs",
+  "History_ExcludePaths": "除外するファイル",
+  "History_ExcludePathsPlaceholder": "例: *.md、docs/",
+  "History_PathApplyHint": "パス欄で Enter を押すと適用されます。",
 
   "Dialog_OK": "OK",
   "Dialog_PickRef_Title": "参照を選択",

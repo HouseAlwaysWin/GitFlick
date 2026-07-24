@@ -160,6 +160,32 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
+    /// <summary>Enter in the include-paths box: commit it as the pathspec (a git reload).</summary>
+    private void OnIncludeBoxKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter || Workspace is not { } workspace)
+        {
+            return;
+        }
+
+        workspace.History.ApplyIncludeCommand.Execute(null);
+        SearchDropdownButton.Flyout?.Hide();
+        e.Handled = true;
+    }
+
+    /// <summary>Enter in the exclude-paths box: commit it as the ":(exclude)" pathspec.</summary>
+    private void OnExcludeBoxKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter || Workspace is not { } workspace)
+        {
+            return;
+        }
+
+        workspace.History.ApplyExcludeCommand.Execute(null);
+        SearchDropdownButton.Flyout?.Hide();
+        e.Handled = true;
+    }
+
     // Clicking a path in the File pick list applies it and closes the dropdown. The work is deferred
     // off the SelectionChanged event: applying a pick resets the selection and closes the flyout,
     // and doing that mid-event re-enters the ListBox's selection handling.
@@ -630,8 +656,14 @@ public partial class MainWindow : Window
 
         switch (_resizingBoundary)
         {
-            case "MsgAuthor":   // Message is the flexible column, so it just absorbs the change.
-                ws.History.AuthorColumnWidth = new GridLength(Math.Max(MinColumnWidth, _startAuthor - d));
+            case "MsgAuthor":   // Message is the flexible column, so it just absorbs the change —
+                                // capped so Author can never push Date/Commit past the pane's edge.
+                var margin = ws.History.HistoryHeaderMargin;
+                var maxAuthor = HistoryPane.Bounds.Width - margin.Left - margin.Right
+                    - HistoryViewModel.MinMessageColumnWidth
+                    - ws.History.DateColumnWidth.Value - ws.History.CommitColumnWidth.Value;
+                ws.History.AuthorColumnWidth = new GridLength(
+                    Math.Clamp(_startAuthor - d, MinColumnWidth, Math.Max(MinColumnWidth, maxAuthor)));
                 break;
 
             case "AuthorDate":  // trade between the two fixed neighbours, keeping their sum constant
@@ -657,6 +689,38 @@ public partial class MainWindow : Window
             e.Handled = true;
         }
     }
+
+    /// <summary>
+    /// Keeps the splitter's fixed-width left pane inside the window. After a drag the left column
+    /// holds an absolute pixel width, so narrowing the window would otherwise push the diff pane —
+    /// and the left pane's own content — past the right edge, clipped. Shrink it just enough to fit;
+    /// growing the window back leaves it where it now is (that's the user's drag to redo).
+    /// </summary>
+    private void OnContentSplitSizeChanged(object? sender, SizeChangedEventArgs e)
+    {
+        if (sender is not Grid grid || grid.ColumnDefinitions.Count < 3)
+        {
+            return;
+        }
+
+        var left = grid.ColumnDefinitions[0];
+        if (!left.Width.IsAbsolute)
+        {
+            return;
+        }
+
+        var max = Math.Max(
+            left.MinWidth,
+            e.NewSize.Width - grid.ColumnDefinitions[1].Width.Value - grid.ColumnDefinitions[2].MinWidth);
+        if (left.Width.Value > max)
+        {
+            left.Width = new GridLength(max);
+        }
+    }
+
+    /// <summary>Re-fit the History table's fixed columns whenever its pane changes size.</summary>
+    private void OnHistoryPaneSizeChanged(object? sender, SizeChangedEventArgs e) =>
+        Workspace?.History.ClampColumnsToPane(e.NewSize.Width);
 
     // Graph divider: drag to set how wide the lane-graph gutter is (clips the graph when narrowed),
     // freeing width for the message columns. Mirrors the column grips.

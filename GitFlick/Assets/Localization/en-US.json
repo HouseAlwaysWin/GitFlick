@@ -24,6 +24,14 @@
 
   "History_SearchType_Content": "Content",
   "History_ContentPlaceholder": "text added or removed…",
+  "History_Search_Case_Tooltip": "Match case exactly",
+  "History_Search_Regex_Tooltip": "Treat the query as a regular expression",
+  "History_Search_InvalidRegex": "Invalid regex",
+  "History_IncludePaths": "FILES TO INCLUDE",
+  "History_IncludePathsPlaceholder": "e.g. src/ or *.cs",
+  "History_ExcludePaths": "FILES TO EXCLUDE",
+  "History_ExcludePathsPlaceholder": "e.g. *.md or docs/",
+  "History_PathApplyHint": "Press Enter in a path box to apply it.",
 
   "Dialog_OK": "OK",
   "Dialog_PickRef_Title": "Choose a reference",

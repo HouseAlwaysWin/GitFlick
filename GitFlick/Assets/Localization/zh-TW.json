@@ -24,6 +24,14 @@
 
   "History_SearchType_Content": "內容",
   "History_ContentPlaceholder": "新增或刪除的文字…",
+  "History_Search_Case_Tooltip": "區分大小寫",
+  "History_Search_Regex_Tooltip": "以正規表示式比對",
+  "History_Search_InvalidRegex": "正規表示式無效",
+  "History_IncludePaths": "包含的檔案",
+  "History_IncludePathsPlaceholder": "例如 src/ 或 *.cs",
+  "History_ExcludePaths": "排除的檔案",
+  "History_ExcludePathsPlaceholder": "例如 *.md 或 docs/",
+  "History_PathApplyHint": "在路徑欄位按 Enter 才會套用。",
 
   "Dialog_OK": "確定",
   "Dialog_PickRef_Title": "選擇參考",

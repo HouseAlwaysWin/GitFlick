@@ -14,7 +14,11 @@ public static class FuzzyMatcher
     private const int BoundaryBonus = 14;
     private const int GapPenalty = 1;
 
-    public static bool TryMatch(string text, string pattern, out int score)
+    public static bool TryMatch(string text, string pattern, out int score) =>
+        TryMatch(text, pattern, caseSensitive: false, out score);
+
+    /// <summary>Same subsequence match, but optionally honouring letter case exactly.</summary>
+    public static bool TryMatch(string text, string pattern, bool caseSensitive, out int score)
     {
         score = 0;
 
@@ -33,7 +37,10 @@ public static class FuzzyMatcher
 
         for (var i = 0; i < text.Length && patternIndex < pattern.Length; i++)
         {
-            if (char.ToLowerInvariant(text[i]) == char.ToLowerInvariant(pattern[patternIndex]))
+            var isMatch = caseSensitive
+                ? text[i] == pattern[patternIndex]
+                : char.ToLowerInvariant(text[i]) == char.ToLowerInvariant(pattern[patternIndex]);
+            if (isMatch)
             {
                 score += MatchScore + (consecutive * ConsecutiveBonus);
 

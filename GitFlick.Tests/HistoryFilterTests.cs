@@ -206,7 +206,13 @@ public class HistoryFilterTests
         Assert.Contains("app.cs", vm.History.PathSuggestions);
         Assert.Contains("readme.md", vm.History.PathSuggestions);
         Assert.Contains("report.txt", vm.History.PathSuggestions);
-        // With an empty query the pick list shows every loaded path.
+
+        // The paths are loaded and ready, but the pick list is an autocomplete: it stays closed
+        // until the query matches something, rather than dumping the whole repo on open.
+        Assert.False(vm.History.HasPathSuggestions);
+        Assert.Empty(vm.History.FilteredPathSuggestions);
+
+        vm.History.SearchText = "app";
         Assert.Contains("app.cs", vm.History.FilteredPathSuggestions);
     }
 

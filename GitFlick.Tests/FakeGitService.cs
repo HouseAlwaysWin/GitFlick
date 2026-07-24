@@ -172,8 +172,15 @@ internal sealed class FakeGitService : IGitService
     public System.DateTimeOffset? LastUntil { get; private set; }
     public int LastMaxCount { get; private set; }
 
-    public Task<IReadOnlyList<CommitInfo>> GetCommitsAsync(string repoPath, int maxCount = 300, bool firstParentOnly = false, string? pathFilter = null, string? contentSearch = null, bool mergesOnly = false, System.DateTimeOffset? since = null, System.DateTimeOffset? until = null, CancellationToken cancellationToken = default)
+    /// <summary>The last path-exclude / pickaxe modifiers GetCommitsAsync was called with.</summary>
+    public string? LastPathExclude { get; private set; }
+    public bool LastContentRegex { get; private set; }
+    public bool LastContentIgnoreCase { get; private set; }
+    public bool LastPathIncludeIgnoreCase { get; private set; }
+
+    public Task<IReadOnlyList<CommitInfo>> GetCommitsAsync(string repoPath, int maxCount = 300, bool firstParentOnly = false, string? pathFilter = null, string? contentSearch = null, bool mergesOnly = false, System.DateTimeOffset? since = null, System.DateTimeOffset? until = null, string? pathExclude = null, bool contentRegex = false, bool contentIgnoreCase = false, bool pathIncludeIgnoreCase = false, CancellationToken cancellationToken = default)
     {
+        LastPathIncludeIgnoreCase = pathIncludeIgnoreCase;
         LastPathFilter = pathFilter;
         LastContentSearch = contentSearch;
         LastFirstParentOnly = firstParentOnly;
@@ -181,6 +188,9 @@ internal sealed class FakeGitService : IGitService
         LastSince = since;
         LastUntil = until;
         LastMaxCount = maxCount;
+        LastPathExclude = pathExclude;
+        LastContentRegex = contentRegex;
+        LastContentIgnoreCase = contentIgnoreCase;
         return Task.FromResult<IReadOnlyList<CommitInfo>>(StubCommits.Take(maxCount).ToList());
     }
 

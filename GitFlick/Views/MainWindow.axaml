@@ -879,7 +879,7 @@
             <!-- Left pane: file lists (Changes) or the commit graph (History). Right pane: diff.
                  The splitter owns the width from here on — deliberately not bound to the view
                  model, so switching modes never overrides where the user dragged it. -->
-            <Grid Grid.Row="1" Margin="0,14,0,0">
+            <Grid Grid.Row="1" Margin="0,14,0,0" SizeChanged="OnContentSplitSizeChanged">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="480" MinWidth="240" />
                     <ColumnDefinition Width="8" />
@@ -993,6 +993,7 @@
                 <DockPanel Grid.Column="0" x:Name="HistoryPane" ClipToBounds="True"
                            DataContext="{Binding History}"
                            x:DataType="vm:HistoryViewModel"
+                           SizeChanged="OnHistoryPaneSizeChanged"
                            IsVisible="{Binding $parent[Grid].((vm:WorkspaceViewModel)DataContext).IsHistoryMode}">
                     <!-- The filters live in a '*' column, not 'Auto': an Auto column takes the group's full
                          desired width, which overflowed a narrow pane and drew across the diff. Constrained
@@ -1034,24 +1035,78 @@
                                                         IsEnabled="{Binding HasSearchFilter}"
                                                         Command="{Binding ClearSearchCommand}" />
                                             </Grid>
+                                            <!-- VS Code's Search panel, in order: the query (with Aa / .* inside
+                                                 it), then the two path-scoping boxes. The query box searches
+                                                 whatever the scope says; the path boxes are orthogonal. -->
                                             <TextBox x:Name="SearchInput"
                                                      Text="{Binding SearchText}"
                                                      PlaceholderText="{Binding SearchPlaceholder}"
                                                      VerticalContentAlignment="Center"
                                                      FontSize="12" Padding="6,4"
-                                                     KeyDown="OnSearchBoxKeyDown" />
-                                            <!-- File scope only: the fuzzy-matched historical paths. Bounding the
+                                                     KeyDown="OnSearchBoxKeyDown">
+                                                <TextBox.InnerRightContent>
+                                                    <StackPanel Orientation="Horizontal" Spacing="2" Margin="0,0,4,0">
+                                                        <ToggleButton Content="Aa" FontSize="10" Padding="4,2" MinWidth="0"
+                                                                      IsChecked="{Binding SearchCaseSensitive}"
+                                                                      ToolTip.Tip="{loc:Tr History_Search_Case_Tooltip}" />
+                                                        <!-- git pathspec has no regex form, so .* can't apply to a
+                                                             File-scope query; disabled rather than hidden so the
+                                                             row never changes shape between scopes. -->
+                                                        <ToggleButton Content=".*" FontSize="10" Padding="4,2" MinWidth="0"
+                                                                      FontFamily="Cascadia Mono,Consolas,monospace"
+                                                                      IsChecked="{Binding SearchUseRegex}"
+                                                                      IsEnabled="{Binding CanUseRegex}"
+                                                                      ToolTip.Tip="{loc:Tr History_Search_Regex_Tooltip}" />
+                                                    </StackPanel>
+                                                </TextBox.InnerRightContent>
+                                            </TextBox>
+                                            <TextBlock Text="{loc:Tr History_Search_InvalidRegex}"
+                                                       IsVisible="{Binding SearchRegexInvalid}"
+                                                       Foreground="#F85149" FontSize="11" />
+
+                                            <!-- The query box's own autocomplete, so it sits directly under it:
+                                                 below the exclude box it read as "the results", making an
+                                                 unapplied exclude look broken. File scope only. Bounding the
                                                  ListBox itself (rather than wrapping it in a ScrollViewer) keeps its
                                                  VirtualizingStackPanel realizing only the visible rows — a wrapping
                                                  ScrollViewer hands it an unbounded measure and defeats virtualization. -->
-                                            <Border IsVisible="{Binding IsFileSearch}"
+                                            <Border IsVisible="{Binding HasPathSuggestions}"
                                                     BorderBrush="#30808080" BorderThickness="1" CornerRadius="3">
                                                 <ListBox x:Name="PathList"
-                                                         MaxHeight="240"
+                                                         MaxHeight="200"
                                                          ItemsSource="{Binding FilteredPathSuggestions}"
                                                          SelectionChanged="OnPathSuggestionSelected"
                                                          Background="Transparent" FontSize="12" />
                                             </Border>
+
+                                            <!-- "files to include" — Content only: File's query box already IS
+                                                 the include path, and Message has no file dimension. -->
+                                            <StackPanel Spacing="3" IsVisible="{Binding ShowIncludeBox}">
+                                                <TextBlock Text="{loc:Tr History_IncludePaths}" FontSize="10" Opacity="0.5" />
+                                                <TextBox Text="{Binding IncludeText}"
+                                                         PlaceholderText="{loc:Tr History_IncludePathsPlaceholder}"
+                                                         VerticalContentAlignment="Center"
+                                                         FontSize="12" Padding="6,4"
+                                                         KeyDown="OnIncludeBoxKeyDown" />
+                                            </StackPanel>
+
+                                            <!-- "files to exclude" — git pathspec ":(exclude)", wherever files
+                                                 are involved (File and Content). -->
+                                            <StackPanel Spacing="3" IsVisible="{Binding ShowExcludeBox}">
+                                                <TextBlock Text="{loc:Tr History_ExcludePaths}" FontSize="10" Opacity="0.5" />
+                                                <TextBox Text="{Binding ExcludeText}"
+                                                         PlaceholderText="{loc:Tr History_ExcludePathsPlaceholder}"
+                                                         VerticalContentAlignment="Center"
+                                                         FontSize="12" Padding="6,4"
+                                                         KeyDown="OnExcludeBoxKeyDown" />
+                                            </StackPanel>
+
+                                            <!-- A path filter is a git reload, so it waits for Enter. Say so:
+                                                 typing alone changing nothing is otherwise indistinguishable
+                                                 from the filter being broken. -->
+                                            <TextBlock Text="{loc:Tr History_PathApplyHint}"
+                                                       IsVisible="{Binding ShowExcludeBox}"
+                                                       FontSize="10" Opacity="0.45" TextWrapping="Wrap" />
                                         </StackPanel>
                                     </Flyout>
                                 </Button.Flyout>
@@ -1757,11 +1812,14 @@
                         ToolTip.Tip="{loc:Tr Status_DiscardAll_Tooltip}" />
             </Grid>
 
-            <Grid Grid.Row="4" Margin="0,10,0,0" ColumnDefinitions="Auto,*,Auto">
+            <!-- Star columns for the two texts so a narrow window trims them (ellipsis) instead of
+                 letting the fixed-width legend get pushed past the right edge. -->
+            <Grid Grid.Row="4" Margin="0,10,0,0" ColumnDefinitions="2*,3*,Auto">
                 <TextBlock Grid.Column="0"
                            Opacity="0.4"
                            FontSize="11"
                            VerticalAlignment="Center"
+                           HorizontalAlignment="Left"
                            TextTrimming="CharacterEllipsis"
                            Text="{Binding FooterHint}" />
 
