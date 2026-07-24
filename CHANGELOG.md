@@ -3,7 +3,7 @@
 All notable changes to GitFlick are recorded here. `release.ps1` promotes the `## Unreleased`
 section to `## v<version> - <date>` when it cuts a release, so keep this list current as you go.
 
-## Unreleased
+## v0.4.1 - 2026-07-24
 
 - **Changes made outside GitFlick now show up on their own.** Committing or staging from VS Code (or the CLI) used to leave the window on a stale view until you hit ↻ — the background sync only ever watched the *remote*, which staging and local edits don't touch. GitFlick now watches the repository itself and reloads when something lands.
 - **"Clear filters"** in History drops every filter at once — search, authors, branches, dates, the toggles and the sort — instead of clearing each dropdown in turn. It appears only when something is filtered.
