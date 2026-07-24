@@ -330,15 +330,13 @@
             <TextBlock Text="{Binding UpdateBanner}" TextWrapping="Wrap" />
         </Border>
 
-        <!-- Palette and workspace share the fill area; they're mutually exclusive via IsVisible.
-             This wrapper fills as the DockPanel's last child so the palette can be centred within it. -->
+        <!-- Palette and workspace share the fill area; they're mutually exclusive via IsVisible. -->
         <Panel>
 
-        <!-- Palette — a wide command-palette card: search + pinned list on the left, a
-             "frequent projects" panel on the right so the width isn't wasted. -->
+        <!-- Palette — search + pinned list on the left, "frequent projects" on the right. It fills
+             the window rather than sitting in a centred card: at any real window size that left a
+             wide empty margin down both sides while the repo paths were still being ellipsed. -->
         <Grid IsVisible="{Binding IsPaletteVisible}"
-              HorizontalAlignment="Center"
-              MaxWidth="1000"
               ColumnDefinitions="2*,28,*">
 
             <!-- Left: search, pinned list, hints. -->
