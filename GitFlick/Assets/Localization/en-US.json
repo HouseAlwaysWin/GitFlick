@@ -438,6 +438,7 @@
   "Status_FetchedAll": "Fetched all remotes",
   "Status_Pulled": "Pulled",
   "Status_PulledRebase": "Pulled (rebase)",
+  "Title_LocalOnly": "local only",
   "Status_Pushed": "Pushed",
   "Status_PulledFrom": "Pulled {0} from {1}",
   "Status_PushedTo": "Pushed {0} to {1}",

@@ -303,14 +303,42 @@ public partial class WorkspaceViewModel : ViewModelBase
     }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(BranchTitle))]
     public partial string BranchName { get; set; } = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(BranchTitle))]
     public partial string? Upstream { get; set; }
 
     /// <summary>HEAD isn't on a branch, so there's no branch to publish or track.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(BranchTitle))]
     public partial bool IsDetachedHead { get; set; }
+
+    /// <summary>
+    /// The branch as the title bar shows it, with where it lives: a tracked branch names its upstream,
+    /// one that's never been pushed says so. (HEAD is always on a LOCAL branch — checking out
+    /// "origin/main" detaches — so the useful distinction isn't local-vs-remote but tracked-vs-not.)
+    /// </summary>
+    public string BranchTitle
+    {
+        get
+        {
+            if (BranchName.Length == 0)
+            {
+                return string.Empty;
+            }
+
+            if (IsDetachedHead)
+            {
+                return BranchName;   // already reads "(detached)"
+            }
+
+            return string.IsNullOrEmpty(Upstream)
+                ? $"{BranchName} ({Loc["Title_LocalOnly"]})"
+                : $"{BranchName} → {Upstream}";
+        }
+    }
 
     // ── Accounts ────────────────────────────────────────────────────────────────────────────────
     // Two independent things, which is the whole point of showing them together: the identity commits

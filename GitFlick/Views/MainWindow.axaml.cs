@@ -1172,9 +1172,9 @@ public partial class MainWindow : Window
             return;
         }
 
-        var branch = string.IsNullOrEmpty(workspace.BranchName)
+        var branch = workspace.BranchTitle.Length == 0
             ? string.Empty
-            : $"  ·  {workspace.BranchName}";
+            : $"  ·  {workspace.BranchTitle}";
         Title = $"{workspace.Repository.Name}{branch}  —  GitFlick";
     }
 
@@ -1811,9 +1811,9 @@ public partial class MainWindow : Window
         {
             UpdateDiffEditor();
         }
-        else if (e.PropertyName == nameof(WorkspaceViewModel.BranchName))
+        else if (e.PropertyName == nameof(WorkspaceViewModel.BranchTitle))
         {
-            UpdateTitle();   // e.g. after a checkout
+            UpdateTitle();   // a checkout, or the upstream being set/dropped
         }
         else if (e.PropertyName == nameof(WorkspaceViewModel.IsHistoryMode))
         {

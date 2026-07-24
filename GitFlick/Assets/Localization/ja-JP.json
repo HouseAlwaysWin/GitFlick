@@ -438,6 +438,7 @@
   "Status_FetchedAll": "すべてのリモートからフェッチしました",
   "Status_Pulled": "プルしました",
   "Status_PulledRebase": "プルしました（リベース）",
+  "Title_LocalOnly": "ローカルのみ",
   "Status_Pushed": "プッシュしました",
   "Status_PulledFrom": "{1} から {0} をプルしました",
   "Status_PushedTo": "{0} を {1} にプッシュしました",

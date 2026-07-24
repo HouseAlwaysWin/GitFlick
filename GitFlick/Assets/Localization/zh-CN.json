@@ -438,6 +438,7 @@
   "Status_FetchedAll": "已获取所有远程",
   "Status_Pulled": "已拉取",
   "Status_PulledRebase": "已拉取（变基）",
+  "Title_LocalOnly": "仅本地",
   "Status_Pushed": "已推送",
   "Status_PulledFrom": "已从 {1} 拉取 {0}",
   "Status_PushedTo": "已将 {0} 推送到 {1}",
