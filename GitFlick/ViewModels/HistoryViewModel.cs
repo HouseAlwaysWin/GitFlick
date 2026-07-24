@@ -344,11 +344,15 @@ public partial class HistoryViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(ShowGraph))]
     [NotifyPropertyChangedFor(nameof(AuthorSortGlyph))]
     [NotifyPropertyChangedFor(nameof(DateSortGlyph))]
+    [NotifyPropertyChangedFor(nameof(AuthorColumnHeader))]
+    [NotifyPropertyChangedFor(nameof(DateColumnHeader))]
     public partial HistorySortColumn SortColumn { get; set; } = HistorySortColumn.Graph;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(AuthorSortGlyph))]
     [NotifyPropertyChangedFor(nameof(DateSortGlyph))]
+    [NotifyPropertyChangedFor(nameof(AuthorColumnHeader))]
+    [NotifyPropertyChangedFor(nameof(DateColumnHeader))]
     public partial bool SortDescending { get; set; }
 
     /// <summary>
@@ -365,6 +369,11 @@ public partial class HistoryViewModel : ViewModelBase
     public string AuthorSortGlyph => GlyphFor(HistorySortColumn.Author);
     public string DateSortGlyph => GlyphFor(HistorySortColumn.Date);
 
+    // Label + arrow together, because the two sortable headers are Buttons: a StringFormat can't join
+    // a translated string to a bound glyph, which is how they ended up hardcoded in English.
+    public string AuthorColumnHeader => Loc["History_Col_Author"] + AuthorSortGlyph;
+    public string DateColumnHeader => Loc["History_Col_Date"] + DateSortGlyph;
+
     private string GlyphFor(HistorySortColumn column) =>
         SortColumn == column ? (SortDescending ? " ▼" : " ▲") : string.Empty;
 
@@ -379,8 +388,9 @@ public partial class HistoryViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(AuthorFilterLabel))]
     public partial bool HasAuthorFilter { get; set; }
 
-    public string AuthorFilterLabel =>
-        HasAuthorFilter ? $"Authors ({AuthorFilters.Count(a => a.IsSelected)}) ▾" : "Authors ▾";
+    public string AuthorFilterLabel => HasAuthorFilter
+        ? $"{Loc["History_AuthorsLabel"]} ({AuthorFilters.Count(a => a.IsSelected)}) ▾"
+        : Loc["History_AuthorsLabel"] + " ▾";
 
     /// <summary>Fuzzy query that narrows the author checklist so a long list isn't a scroll marathon.</summary>
     [ObservableProperty]
@@ -400,8 +410,9 @@ public partial class HistoryViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(BranchFilterLabel))]
     public partial bool HasBranchFilter { get; set; }
 
-    public string BranchFilterLabel =>
-        HasBranchFilter ? $"Branches ({BranchFilters.Count(b => b.IsSelected)}) ▾" : "Branches ▾";
+    public string BranchFilterLabel => HasBranchFilter
+        ? $"{Loc["History_BranchesLabel"]} ({BranchFilters.Count(b => b.IsSelected)}) ▾"
+        : Loc["History_BranchesLabel"] + " ▾";
 
     [ObservableProperty]
     public partial string BranchFilterSearch { get; set; } = string.Empty;

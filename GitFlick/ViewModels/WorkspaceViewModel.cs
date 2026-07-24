@@ -170,8 +170,8 @@ public partial class WorkspaceViewModel : ViewModelBase
     /// <summary>"Downloaded ✓" or "Not downloaded (n GB)" for the selected built-in model.</summary>
     public string BuiltinModelStatus =>
         CommitModelCatalog.IsDownloaded(SelectedBuiltinModel)
-            ? "Downloaded ✓"
-            : $"Not downloaded ({SelectedBuiltinModel.SizeDisplay})";
+            ? Loc["Model_Downloaded"]
+            : string.Format(Loc["Model_NotDownloaded"], SelectedBuiltinModel.SizeDisplay);
 
     public bool NeedsModelDownload => !CommitModelCatalog.IsDownloaded(SelectedBuiltinModel) && !IsDownloadingModel;
 
@@ -1898,7 +1898,7 @@ public partial class WorkspaceViewModel : ViewModelBase
 
         await RunAsync(
             () => _git.PullFromAsync(Repository.Path, source.Remote, source.Branch, Progress()),
-            $"Pulled {source.Branch} from {source.Remote}");
+            string.Format(Loc["Status_PulledFrom"], source.Branch, source.Remote));
     }
 
     /// <summary>
@@ -1962,7 +1962,7 @@ public partial class WorkspaceViewModel : ViewModelBase
 
         await RunAsync(
             () => _git.PushToAsync(Repository.Path, remote, BranchName, Progress()),
-            $"Pushed {BranchName} to {remote}");
+            string.Format(Loc["Status_PushedTo"], BranchName, remote));
     }
 
     [RelayCommand]

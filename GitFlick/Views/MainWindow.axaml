@@ -282,18 +282,8 @@
         </Style>
     </Window.Styles>
 
+    <Panel>
     <DockPanel Margin="16">
-
-        <!-- Loading line. A long fetch/pull used to show only as a toolbar label, which both buried the
-             signal and reflowed the toolbar as it appeared and vanished. A 2px indeterminate bar at the
-             top says "something is running" without taking part in any other layout — it collapses to
-             nothing when idle. -->
-        <ProgressBar DockPanel.Dock="Top"
-                     Height="2" Margin="0,0,0,10"
-                     IsIndeterminate="True"
-                     ShowProgressText="False"
-                     MinWidth="0"
-                     IsVisible="{Binding Workspace.IsWorking, FallbackValue=False}" />
 
         <!-- Advisory, so it can be dismissed: the hotkey stays inactive until it's rebound in
              ⚙ Settings, but the warning shouldn't hold the top of the window all session. -->
@@ -1256,11 +1246,11 @@
                                     <TextBlock Grid.Column="0" Text="{loc:Tr History_Col_Message}" Margin="4,0" VerticalAlignment="Center"
                                                FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource SubtleForeground}" />
                                     <Button Grid.Column="1" Classes="header"
-                                            Content="{Binding AuthorSortGlyph, StringFormat='Author{0}'}"
+                                            Content="{Binding AuthorColumnHeader}"
                                             Command="{Binding SortByCommand}"
                                             CommandParameter="{x:Static vm:HistorySortColumn.Author}" />
                                     <Button Grid.Column="2" Classes="header"
-                                            Content="{Binding DateSortGlyph, StringFormat='Date{0}'}"
+                                            Content="{Binding DateColumnHeader}"
                                             Command="{Binding SortByCommand}"
                                             CommandParameter="{x:Static vm:HistorySortColumn.Date}" />
                                     <TextBlock Grid.Column="3" Text="{loc:Tr History_Col_Commit}" Margin="4,0" VerticalAlignment="Center"
@@ -1885,5 +1875,30 @@
         </Panel>
 
     </DockPanel>
+
+    <!-- Loading line, pinned to the window's top edge. A long fetch/pull used to show only as a toolbar
+         label, which buried the signal and reflowed the toolbar as it came and went.
+
+         It's an OVERLAY, not a docked row: sitting in the layout meant its strip was handed back when
+         idle and taken again on every operation, nudging the whole window up and down. Floating above
+         the content costs no space at all, so nothing can shift. Accent-coloured with a soft bloom
+         underneath, the way GimmeCapture's processing overlay reads. -->
+    <Panel VerticalAlignment="Top" Height="3"
+           IsHitTestVisible="False"
+           IsVisible="{Binding Workspace.IsWorking, FallbackValue=False}">
+        <!-- Bloom: a blurred copy bleeding downward, so the line glows into the chrome below it. -->
+        <Border Background="{DynamicResource AccentSolidBrush}" Opacity="0.4" Margin="0,0,0,-3">
+            <Border.Effect>
+                <BlurEffect Radius="7" />
+            </Border.Effect>
+        </Border>
+        <ProgressBar Height="3"
+                     IsIndeterminate="True"
+                     ShowProgressText="False"
+                     MinWidth="0"
+                     Foreground="{DynamicResource AccentSolidBrush}"
+                     Background="Transparent" />
+    </Panel>
+    </Panel>
 
 </Window>
