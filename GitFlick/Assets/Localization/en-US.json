@@ -223,6 +223,8 @@
   "History_BranchFilter_Tooltip": "Show only commits reachable from the ticked branches (multi-select).",
   "History_ShowOnlyBranches": "SHOW ONLY THESE BRANCHES",
   "History_SearchBranches": "Search branches…",
+  "History_ClearFilters": "✕ Clear filters",
+  "History_ClearFilters_Tooltip": "Drop every filter at once — search, authors, branches, dates, the toggles and the sort.",
   "History_GraphOrder": "↕ Graph order",
   "History_GraphOrder_Tooltip": "Drop the sort/filter and return to git's order (which shows the lane graph).",
   "History_DateFilter": "Date range",

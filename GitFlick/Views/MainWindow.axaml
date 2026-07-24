@@ -1215,6 +1215,14 @@
                                       FontSize="11" Margin="12,2,0,2"
                                       IsChecked="{Binding MergesOnly}"
                                       ToolTip.Tip="{loc:Tr History_MergesOnly_Tooltip}" />
+                            <!-- One button to drop the lot, rather than clearing each dropdown in turn.
+                                 Only shown when something is actually filtered. -->
+                            <Button Classes="header" FontWeight="Normal"
+                                    Margin="12,2,0,2"
+                                    Content="{loc:Tr History_ClearFilters}"
+                                    IsVisible="{Binding HasAnyFilter}"
+                                    Command="{Binding ClearAllFiltersCommand}"
+                                    ToolTip.Tip="{loc:Tr History_ClearFilters_Tooltip}" />
                         </WrapPanel>
                     </Grid>
 

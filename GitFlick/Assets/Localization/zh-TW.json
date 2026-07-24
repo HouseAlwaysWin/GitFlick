@@ -223,6 +223,8 @@
   "History_BranchFilter_Tooltip": "只顯示可從勾選分支到達的提交（可多選）。",
   "History_ShowOnlyBranches": "只顯示這些分支",
   "History_SearchBranches": "搜尋分支…",
+  "History_ClearFilters": "✕ 清除過濾",
+  "History_ClearFilters_Tooltip": "一次清掉所有過濾——搜尋、作者、分支、日期、勾選項目和排序。",
   "History_GraphOrder": "↕ 圖形順序",
   "History_DateFilter": "日期範圍",
   "History_DateFrom": "從",

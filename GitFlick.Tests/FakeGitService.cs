@@ -178,8 +178,12 @@ internal sealed class FakeGitService : IGitService
     public bool LastContentIgnoreCase { get; private set; }
     public bool LastPathIncludeIgnoreCase { get; private set; }
 
+    /// <summary>How many times the log was read — so a batch can prove it reloaded once, not per filter.</summary>
+    public int CommitsCallCount { get; private set; }
+
     public Task<IReadOnlyList<CommitInfo>> GetCommitsAsync(string repoPath, int maxCount = 300, bool firstParentOnly = false, string? pathFilter = null, string? contentSearch = null, bool mergesOnly = false, System.DateTimeOffset? since = null, System.DateTimeOffset? until = null, string? pathExclude = null, bool contentRegex = false, bool contentIgnoreCase = false, bool pathIncludeIgnoreCase = false, CancellationToken cancellationToken = default)
     {
+        CommitsCallCount++;
         LastPathIncludeIgnoreCase = pathIncludeIgnoreCase;
         LastPathFilter = pathFilter;
         LastContentSearch = contentSearch;

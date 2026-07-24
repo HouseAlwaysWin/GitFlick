@@ -223,6 +223,8 @@
   "History_BranchFilter_Tooltip": "チェックしたブランチから到達可能なコミットのみ表示します（複数選択可）。",
   "History_ShowOnlyBranches": "これらのブランチのみ表示",
   "History_SearchBranches": "ブランチを検索…",
+  "History_ClearFilters": "✕ フィルターをクリア",
+  "History_ClearFilters_Tooltip": "すべてのフィルターを一度に解除します — 検索、作成者、ブランチ、期間、チェック項目、並び順。",
   "History_GraphOrder": "↕ グラフ順",
   "History_DateFilter": "期間",
   "History_DateFrom": "開始",

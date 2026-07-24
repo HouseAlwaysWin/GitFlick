@@ -239,12 +239,14 @@ public partial class HistoryViewModel : ViewModelBase
 
     /// <summary>Collapses merges to one row each: "what actually landed on this branch".</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasAnyFilter))]
     public partial bool FirstParentOnly { get; set; }
 
     /// <summary>Show only merge commits (<c>git log --merges</c>) — the complement of first-parent.
     /// Not a parent-closed subset, so the lane graph steps aside while it's on.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowGraph))]
+    [NotifyPropertyChangedFor(nameof(HasAnyFilter))]
     public partial bool MergesOnly { get; set; }
 
     // ── Date range (git-level --since/--until) ────────────────────────────────────
@@ -256,6 +258,7 @@ public partial class HistoryViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(HasDateFilter))]
     [NotifyPropertyChangedFor(nameof(ShowGraph))]
     [NotifyPropertyChangedFor(nameof(DateFilterLabel))]
+    [NotifyPropertyChangedFor(nameof(HasAnyFilter))]
     public partial DateTime? SinceDate { get; set; }
 
     /// <summary>Inclusive "to" day (the whole day); null means no upper bound. Bound to the To picker.</summary>
@@ -263,10 +266,33 @@ public partial class HistoryViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(HasDateFilter))]
     [NotifyPropertyChangedFor(nameof(ShowGraph))]
     [NotifyPropertyChangedFor(nameof(DateFilterLabel))]
+    [NotifyPropertyChangedFor(nameof(HasAnyFilter))]
     public partial DateTime? UntilDate { get; set; }
 
     /// <summary>Set while a preset sets both dates at once, so we reload once instead of twice.</summary>
-    private bool _bulkDateChange;
+    private bool _suppressReload;
+
+    /// <summary>
+    /// Reload the log unless we're mid-batch. Every git-level filter (paths, pickaxe, dates,
+    /// first-parent, merges-only) reloads when it changes; clearing several at once would otherwise
+    /// fire one <c>git log</c> per filter, so batches raise <see cref="_suppressReload"/> and reload once.
+    /// </summary>
+    private void ReloadHistory()
+    {
+        if (!_suppressReload)
+        {
+            HistoryLoad = LoadHistoryAsync();
+        }
+    }
+
+    /// <summary>As <see cref="ReloadHistory"/>, but only while History is actually on screen.</summary>
+    private void ReloadHistoryIfActive()
+    {
+        if (!_suppressReload && _host.IsHistoryMode)
+        {
+            HistoryLoad = LoadHistoryAsync();
+        }
+    }
 
     public bool HasDateFilter => SinceDate is not null || UntilDate is not null;
 
@@ -291,13 +317,7 @@ public partial class HistoryViewModel : ViewModelBase
     partial void OnSinceDateChanged(DateTime? value) => ReloadForDateChange();
     partial void OnUntilDateChanged(DateTime? value) => ReloadForDateChange();
 
-    private void ReloadForDateChange()
-    {
-        if (!_bulkDateChange && _host.IsHistoryMode)
-        {
-            HistoryLoad = LoadHistoryAsync();
-        }
-    }
+    private void ReloadForDateChange() => ReloadHistoryIfActive();
 
     // Presets set both ends at once; SetDateRange suppresses the per-property reload and reloads once.
     [RelayCommand]
@@ -325,15 +345,12 @@ public partial class HistoryViewModel : ViewModelBase
 
     private void SetDateRange(DateTime? from, DateTime? to)
     {
-        _bulkDateChange = true;
+        _suppressReload = true;
         SinceDate = from;
         UntilDate = to;
-        _bulkDateChange = false;
+        _suppressReload = false;
 
-        if (_host.IsHistoryMode)
-        {
-            HistoryLoad = LoadHistoryAsync();
-        }
+        ReloadHistoryIfActive();
     }
 
     [ObservableProperty]
@@ -346,6 +363,7 @@ public partial class HistoryViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(DateSortGlyph))]
     [NotifyPropertyChangedFor(nameof(AuthorColumnHeader))]
     [NotifyPropertyChangedFor(nameof(DateColumnHeader))]
+    [NotifyPropertyChangedFor(nameof(HasAnyFilter))]
     public partial HistorySortColumn SortColumn { get; set; } = HistorySortColumn.Graph;
 
     [ObservableProperty]
@@ -386,6 +404,7 @@ public partial class HistoryViewModel : ViewModelBase
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowGraph))]
     [NotifyPropertyChangedFor(nameof(AuthorFilterLabel))]
+    [NotifyPropertyChangedFor(nameof(HasAnyFilter))]
     public partial bool HasAuthorFilter { get; set; }
 
     public string AuthorFilterLabel => HasAuthorFilter
@@ -408,6 +427,7 @@ public partial class HistoryViewModel : ViewModelBase
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowGraph))]
     [NotifyPropertyChangedFor(nameof(BranchFilterLabel))]
+    [NotifyPropertyChangedFor(nameof(HasAnyFilter))]
     public partial bool HasBranchFilter { get; set; }
 
     public string BranchFilterLabel => HasBranchFilter
@@ -433,6 +453,7 @@ public partial class HistoryViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(ShowGraph))]
     [NotifyPropertyChangedFor(nameof(SearchFilterLabel))]
     [NotifyPropertyChangedFor(nameof(HasSearchFilter))]
+    [NotifyPropertyChangedFor(nameof(HasAnyFilter))]
     public partial bool HasMessageFilter { get; set; }
 
     partial void OnMessageFilterChanged(string value) => ApplyView();
@@ -448,11 +469,12 @@ public partial class HistoryViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(HasFileFilter))]
     [NotifyPropertyChangedFor(nameof(SearchFilterLabel))]
     [NotifyPropertyChangedFor(nameof(HasSearchFilter))]
+    [NotifyPropertyChangedFor(nameof(HasAnyFilter))]
     public partial string FileFilter { get; set; } = string.Empty;
 
     public bool HasFileFilter => FileFilter.Trim().Length > 0;
 
-    partial void OnFileFilterChanged(string value) => HistoryLoad = LoadHistoryAsync();
+    partial void OnFileFilterChanged(string value) => ReloadHistory();
 
     /// <summary>
     /// The applied pickaxe (content) filter: only commits that changed the number of occurrences of
@@ -463,11 +485,12 @@ public partial class HistoryViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(HasContentFilter))]
     [NotifyPropertyChangedFor(nameof(SearchFilterLabel))]
     [NotifyPropertyChangedFor(nameof(HasSearchFilter))]
+    [NotifyPropertyChangedFor(nameof(HasAnyFilter))]
     public partial string ContentFilter { get; set; } = string.Empty;
 
     public bool HasContentFilter => ContentFilter.Trim().Length > 0;
 
-    partial void OnContentFilterChanged(string value) => HistoryLoad = LoadHistoryAsync();
+    partial void OnContentFilterChanged(string value) => ReloadHistory();
 
     // ── Unified History search ──────────────────────────────────────────────────
     // Message + File share one dropdown, styled like the Authors/Branches filters: a single
@@ -581,6 +604,11 @@ public partial class HistoryViewModel : ViewModelBase
 
     private void ReapplySearchModifiers()
     {
+        if (_suppressReload)
+        {
+            return;   // a batch (Clear filters) is reloading once at the end
+        }
+
         if (HasContentFilter || (IsFileSearch && HasFileFilter))
         {
             HistoryLoad = LoadHistoryAsync();
@@ -615,11 +643,12 @@ public partial class HistoryViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(HasFileExclude))]
     [NotifyPropertyChangedFor(nameof(SearchFilterLabel))]
     [NotifyPropertyChangedFor(nameof(HasSearchFilter))]
+    [NotifyPropertyChangedFor(nameof(HasAnyFilter))]
     public partial string FileExcludeFilter { get; set; } = string.Empty;
 
     public bool HasFileExclude => FileExcludeFilter.Trim().Length > 0;
 
-    partial void OnFileExcludeFilterChanged(string value) => HistoryLoad = LoadHistoryAsync();
+    partial void OnFileExcludeFilterChanged(string value) => ReloadHistory();
 
     /// <summary>Enter in the include-paths box: commit it as the pathspec (a git reload).</summary>
     [RelayCommand]
@@ -1041,21 +1070,9 @@ public partial class HistoryViewModel : ViewModelBase
         return HistoryLoad;
     }
 
-    partial void OnFirstParentOnlyChanged(bool value)
-    {
-        if (_host.IsHistoryMode)
-        {
-            HistoryLoad = LoadHistoryAsync();
-        }
-    }
+    partial void OnFirstParentOnlyChanged(bool value) => ReloadHistoryIfActive();
 
-    partial void OnMergesOnlyChanged(bool value)
-    {
-        if (_host.IsHistoryMode)
-        {
-            HistoryLoad = LoadHistoryAsync();
-        }
-    }
+    partial void OnMergesOnlyChanged(bool value) => ReloadHistoryIfActive();
 
     /// <summary>
     /// Header click: <see cref="HistorySortColumn.Graph"/> restores git's order; Author/Date sort
@@ -1102,6 +1119,72 @@ public partial class HistoryViewModel : ViewModelBase
         ApplyView();
         OnPropertyChanged(nameof(AuthorFilterLabel));
         OnPropertyChanged(nameof(BranchFilterLabel));
+    }
+
+    /// <summary>
+    /// Anything at all is narrowing the view. Drives the "Clear filters" button, which only appears
+    /// when it would do something — the toolbar is busy enough without a permanently dead button.
+    /// </summary>
+    public bool HasAnyFilter =>
+        HasSearchFilter || HasAuthorFilter || HasBranchFilter || HasDateFilter
+        || FirstParentOnly || MergesOnly || SortColumn != HistorySortColumn.Graph;
+
+    /// <summary>
+    /// Drops every filter at once. Several of these are git-level, so each would reload the log on its
+    /// own — the batch suppresses that and issues a single reload at the end.
+    /// </summary>
+    [RelayCommand]
+    private void ClearAllFilters()
+    {
+        _suppressReload = true;
+        _suppressFilterApply = true;
+
+        foreach (var item in AuthorFilters)
+        {
+            item.IsSelected = false;
+        }
+
+        foreach (var item in BranchFilters)
+        {
+            item.IsSelected = false;
+        }
+
+        AuthorFilterSearch = string.Empty;
+        BranchFilterSearch = string.Empty;
+
+        // Search: the query, its scope modifiers, and both path boxes.
+        SearchType = HistorySearchType.Message;
+        SearchText = string.Empty;
+        MessageFilter = string.Empty;
+        IncludeText = string.Empty;
+        ExcludeText = string.Empty;
+        FileFilter = string.Empty;
+        ContentFilter = string.Empty;
+        FileExcludeFilter = string.Empty;
+        SearchUseRegex = false;
+        SearchCaseSensitive = false;
+        SearchRegexInvalid = false;
+        FilteredPathSuggestions.Clear();
+        HasPathSuggestions = false;
+
+        SinceDate = null;
+        UntilDate = null;
+        FirstParentOnly = false;
+        MergesOnly = false;
+
+        SortColumn = HistorySortColumn.Graph;
+        SortDescending = false;
+
+        _suppressFilterApply = false;
+        _suppressReload = false;
+
+        // One reload for the lot; LoadHistoryAsync re-runs ApplyView at the end.
+        HistoryLoad = LoadHistoryAsync();
+
+        // The "(N)" counts come from collections that don't raise on their own.
+        OnPropertyChanged(nameof(AuthorFilterLabel));
+        OnPropertyChanged(nameof(BranchFilterLabel));
+        OnPropertyChanged(nameof(HasAnyFilter));
     }
 
     /// <summary>Clears every author tick in one shot, re-filtering once.</summary>
