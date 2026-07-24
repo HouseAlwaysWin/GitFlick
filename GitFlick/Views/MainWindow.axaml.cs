@@ -66,10 +66,24 @@ public partial class MainWindow : Window
         _autoFetchTimer.Tick += (_, _) => TriggerAutoSync();
         _autoFetchTimer.Start();
         Activated += (_, _) => TriggerAutoSync();
+
+        // The other half of staying current: the auto-sync above only notices the REMOTE moving, so
+        // work done locally by another tool (a commit from VS Code, a CLI checkout) was invisible
+        // until a manual refresh. The watcher fires on the repo's own files instead — no network.
+        _repoWatcher.Changed += (_, _) =>
+            Dispatcher.UIThread.Post(() => _ = _observedWorkspace?.RefreshFromDiskAsync());
     }
 
     private readonly DispatcherTimer _autoFetchTimer;
+    private readonly RepositoryWatcher _repoWatcher = new();
     private DateTime _lastAutoSync = DateTime.MinValue;
+
+    protected override void OnClosed(EventArgs e)
+    {
+        _autoFetchTimer.Stop();
+        _repoWatcher.Dispose();
+        base.OnClosed(e);
+    }
 
     /// <summary>
     /// Kicks off a background auto-sync if one's warranted: a repo is open, the window is on screen,
@@ -1116,6 +1130,9 @@ public partial class MainWindow : Window
         }
 
         _observedWorkspace = Workspace;
+
+        // Follow whichever repo is open (and stop watching entirely back at the palette).
+        _repoWatcher.Watch(_observedWorkspace?.Repository.Path);
 
         if (_observedWorkspace is not null)
         {

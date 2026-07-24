@@ -1303,6 +1303,11 @@ public partial class WorkspaceViewModel : ViewModelBase
         {
             StatusText = ex.Message;
         }
+        finally
+        {
+            // Stamped even on failure: a refresh that threw still churned the repo we're watching.
+            _lastRefreshUtc = DateTime.UtcNow;
+        }
     }
 
     // Rebuild the tag list as tickable TagItems, marking each with its last-known remote presence.
@@ -1437,6 +1442,39 @@ public partial class WorkspaceViewModel : ViewModelBase
             string.Format(Loc["Status_RemoteRemoved"], remote.Name));
 
         await RefreshRemotesAsync();
+    }
+
+    /// <summary>When the view last reloaded, so a watcher event caused by our own command is ignored.</summary>
+    private DateTime _lastRefreshUtc = DateTime.MinValue;
+
+    /// <summary>
+    /// A change landed on disk from outside GitFlick — a commit from VS Code, a CLI checkout, an editor
+    /// saving a file. Reloads from the working tree only: no fetch, because nothing about the remote
+    /// changed and a network round-trip on every keystroke-triggered save would be absurd.
+    ///
+    /// This is the gap the remote-oriented <see cref="AutoSyncAsync"/> can't cover: staging and local
+    /// edits never move ahead/behind/upstream, so it has nothing to react to.
+    /// </summary>
+    public async Task RefreshFromDiskAsync()
+    {
+        if (IsBusy)
+        {
+            return;   // our own command owns the view and refreshes when it finishes
+        }
+
+        // Our commands touch the same files the watcher is watching, so their churn arrives right after
+        // they've already refreshed. Ignore anything that close behind a reload we just did.
+        if (DateTime.UtcNow - _lastRefreshUtc < TimeSpan.FromSeconds(1))
+        {
+            return;
+        }
+
+        await RefreshAsync();
+
+        if (IsHistoryMode)
+        {
+            await History.LoadHistoryAsync();
+        }
     }
 
     /// <summary>
