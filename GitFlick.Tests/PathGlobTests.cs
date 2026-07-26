@@ -56,7 +56,7 @@ public class PathGlobTests
         var vm = new WorkspaceViewModel(git, new RepositoryItem("r", Path.GetTempPath()));
         await vm.History.LoadHistoryAsync();
         await vm.History.UseFileSearchCommand.ExecuteAsync(null);
-        vm.History.SearchText = "launch";
+        vm.History.IncludeText = "launch";
 
         Assert.Equal(3, vm.History.FilteredPathSuggestions.Count);
 
@@ -97,17 +97,17 @@ public class PathGlobTests
         Assert.False(vm.History.HasPathSuggestions);
         Assert.Empty(vm.History.FilteredPathSuggestions);
 
-        vm.History.SearchText = "launch";
+        vm.History.IncludeText = "launch";
         Assert.True(vm.History.HasPathSuggestions);
 
-        vm.History.SearchText = "zzzznomatch";
+        vm.History.IncludeText = "zzzznomatch";
         Assert.False(vm.History.HasPathSuggestions);   // no matches -> stays closed
 
-        vm.History.SearchText = string.Empty;
+        vm.History.IncludeText = string.Empty;
         Assert.False(vm.History.HasPathSuggestions);
 
         // Leaving File scope closes it too.
-        vm.History.SearchText = "launch";
+        vm.History.IncludeText = "launch";
         await vm.History.UseMessageSearchCommand.ExecuteAsync(null);
         Assert.False(vm.History.HasPathSuggestions);
     }

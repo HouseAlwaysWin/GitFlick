@@ -208,11 +208,11 @@ public class HistoryFilterTests
         Assert.Contains("report.txt", vm.History.PathSuggestions);
 
         // The paths are loaded and ready, but the pick list is an autocomplete: it stays closed
-        // until the query matches something, rather than dumping the whole repo on open.
+        // until the include box's query matches something, rather than dumping the whole repo on open.
         Assert.False(vm.History.HasPathSuggestions);
         Assert.Empty(vm.History.FilteredPathSuggestions);
 
-        vm.History.SearchText = "app";
+        vm.History.IncludeText = "app";
         Assert.Contains(vm.History.FilteredPathSuggestions, s => s.Path == "app.cs");
     }
 
@@ -224,7 +224,7 @@ public class HistoryFilterTests
         await vm.ShowHistoryCommand.ExecuteAsync(null);
         await vm.History.UseFileSearchCommand.ExecuteAsync(null);
 
-        vm.History.SearchText = "app";   // narrows the pick list; doesn't touch the commit list yet
+        vm.History.IncludeText = "app";   // narrows the pick list; doesn't touch the commit list yet
 
         Assert.Contains(vm.History.FilteredPathSuggestions, s => s.Path == "app.cs");
         Assert.DoesNotContain(vm.History.FilteredPathSuggestions, s => s.Path == "readme.md");
@@ -243,7 +243,7 @@ public class HistoryFilterTests
         vm.History.PickPath("app.cs");
         await vm.History.HistoryLoad;
 
-        Assert.Equal("app.cs", vm.History.SearchText);
+        Assert.Equal("app.cs", vm.History.IncludeText);   // the pick lands in the include box
         Assert.Equal("app.cs", vm.History.FileFilter);
         Assert.Equal(2, vm.History.Commits.Count);
         Assert.All(vm.History.Commits, c => Assert.Contains("login", c.Subject));
@@ -254,7 +254,7 @@ public class HistoryFilterTests
     {
         // Regression: picking used to re-narrow the suggestions from inside the ListBox's own
         // SelectionChanged, clearing the list mid-selection → ArgumentOutOfRangeException. PickPath
-        // must echo the path without disturbing the list.
+        // must drop the path into the include box without disturbing the finder's list.
         var repo = new TestRepo();
         repo.WriteFile("src/app.cs", "1"); repo.Git("add", "-A"); repo.Git("commit", "-m", "a");
         repo.WriteFile("src/login.cs", "1"); repo.Git("add", "-A"); repo.Git("commit", "-m", "b");
@@ -266,21 +266,21 @@ public class HistoryFilterTests
             await vm.ShowHistoryCommand.ExecuteAsync(null);
             await vm.History.UseFileSearchCommand.ExecuteAsync(null);
 
-            vm.History.SearchText = "src";
+            vm.History.IncludeText = "src";
             var before = vm.History.FilteredPathSuggestions.Count;
             Assert.True(before >= 3);
 
             vm.History.PickPath("src/login.cs");   // a non-first item — the crash case
 
             Assert.Equal(before, vm.History.FilteredPathSuggestions.Count);   // list untouched
-            Assert.Equal("src/login.cs", vm.History.SearchText);
+            Assert.Equal("src/login.cs", vm.History.IncludeText);            // pick lands in include box
             await vm.History.HistoryLoad;
             Assert.Equal("src/login.cs", vm.History.FileFilter);
         }
     }
 
     [Fact]
-    public async Task Enter_in_file_scope_applies_the_typed_path()
+    public async Task Enter_in_the_include_box_applies_the_typed_path()
     {
         using var repo = BuildRepo();
         var vm = ForRepo(repo);
@@ -288,16 +288,40 @@ public class HistoryFilterTests
         await vm.History.UseFileSearchCommand.ExecuteAsync(null);
 
         // Typing a path doesn't hit git yet — the list is still whole.
-        vm.History.SearchText = "app.cs";
+        vm.History.IncludeText = "app.cs";
         Assert.Equal(4, vm.History.Commits.Count);
         Assert.False(vm.History.HasFileFilter);
 
-        // Enter commits it as the git-level filter (ApplySearch).
-        vm.History.ApplySearchCommand.Execute(null);
+        // Enter in the include box commits it as the git-level path filter (ApplyInclude).
+        vm.History.ApplyIncludeCommand.Execute(null);
         await vm.History.HistoryLoad;
 
         Assert.Equal(2, vm.History.Commits.Count);
         Assert.True(vm.History.HasFileFilter);
+        Assert.All(vm.History.Commits, c => Assert.Contains("login", c.Subject));
+    }
+
+    [Fact]
+    public async Task Search_box_filters_messages_in_file_scope_and_composes_with_include()
+    {
+        using var repo = BuildRepo();
+        var vm = ForRepo(repo);
+        await vm.ShowHistoryCommand.ExecuteAsync(null);
+        await vm.History.UseFileSearchCommand.ExecuteAsync(null);
+
+        // Design A: the query box searches commit messages live, even in File scope.
+        vm.History.SearchText = "login";
+        Assert.Equal("login", vm.History.MessageFilter);
+        Assert.Equal(2, vm.History.Commits.Count);
+        Assert.All(vm.History.Commits, c => Assert.Contains("login", c.Subject));
+
+        // ...and it composes with the include path filter (message ∩ path).
+        vm.History.IncludeText = "app.cs";
+        vm.History.ApplyIncludeCommand.Execute(null);
+        await vm.History.HistoryLoad;
+
+        Assert.True(vm.History.HasFileFilter);
+        Assert.Equal(2, vm.History.Commits.Count);
         Assert.All(vm.History.Commits, c => Assert.Contains("login", c.Subject));
     }
 
@@ -318,8 +342,8 @@ public class HistoryFilterTests
         Assert.Equal(4, vm.History.Commits.Count);
 
         // An applied file filter is dropped when we move back to Message scope.
-        vm.History.SearchText = "app.cs";
-        vm.History.ApplySearchCommand.Execute(null);
+        vm.History.IncludeText = "app.cs";
+        vm.History.ApplyIncludeCommand.Execute(null);
         await vm.History.HistoryLoad;
         Assert.Equal(2, vm.History.Commits.Count);
 

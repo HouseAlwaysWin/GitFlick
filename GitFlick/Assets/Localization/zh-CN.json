@@ -32,6 +32,7 @@
   "History_ExcludePaths": "排除的文件",
   "History_ExcludePathsPlaceholder": "例如 *.md 或 docs/",
   "History_PathApplyHint": "在路径栏位按 Enter 才会应用。",
+  "History_ContentApplyHint": "按 Enter 搜索文件内容",
 
   "Dialog_OK": "确定",
   "Dialog_PickRef_Title": "选择引用",

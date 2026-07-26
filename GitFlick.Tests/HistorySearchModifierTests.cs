@@ -198,36 +198,18 @@ public class HistorySearchModifierTests
         Assert.False(vm.History.ShowExcludeBox);
         Assert.True(vm.History.CanUseRegex);
 
-        // File: the query box IS the include path, leaving only an exclude box. git pathspec has no
-        // regex form either, so .* is unavailable (Aa still maps to ":(icase)").
+        // File: the query box searches commit messages; the include + exclude path boxes show below
+        // it. The query is text in every scope, so regex (.*) always applies.
         await vm.History.UseFileSearchCommand.ExecuteAsync(null);
-        Assert.False(vm.History.ShowIncludeBox);
+        Assert.True(vm.History.ShowIncludeBox);
         Assert.True(vm.History.ShowExcludeBox);
-        Assert.False(vm.History.CanUseRegex);
+        Assert.True(vm.History.CanUseRegex);
 
         // Content searches inside files, so both path boxes narrow it — plus -i / --pickaxe-regex.
         await vm.History.UseContentSearchCommand.ExecuteAsync(null);
         Assert.True(vm.History.ShowIncludeBox);
         Assert.True(vm.History.ShowExcludeBox);
         Assert.True(vm.History.CanUseRegex);
-    }
-
-    [Fact]
-    public async Task File_scope_folds_case_through_the_icase_pathspec()
-    {
-        var (vm, git) = await LoadedWorkspace();
-
-        await vm.History.UseFileSearchCommand.ExecuteAsync(null);
-        vm.History.SearchText = "README.md";
-        vm.History.ApplySearchCommand.Execute(null);   // Enter
-        await vm.History.HistoryLoad;
-
-        Assert.True(git.LastPathIncludeIgnoreCase);    // Aa off -> ":(icase)"
-
-        vm.History.SearchCaseSensitive = true;
-        await vm.History.HistoryLoad;
-
-        Assert.False(git.LastPathIncludeIgnoreCase);
     }
 
     // ── Real git: the ":(exclude)" pathspec and pickaxe modifiers ─────────────────

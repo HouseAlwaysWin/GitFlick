@@ -32,6 +32,7 @@
   "History_ExcludePaths": "FILES TO EXCLUDE",
   "History_ExcludePathsPlaceholder": "e.g. *.md or docs/",
   "History_PathApplyHint": "Press Enter in a path box to apply it.",
+  "History_ContentApplyHint": "Press Enter to search file contents",
 
   "Dialog_OK": "OK",
   "Dialog_PickRef_Title": "Choose a reference",
