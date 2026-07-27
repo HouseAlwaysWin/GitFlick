@@ -43,6 +43,13 @@ public sealed record GitStatusEntry
 
     public GitFileState UnstagedState { get; init; } = GitFileState.Unmodified;
 
+    /// <summary>
+    /// For an unmerged path, git's two-letter conflict code ("UU" both modified, "AA" both added,
+    /// "UD"/"DU"/"UA"/"AU" a modify/delete or add pairing, "DD" both deleted). Empty otherwise. Lets
+    /// the resolver tell a normal text conflict from one where a side is missing.
+    /// </summary>
+    public string UnmergedCode { get; init; } = string.Empty;
+
     /// <summary>Has changes recorded in the index (i.e. would be part of the next commit).</summary>
     public bool IsStaged =>
         Kind is not (GitChangeKind.Untracked or GitChangeKind.Ignored or GitChangeKind.Unmerged)

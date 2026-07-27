@@ -546,6 +546,45 @@ public partial class WorkspaceViewModel : ViewModelBase
     /// <summary>Local branch is ahead of its upstream — there's something to push.</summary>
     public bool IsAhead => Ahead > 0;
 
+    // ── Conflicted operation (merge / cherry-pick / revert / rebase paused on conflicts) ──────────
+    /// <summary>Which conflict-producing operation is paused, or None. Drives the resolver banner.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsConflicted))]
+    [NotifyPropertyChangedFor(nameof(ConflictBannerText))]
+    public partial ConflictOperation ActiveConflictOperation { get; set; }
+
+    /// <summary>How many paths are still unmerged.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ConflictBannerText))]
+    public partial int ConflictCount { get; set; }
+
+    /// <summary>A conflicted operation is in progress — the toolbar shows the resolver banner.</summary>
+    public bool IsConflicted => ActiveConflictOperation != ConflictOperation.None;
+
+    /// <summary>The banner line: which operation, and either the count left or "ready to complete".</summary>
+    public string ConflictBannerText
+    {
+        get
+        {
+            if (!IsConflicted)
+            {
+                return string.Empty;
+            }
+
+            var op = Loc["Conflict_Op_" + ActiveConflictOperation];
+            return ConflictCount > 0
+                ? string.Format(Loc["Conflict_BannerConflicts"], op, ConflictCount)
+                : string.Format(Loc["Conflict_BannerReady"], op);
+        }
+    }
+
+    /// <summary>Set by the View: opens the conflict-resolution window.</summary>
+    public Action? OpenConflictResolver { get; set; }
+
+    /// <summary>Builds the resolver view model for the current conflicted operation (opened by the View).</summary>
+    public ConflictResolverViewModel CreateConflictResolver() =>
+        new(_git, Repository.Path, ActiveConflictOperation);
+
     /// <summary>Upstream has commits we don't — the Pull button lights up to say "pull to sync".</summary>
     public bool IsBehind => Behind > 0;
 
@@ -1290,10 +1329,14 @@ public partial class WorkspaceViewModel : ViewModelBase
             var remoteBranchesTask = _git.GetRemoteBranchesAsync(Repository.Path);
             var stashesTask = _git.GetStashesAsync(Repository.Path);
             var tagsTask = _git.GetTagsAsync(Repository.Path);
-            await Task.WhenAll(statusTask, branchesTask, remoteBranchesTask, stashesTask, tagsTask);
+            var conflictOpTask = _git.GetConflictOperationAsync(Repository.Path);
+            await Task.WhenAll(statusTask, branchesTask, remoteBranchesTask, stashesTask, tagsTask, conflictOpTask);
 
             var status = await statusTask;
             _lastStatusFingerprint = status.Fingerprint;   // what the watcher compares against
+
+            ActiveConflictOperation = await conflictOpTask;
+            ConflictCount = status.Entries.Count(e => e.Kind == GitChangeKind.Unmerged);
 
             BranchName = status.IsDetached ? "(detached)" : status.BranchName ?? string.Empty;
             IsDetachedHead = status.IsDetached;

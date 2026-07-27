@@ -46,7 +46,7 @@ public partial class MainWindow : Window
 
         // Mouse users expect a double-click to open a repo / move a file across the staging line.
         RepoList.DoubleTapped += (_, _) => (DataContext as MainViewModel)?.OpenSelected();
-        UnstagedList.DoubleTapped += (_, _) => Workspace?.StageCommand.Execute(Workspace.SelectedUnstagedFile);
+        UnstagedList.DoubleTapped += (_, _) => OnUnstagedFileActivated();
         StagedList.DoubleTapped += (_, _) => Workspace?.UnstageCommand.Execute(Workspace.SelectedStagedFile);
 
         // Multi-select: Enter (or the context menu) acts on every selected file at once.
@@ -543,6 +543,62 @@ public partial class MainWindow : Window
 
         _ = compare.LoadAsync();
     }
+
+    private ConflictWindow? _conflictWindow;
+
+    /// <summary>
+    /// Double-clicking a file crosses the staging line — except an unmerged (conflicted) file, which
+    /// opens the resolver instead. Staging a half-resolved file with `git add` is exactly the footgun
+    /// the resolver exists to prevent.
+    /// </summary>
+    private void OnUnstagedFileActivated()
+    {
+        if (Workspace is not { } ws)
+        {
+            return;
+        }
+
+        if (ws.SelectedUnstagedFile is { Kind: GitChangeKind.Unmerged })
+        {
+            ws.OpenConflictResolver?.Invoke();
+        }
+        else
+        {
+            ws.StageCommand.Execute(ws.SelectedUnstagedFile);
+        }
+    }
+
+    /// <summary>Shows (or re-targets) the conflict resolver for the in-progress operation.</summary>
+    private void ShowConflictResolver()
+    {
+        if (Workspace is not { IsConflicted: true } ws)
+        {
+            return;
+        }
+
+        var resolver = ws.CreateConflictResolver();
+
+        if (_conflictWindow is null)
+        {
+            _conflictWindow = new ConflictWindow { DataContext = resolver };
+            _conflictWindow.Closed += (_, _) =>
+            {
+                _conflictWindow = null;
+                // The operation may have finished or aborted from inside the window — resync the banner.
+                _ = Workspace?.RefreshAsync();
+            };
+            _conflictWindow.Show(this);
+        }
+        else
+        {
+            _conflictWindow.DataContext = resolver;
+            _conflictWindow.Activate();
+        }
+
+        _ = resolver.LoadAsync();
+    }
+
+    private void OnResolveConflictsClick(object? sender, RoutedEventArgs e) => ShowConflictResolver();
 
     private BlameWindow? _blameWindow;
 
@@ -1138,6 +1194,7 @@ public partial class MainWindow : Window
         {
             _observedWorkspace.PropertyChanged += OnWorkspacePropertyChanged;
             _observedWorkspace.ConfirmDirtyCheckout = ConfirmDirtyCheckoutAsync;
+            _observedWorkspace.OpenConflictResolver = ShowConflictResolver;
             _observedWorkspace.ConfirmDeleteBranch = ConfirmDeleteBranchAsync;
             _observedWorkspace.ConfirmDiscardAll = ConfirmDiscardAllAsync;
             _observedWorkspace.ConfirmDiscardFiles = ConfirmDiscardFilesAsync;

@@ -42,7 +42,14 @@ internal sealed class FakeGitService : IGitService
     public Task<string> GetDiffAsync(string repoPath, string path, bool staged, bool untracked = false, CancellationToken cancellationToken = default)
         => DiffOverride is { } hook ? hook(path) : Task.FromResult(string.Empty);
 
-    public Task<GitCommandResult> StageAsync(string repoPath, string path, CancellationToken cancellationToken = default) => Task.FromResult(Ok);
+    /// <summary>Paths passed to StageAsync, so the conflict resolver's "mark resolved" can be asserted.</summary>
+    public List<string> StagedPaths { get; } = [];
+
+    public Task<GitCommandResult> StageAsync(string repoPath, string path, CancellationToken cancellationToken = default)
+    {
+        StagedPaths.Add(path);
+        return Task.FromResult(Ok);
+    }
 
     public Task<GitCommandResult> StageAllAsync(string repoPath, CancellationToken cancellationToken = default) => Task.FromResult(Ok);
 
@@ -331,29 +338,30 @@ internal sealed class FakeGitService : IGitService
 
     public Task<GitCommandResult> MergeAsync(string repoPath, string branch, CancellationToken cancellationToken = default) => Task.FromResult(Ok);
 
-    /// <summary>Whether the fake reports a merge stopped mid-flight.</summary>
-    public bool StubMergeInProgress { get; set; }
+    /// <summary>Which conflicted operation the fake reports as in progress.</summary>
+    public ConflictOperation StubConflictOperation { get; set; } = ConflictOperation.None;
 
-    /// <summary>Paths the last take-ours / take-theirs were given, and how often the merge was ended.</summary>
+    /// <summary>What the last continue / abort / take-a-side / remove were given, for assertions.</summary>
+    public ConflictOperation? LastContinued { get; private set; }
+    public ConflictOperation? LastAborted { get; private set; }
     public string? LastTakeOurs { get; private set; }
     public string? LastTakeTheirs { get; private set; }
-    public int AbortMergeCount { get; private set; }
-    public int CommitMergeCount { get; private set; }
+    public string? LastRemovedFile { get; private set; }
 
-    public Task<bool> IsMergeInProgressAsync(string repoPath, CancellationToken cancellationToken = default)
-        => Task.FromResult(StubMergeInProgress);
+    public Task<ConflictOperation> GetConflictOperationAsync(string repoPath, CancellationToken cancellationToken = default)
+        => Task.FromResult(StubConflictOperation);
 
-    public Task<GitCommandResult> AbortMergeAsync(string repoPath, CancellationToken cancellationToken = default)
+    public Task<GitCommandResult> ContinueOperationAsync(string repoPath, ConflictOperation operation, CancellationToken cancellationToken = default)
     {
-        AbortMergeCount++;
-        StubMergeInProgress = false;
+        LastContinued = operation;
+        StubConflictOperation = ConflictOperation.None;   // the fake finishes in one step (no rebase re-conflict)
         return Task.FromResult(Ok);
     }
 
-    public Task<GitCommandResult> CommitMergeAsync(string repoPath, CancellationToken cancellationToken = default)
+    public Task<GitCommandResult> AbortOperationAsync(string repoPath, ConflictOperation operation, CancellationToken cancellationToken = default)
     {
-        CommitMergeCount++;
-        StubMergeInProgress = false;
+        LastAborted = operation;
+        StubConflictOperation = ConflictOperation.None;
         return Task.FromResult(Ok);
     }
 
@@ -366,6 +374,12 @@ internal sealed class FakeGitService : IGitService
     public Task<GitCommandResult> TakeTheirsAsync(string repoPath, string path, CancellationToken cancellationToken = default)
     {
         LastTakeTheirs = path;
+        return Task.FromResult(Ok);
+    }
+
+    public Task<GitCommandResult> RemoveFileAsync(string repoPath, string path, CancellationToken cancellationToken = default)
+    {
+        LastRemovedFile = path;
         return Task.FromResult(Ok);
     }
 

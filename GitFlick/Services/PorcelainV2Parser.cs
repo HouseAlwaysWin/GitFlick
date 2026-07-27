@@ -135,6 +135,7 @@ internal static class PorcelainV2Parser
     // "u <XY> <sub> <m1> <m2> <m3> <mW> <h1> <h2> <h3> <path>"
     private static GitStatusEntry ParseUnmerged(string line)
     {
+        // u <XY> <sub> <m1><m2><m3><mW> <h1><h2><h3> <path>  — f[1] is the two-letter conflict code.
         var f = line.Split(' ', 11);
         return new GitStatusEntry
         {
@@ -142,6 +143,7 @@ internal static class PorcelainV2Parser
             Kind = GitChangeKind.Unmerged,
             StagedState = GitFileState.Unmerged,
             UnstagedState = GitFileState.Unmerged,
+            UnmergedCode = f.Length > 1 ? f[1] : string.Empty,
         };
     }
 
