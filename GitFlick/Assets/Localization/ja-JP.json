@@ -32,6 +32,7 @@
   "History_ExcludePaths": "除外するファイル",
   "History_ExcludePathsPlaceholder": "例: *.md、docs/",
   "History_PathApplyHint": "パス欄で Enter を押すと適用されます。",
+  "History_ContentApplyHint": "Enter でファイル内容を検索",
 
   "Dialog_OK": "OK",
   "Dialog_PickRef_Title": "参照を選択",

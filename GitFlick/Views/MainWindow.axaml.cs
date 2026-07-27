@@ -156,8 +156,8 @@ public partial class MainWindow : Window
         CommitFilesList.AddHandler(PointerPressedEvent, OnCommitFileListPointerPressed, RoutingStrategies.Tunnel);
     }
 
-    // Enter in the search input. Message already filters live, so this only matters for File: it
-    // applies the typed pathspec directly (bypassing the pick list) and closes the dropdown.
+    // Enter in the search input. Message/File filter commit messages live, so Enter only matters for
+    // Content (a git pickaxe reload); it applies the query and closes the dropdown either way.
     private void OnSearchBoxKeyDown(object? sender, KeyEventArgs e)
     {
         if (e.Key != Key.Enter || Workspace is not { } workspace)
@@ -165,7 +165,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (workspace.History.IsFileSearch || workspace.History.IsContentSearch)
+        if (workspace.History.IsContentSearch)
         {
             workspace.History.ApplySearchCommand.Execute(null);
         }

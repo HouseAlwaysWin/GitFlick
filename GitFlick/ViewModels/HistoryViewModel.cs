@@ -532,12 +532,9 @@ public partial class HistoryViewModel : ViewModelBase
     public bool IsMessageSearch => SearchType == HistorySearchType.Message;
     public bool IsContentSearch => SearchType == HistorySearchType.Content;
 
-    public string SearchPlaceholder => SearchType switch
-    {
-        HistorySearchType.File => Loc["History_FilePlaceholder"],
-        HistorySearchType.Content => Loc["History_ContentPlaceholder"],
-        _ => Loc["History_SearchMessages"],
-    };
+    public string SearchPlaceholder => IsContentSearch
+        ? Loc["History_ContentPlaceholder"]
+        : Loc["History_SearchMessages"];   // Message and File both search commit messages
 
     /// <summary>The dropdown button's label — echoes every active filter, the way "Authors (2) ▾" does.
     /// The excluded paths wear a ≠, so a narrowed result set is never a mystery.</summary>
@@ -583,17 +580,13 @@ public partial class HistoryViewModel : ViewModelBase
 
     partial void OnSearchTextChanged(string value)
     {
-        // Message filters as you type (client-side, cheap). File narrows the suggestion list; the git
-        // reload waits for a pick (or Enter), since each path change reloads the whole log.
-        if (IsMessageSearch)
+        // Message and File both filter commit messages as you type (client-side, instant). The path
+        // scoping lives in the include/exclude boxes below. Content is a git pickaxe reload, so it
+        // waits for Enter (ApplySearch).
+        if (IsMessageSearch || IsFileSearch)
         {
             MessageFilter = value;
         }
-        else if (IsFileSearch && !_suppressPathNarrow)
-        {
-            NarrowPathSuggestions(value);
-        }
-        // Content scope waits for Enter/Apply (a git reload), like File's pathspec.
     }
 
     // ── Search modifiers and path scoping (VS Code-style) ───────────────────────
@@ -637,7 +630,7 @@ public partial class HistoryViewModel : ViewModelBase
         }
     }
 
-    /// <summary>What's typed in the "include paths" box (Message/Content scope). Applies on Enter.</summary>
+    /// <summary>What's typed in the "include paths" box. Drives the path autocomplete; applies on Enter.</summary>
     [ObservableProperty]
     public partial string IncludeText { get; set; } = string.Empty;
 
@@ -645,13 +638,23 @@ public partial class HistoryViewModel : ViewModelBase
     [ObservableProperty]
     public partial string ExcludeText { get; set; } = string.Empty;
 
+    // Typing in the include box drops down the historical-path autocomplete (the finder lives here now,
+    // not on the query box, which searches messages).
+    partial void OnIncludeTextChanged(string value)
+    {
+        if (!_suppressPathNarrow)
+        {
+            NarrowPathSuggestions(value);
+        }
+    }
+
     // The pick list is client-side, so it can honour the exclusion as you type — without that, typing
     // an exclude and still being offered the very paths it drops reads as "the exclude did nothing".
     partial void OnExcludeTextChanged(string value)
     {
-        if (IsFileSearch && !_suppressPathNarrow)
+        if (!_suppressPathNarrow)
         {
-            NarrowPathSuggestions(SearchText);
+            NarrowPathSuggestions(IncludeText);
         }
     }
 
@@ -676,21 +679,18 @@ public partial class HistoryViewModel : ViewModelBase
     [RelayCommand]
     private void ApplyExclude() => FileExcludeFilter = ExcludeText.Trim();
 
-    // Path scoping only belongs to the scopes with a file dimension. Message searches commit text, so
-    // it's just the query box; File's query already IS the include path, leaving it only an exclude;
-    // Content searches inside files, so both path boxes narrow it usefully.
+    // The query box always searches commit text (Message/File fuzzy, Content pickaxe); File and Content
+    // add the include + exclude path boxes below it. VS Code's Search panel: a search term plus two
+    // path-scoping fields, each doing one job.
 
-    /// <summary>Only Content needs a separate include box — File's query is the include, Message has no paths.</summary>
-    public bool ShowIncludeBox => IsContentSearch;
+    /// <summary>Include/exclude path boxes belong to every scope with a file dimension — File and Content.</summary>
+    public bool ShowIncludeBox => !IsMessageSearch;
 
     /// <summary>Excluding paths applies wherever files are involved — File and Content.</summary>
     public bool ShowExcludeBox => !IsMessageSearch;
 
-    /// <summary>git pathspec has no regex form, so .* can't apply to a File-scope query.</summary>
-    public bool CanUseRegex => !IsFileSearch;
-
-    /// <summary>Case folding for the File-scope query only — the include/exclude boxes stay git-default.</summary>
-    private bool PathQueryIgnoreCase => IsFileSearch && !SearchCaseSensitive;
+    /// <summary>The query box searches commit text in every scope, so regex (.*) always applies.</summary>
+    public bool CanUseRegex => true;
 
     /// <summary>
     /// Builds a subject predicate for the current modifiers, or null when the regex doesn't parse —
@@ -786,38 +786,39 @@ public partial class HistoryViewModel : ViewModelBase
             ContentFilter = string.Empty;
         }
 
-        if (type == HistorySearchType.File)
+        if (ShowIncludeBox)
         {
+            // File and Content both have an include box with a path finder — ready its paths.
             await EnsurePathsLoadedAsync();
-            NarrowPathSuggestions(SearchText);
+            NarrowPathSuggestions(IncludeText);
         }
         else
         {
-            HasPathSuggestions = false;   // the pick list belongs to File scope only
+            HasPathSuggestions = false;   // Message has no path boxes
         }
     }
 
-    /// <summary>Enter in File/Content scope: apply the typed value directly (git reload).</summary>
+    /// <summary>Enter in the query box. Message/File filter live; only Content needs it (a pickaxe reload).</summary>
     [RelayCommand]
     private void ApplySearch()
     {
-        if (IsFileSearch)
-        {
-            FileFilter = SearchText.Trim();
-        }
-        else if (IsContentSearch)
+        if (IsContentSearch)
         {
             ContentFilter = SearchText.Trim();
         }
     }
 
-    /// <summary>A path was picked from the File list — echo it in the input and apply it as the filter.</summary>
+    /// <summary>
+    /// A path was picked from the File finder — drop it into the include box and apply it. The search
+    /// box and its suggestion list are left untouched (touching SearchText would re-narrow the list
+    /// mid-pick, the old ArgumentOutOfRange crash).
+    /// </summary>
     public void PickPath(string path)
     {
         _suppressPathNarrow = true;
-        SearchText = path;          // show the pick; the narrow is suppressed so the list stays put
+        IncludeText = path;         // the pick lands in the include box
         _suppressPathNarrow = false;
-        FileFilter = path.Trim();
+        FileFilter = path.Trim();   // and applies as the filter
     }
 
     // Narrow the historical-path list to the query, best fuzzy matches first, capped so a huge repo
@@ -1005,7 +1006,7 @@ public partial class HistoryViewModel : ViewModelBase
                 HasFileExclude ? FileExcludeFilter.Trim() : null,
                 contentRegex: HasContentFilter && SearchUseRegex,
                 contentIgnoreCase: HasContentFilter && !SearchCaseSensitive,
-                pathIncludeIgnoreCase: PathQueryIgnoreCase);
+                pathIncludeIgnoreCase: false);
 
             _graphOrder = commits.ToList();
 
@@ -1065,15 +1066,19 @@ public partial class HistoryViewModel : ViewModelBase
         _git.GetCommitMessageAsync(_repository.Path, commit.Sha);
 
     /// <summary>
-    /// Scope History to one file, reached from the file lists. This is just the search box's File
-    /// filter driven programmatically — same mechanism, same "path ▾" chip — so there's one way to
-    /// view a file's history, not two. The host flips into History mode before calling this.
+    /// Scope History to one file, reached from the file lists. Drives the File-scope include filter
+    /// programmatically — same mechanism, same "path ▾" chip — so there's one way to view a file's
+    /// history, not two. The host flips into History mode before calling this.
     /// </summary>
     public Task ShowFileHistory(string path)
     {
         SearchType = HistorySearchType.File;      // so the search dropdown reflects the File scope
-        _ = EnsurePathsLoadedAsync();             // ready the pick list in case the dropdown is opened
-        SearchText = path;                        // echo the path into the search input
+        _ = EnsurePathsLoadedAsync();             // ready the finder in case the dropdown is opened
+
+        _suppressPathNarrow = true;
+        SearchText = string.Empty;                // the message-search box starts empty
+        IncludeText = path;                       // the scoped file shows in the include box
+        _suppressPathNarrow = false;
 
         if (FileFilter == path)
         {
