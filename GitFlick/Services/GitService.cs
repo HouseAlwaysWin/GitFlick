@@ -893,31 +893,64 @@ public sealed class GitService : IGitService
     public Task<GitCommandResult> MergeAsync(string repoPath, string branch, CancellationToken cancellationToken = default)
         => RunAsync(repoPath, ["merge", branch], null, cancellationToken);
 
-    // ── A merge that stopped on conflicts ────────────────────────────────────────
+    // ── A conflicted operation ───────────────────────────────────────────────────
 
-    public async Task<bool> IsMergeInProgressAsync(string repoPath, CancellationToken cancellationToken = default)
+    public async Task<ConflictOperation> GetConflictOperationAsync(string repoPath, CancellationToken cancellationToken = default)
     {
-        // Ask git rather than looking for .git/MERGE_HEAD: in a worktree or submodule ".git" is a
-        // file pointing elsewhere, so the path check would quietly answer "no merge" every time.
-        var result = await RunAsync(repoPath, ["rev-parse", "--verify", "--quiet", "MERGE_HEAD"], null, cancellationToken)
-            .ConfigureAwait(false);
+        // Rebase is a state directory, not a ref — and ".git" may be a file (worktree/submodule), so
+        // resolve the real git dir first. This is what git's own `status` checks.
+        var gitDir = await RunAsync(repoPath, ["rev-parse", "--absolute-git-dir"], null, cancellationToken).ConfigureAwait(false);
+        if (gitDir.Succeeded)
+        {
+            var dir = gitDir.StandardOutput.Trim();
+            if (Directory.Exists(Path.Combine(dir, "rebase-merge")) || Directory.Exists(Path.Combine(dir, "rebase-apply")))
+            {
+                return ConflictOperation.Rebase;
+            }
+        }
 
+        // The other three announce themselves with a pseudo-ref. Order is arbitrary — they're mutually
+        // exclusive (you can't be mid cherry-pick AND mid revert).
+        if (await HasRefAsync(repoPath, "MERGE_HEAD", cancellationToken).ConfigureAwait(false)) return ConflictOperation.Merge;
+        if (await HasRefAsync(repoPath, "CHERRY_PICK_HEAD", cancellationToken).ConfigureAwait(false)) return ConflictOperation.CherryPick;
+        if (await HasRefAsync(repoPath, "REVERT_HEAD", cancellationToken).ConfigureAwait(false)) return ConflictOperation.Revert;
+        return ConflictOperation.None;
+    }
+
+    private async Task<bool> HasRefAsync(string repoPath, string reference, CancellationToken cancellationToken)
+    {
+        var result = await RunAsync(repoPath, ["rev-parse", "--verify", "--quiet", reference], null, cancellationToken).ConfigureAwait(false);
         return result.Succeeded;
     }
 
-    public Task<GitCommandResult> AbortMergeAsync(string repoPath, CancellationToken cancellationToken = default)
-        => RunAsync(repoPath, ["merge", "--abort"], null, cancellationToken);
+    public Task<GitCommandResult> ContinueOperationAsync(string repoPath, ConflictOperation operation, CancellationToken cancellationToken = default)
+        // -c core.editor=true: --continue otherwise opens an editor for the commit message and hangs a
+        // GUI; "true" exits 0 immediately, so git keeps the message it already prepared.
+        => RunAsync(repoPath, ["-c", "core.editor=true", OperationVerb(operation), "--continue"], null, cancellationToken);
 
-    public Task<GitCommandResult> CommitMergeAsync(string repoPath, CancellationToken cancellationToken = default)
-        => RunAsync(repoPath, ["commit", "--no-edit"], null, cancellationToken);
+    public Task<GitCommandResult> AbortOperationAsync(string repoPath, ConflictOperation operation, CancellationToken cancellationToken = default)
+        => RunAsync(repoPath, [OperationVerb(operation), "--abort"], null, cancellationToken);
+
+    private static string OperationVerb(ConflictOperation operation) => operation switch
+    {
+        ConflictOperation.Merge => "merge",
+        ConflictOperation.CherryPick => "cherry-pick",
+        ConflictOperation.Revert => "revert",
+        ConflictOperation.Rebase => "rebase",
+        _ => throw new ArgumentOutOfRangeException(nameof(operation), operation, "None has no git verb."),
+    };
 
     // "--ours"/"--theirs" only mean anything for an unmerged path, which is exactly when we offer them.
-    // They rewrite the working-tree file; the caller stages it to mark the conflict resolved.
+    // They rewrite the working-tree file to the top/bottom marker section; the caller stages it to
+    // mark the conflict resolved. The mapping (top=ours, bottom=theirs) holds for all operations.
     public Task<GitCommandResult> TakeOursAsync(string repoPath, string path, CancellationToken cancellationToken = default)
         => RunAsync(repoPath, ["checkout", "--ours", "--", path], null, cancellationToken);
 
     public Task<GitCommandResult> TakeTheirsAsync(string repoPath, string path, CancellationToken cancellationToken = default)
         => RunAsync(repoPath, ["checkout", "--theirs", "--", path], null, cancellationToken);
+
+    public Task<GitCommandResult> RemoveFileAsync(string repoPath, string path, CancellationToken cancellationToken = default)
+        => RunAsync(repoPath, ["rm", "--", path], null, cancellationToken);
 
     public Task<GitCommandResult> RenameBranchAsync(string repoPath, string oldName, string newName, CancellationToken cancellationToken = default)
         => RunAsync(repoPath, ["branch", "-m", oldName, newName], null, cancellationToken);
