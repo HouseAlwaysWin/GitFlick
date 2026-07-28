@@ -32,7 +32,6 @@ public enum HistorySearchType
 {
     Message,
     File,
-    Content,
 }
 
 /// <summary>One tickable option in a history multi-select filter (an author or a branch).
@@ -291,8 +290,8 @@ public partial class HistoryViewModel : ViewModelBase
     private bool _suppressReload;
 
     /// <summary>
-    /// Reload the log unless we're mid-batch. Every git-level filter (paths, pickaxe, dates,
-    /// first-parent, merges-only) reloads when it changes; clearing several at once would otherwise
+    /// Reload the log unless we're mid-batch. Every git-level filter (paths, dates, first-parent,
+    /// merges-only) reloads when it changes; clearing several at once would otherwise
     /// fire one <c>git log</c> per filter, so batches raise <see cref="_suppressReload"/> and reload once.
     /// </summary>
     private void ReloadHistory()
@@ -398,7 +397,7 @@ public partial class HistoryViewModel : ViewModelBase
     /// stays hidden there.
     /// </summary>
     public bool ShowGraph => SortColumn == HistorySortColumn.Graph
-        && !HasAuthorFilter && !HasMessageFilter && !HasFileFilter && !HasContentFilter && !MergesOnly
+        && !HasAuthorFilter && !HasMessageFilter && !HasFileFilter && !MergesOnly
         && !HasDateFilter && !HasFileExclude;
 
     // The active column wears an arrow; the rest show nothing.
@@ -494,22 +493,6 @@ public partial class HistoryViewModel : ViewModelBase
 
     partial void OnFileFilterChanged(string value) => ReloadHistory();
 
-    /// <summary>
-    /// The applied pickaxe (content) filter: only commits that changed the number of occurrences of
-    /// this string (<c>git log -S</c>). Git-level like the file filter, so it reloads and hides the graph.
-    /// </summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ShowGraph))]
-    [NotifyPropertyChangedFor(nameof(HasContentFilter))]
-    [NotifyPropertyChangedFor(nameof(SearchFilterLabel))]
-    [NotifyPropertyChangedFor(nameof(HasSearchFilter))]
-    [NotifyPropertyChangedFor(nameof(HasAnyFilter))]
-    public partial string ContentFilter { get; set; } = string.Empty;
-
-    public bool HasContentFilter => ContentFilter.Trim().Length > 0;
-
-    partial void OnContentFilterChanged(string value) => ReloadHistory();
-
     // ── Unified History search ──────────────────────────────────────────────────
     // Message + File share one dropdown, styled like the Authors/Branches filters: a single
     // "Search ▾" button opens a flyout holding the Message/File scope toggle, the text input, and —
@@ -521,7 +504,6 @@ public partial class HistoryViewModel : ViewModelBase
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsFileSearch))]
     [NotifyPropertyChangedFor(nameof(IsMessageSearch))]
-    [NotifyPropertyChangedFor(nameof(IsContentSearch))]
     [NotifyPropertyChangedFor(nameof(SearchPlaceholder))]
     [NotifyPropertyChangedFor(nameof(ShowIncludeBox))]
     [NotifyPropertyChangedFor(nameof(ShowExcludeBox))]
@@ -530,11 +512,8 @@ public partial class HistoryViewModel : ViewModelBase
 
     public bool IsFileSearch => SearchType == HistorySearchType.File;
     public bool IsMessageSearch => SearchType == HistorySearchType.Message;
-    public bool IsContentSearch => SearchType == HistorySearchType.Content;
 
-    public string SearchPlaceholder => IsContentSearch
-        ? Loc["History_ContentPlaceholder"]
-        : Loc["History_SearchMessages"];   // Message and File both search commit messages
+    public string SearchPlaceholder => Loc["History_SearchMessages"];   // Message and File both search commit messages
 
     /// <summary>The dropdown button's label — echoes every active filter, the way "Authors (2) ▾" does.
     /// The excluded paths wear a ≠, so a narrowed result set is never a mystery.</summary>
@@ -546,11 +525,6 @@ public partial class HistoryViewModel : ViewModelBase
             if (HasMessageFilter)
             {
                 parts.Add($"“{MessageFilter.Trim()}”");
-            }
-
-            if (HasContentFilter)
-            {
-                parts.Add($"⌕ {ContentFilter.Trim()}");
             }
 
             if (HasFileFilter)
@@ -568,7 +542,7 @@ public partial class HistoryViewModel : ViewModelBase
     }
 
     public bool HasSearchFilter =>
-        HasMessageFilter || HasFileFilter || HasContentFilter || HasFileExclude;
+        HasMessageFilter || HasFileFilter || HasFileExclude;
 
     /// <summary>What's typed in the search input. Message applies live; File narrows the pick list.</summary>
     [ObservableProperty]
@@ -580,13 +554,9 @@ public partial class HistoryViewModel : ViewModelBase
 
     partial void OnSearchTextChanged(string value)
     {
-        // Message and File both filter commit messages as you type (client-side, instant). The path
-        // scoping lives in the include/exclude boxes below. Content is a git pickaxe reload, so it
-        // waits for Enter (ApplySearch).
-        if (IsMessageSearch || IsFileSearch)
-        {
-            MessageFilter = value;
-        }
+        // Both scopes filter commit messages as you type (client-side, instant). The path scoping
+        // lives in the include/exclude boxes below.
+        MessageFilter = value;
     }
 
     // ── Search modifiers and path scoping (VS Code-style) ───────────────────────
@@ -596,11 +566,11 @@ public partial class HistoryViewModel : ViewModelBase
     // src/, ignoring *.md" is one search. The scope radio only decides what the QUERY box searches;
     // in File scope the query IS the path, so its include box would be a duplicate and hides.
 
-    /// <summary>Treat the query as a regular expression (Message: .NET; Content: git --pickaxe-regex).</summary>
+    /// <summary>Treat the query as a regular expression (.NET regex over commit subjects).</summary>
     [ObservableProperty]
     public partial bool SearchUseRegex { get; set; }
 
-    /// <summary>Match the query's letter case exactly (Message: fuzzy/regex; File: pathspec; Content: git -i).</summary>
+    /// <summary>Match the query's letter case exactly (fuzzy/regex over commit subjects).</summary>
     [ObservableProperty]
     public partial bool SearchCaseSensitive { get; set; }
 
@@ -608,8 +578,8 @@ public partial class HistoryViewModel : ViewModelBase
     [ObservableProperty]
     public partial bool SearchRegexInvalid { get; set; }
 
-    // Flipping a modifier re-runs whichever filter kind is active: content (pickaxe) and File
-    // (pathspec) live in git, so they reload; the message filter is client-side and just re-applies.
+    // Flipping a modifier re-runs the active filter: the File pathspec lives in git, so it reloads;
+    // the message filter is client-side and just re-applies.
     partial void OnSearchUseRegexChanged(bool value) => ReapplySearchModifiers();
     partial void OnSearchCaseSensitiveChanged(bool value) => ReapplySearchModifiers();
 
@@ -620,7 +590,7 @@ public partial class HistoryViewModel : ViewModelBase
             return;   // a batch (Clear filters) is reloading once at the end
         }
 
-        if (HasContentFilter || (IsFileSearch && HasFileFilter))
+        if (IsFileSearch && HasFileFilter)
         {
             HistoryLoad = LoadHistoryAsync();
         }
@@ -679,15 +649,15 @@ public partial class HistoryViewModel : ViewModelBase
     [RelayCommand]
     private void ApplyExclude() => FileExcludeFilter = ExcludeText.Trim();
 
-    // The query box always searches commit text (Message/File fuzzy, Content pickaxe); File and Content
-    // add the include + exclude path boxes below it. VS Code's Search panel: a search term plus two
+    // The query box searches commit text (Message and File both fuzzy-match subjects); the File scope
+    // adds the include + exclude path boxes below it. VS Code's Search panel: a search term plus two
     // path-scoping fields, each doing one job.
 
-    /// <summary>Include/exclude path boxes belong to every scope with a file dimension — File and Content.</summary>
-    public bool ShowIncludeBox => !IsMessageSearch;
+    /// <summary>Include/exclude path boxes belong to the File scope (Message has no file dimension).</summary>
+    public bool ShowIncludeBox => IsFileSearch;
 
-    /// <summary>Excluding paths applies wherever files are involved — File and Content.</summary>
-    public bool ShowExcludeBox => !IsMessageSearch;
+    /// <summary>Excluding paths applies wherever files are involved — the File scope.</summary>
+    public bool ShowExcludeBox => IsFileSearch;
 
     /// <summary>The query box searches commit text in every scope, so regex (.*) always applies.</summary>
     public bool CanUseRegex => true;
@@ -735,9 +705,6 @@ public partial class HistoryViewModel : ViewModelBase
     private Task UseFileSearchAsync() => SetSearchTypeAsync(HistorySearchType.File);
 
     [RelayCommand]
-    private Task UseContentSearchAsync() => SetSearchTypeAsync(HistorySearchType.Content);
-
-    [RelayCommand]
     private void ClearSearch()
     {
         SearchText = string.Empty;
@@ -747,10 +714,6 @@ public partial class HistoryViewModel : ViewModelBase
         if (HasFileFilter)
         {
             FileFilter = string.Empty;
-        }
-        if (HasContentFilter)
-        {
-            ContentFilter = string.Empty;
         }
         if (HasFileExclude)
         {
@@ -781,30 +744,16 @@ public partial class HistoryViewModel : ViewModelBase
         {
             FileFilter = string.Empty;   // reloads the full history
         }
-        if (HasContentFilter)
-        {
-            ContentFilter = string.Empty;
-        }
 
         if (ShowIncludeBox)
         {
-            // File and Content both have an include box with a path finder — ready its paths.
+            // The File scope has an include box with a path finder — ready its paths.
             await EnsurePathsLoadedAsync();
             NarrowPathSuggestions(IncludeText);
         }
         else
         {
             HasPathSuggestions = false;   // Message has no path boxes
-        }
-    }
-
-    /// <summary>Enter in the query box. Message/File filter live; only Content needs it (a pickaxe reload).</summary>
-    [RelayCommand]
-    private void ApplySearch()
-    {
-        if (IsContentSearch)
-        {
-            ContentFilter = SearchText.Trim();
         }
     }
 
@@ -1000,12 +949,9 @@ public partial class HistoryViewModel : ViewModelBase
             var commits = await _git.GetCommitsAsync(
                 _repository.Path, _commitLimit, FirstParentOnly,
                 HasFileFilter ? FileFilter.Trim() : null,
-                HasContentFilter ? ContentFilter.Trim() : null,
                 MergesOnly,
                 SinceBound, UntilBound,
                 HasFileExclude ? FileExcludeFilter.Trim() : null,
-                contentRegex: HasContentFilter && SearchUseRegex,
-                contentIgnoreCase: HasContentFilter && !SearchCaseSensitive,
                 pathIncludeIgnoreCase: false);
 
             _graphOrder = commits.ToList();
@@ -1182,7 +1128,6 @@ public partial class HistoryViewModel : ViewModelBase
         IncludeText = string.Empty;
         ExcludeText = string.Empty;
         FileFilter = string.Empty;
-        ContentFilter = string.Empty;
         FileExcludeFilter = string.Empty;
         SearchUseRegex = false;
         SearchCaseSensitive = false;

@@ -167,9 +167,6 @@ internal sealed class FakeGitService : IGitService
     /// <summary>The last pathFilter GetCommitsAsync was called with, so tests can assert on it.</summary>
     public string? LastPathFilter { get; private set; }
 
-    /// <summary>The last contentSearch (pickaxe) GetCommitsAsync was called with.</summary>
-    public string? LastContentSearch { get; private set; }
-
     /// <summary>The last firstParentOnly / mergesOnly flags GetCommitsAsync was called with.</summary>
     public bool LastFirstParentOnly { get; private set; }
     public bool LastMergesOnly { get; private set; }
@@ -179,29 +176,24 @@ internal sealed class FakeGitService : IGitService
     public System.DateTimeOffset? LastUntil { get; private set; }
     public int LastMaxCount { get; private set; }
 
-    /// <summary>The last path-exclude / pickaxe modifiers GetCommitsAsync was called with.</summary>
+    /// <summary>The last path-exclude GetCommitsAsync was called with.</summary>
     public string? LastPathExclude { get; private set; }
-    public bool LastContentRegex { get; private set; }
-    public bool LastContentIgnoreCase { get; private set; }
     public bool LastPathIncludeIgnoreCase { get; private set; }
 
     /// <summary>How many times the log was read — so a batch can prove it reloaded once, not per filter.</summary>
     public int CommitsCallCount { get; private set; }
 
-    public Task<IReadOnlyList<CommitInfo>> GetCommitsAsync(string repoPath, int maxCount = 300, bool firstParentOnly = false, string? pathFilter = null, string? contentSearch = null, bool mergesOnly = false, System.DateTimeOffset? since = null, System.DateTimeOffset? until = null, string? pathExclude = null, bool contentRegex = false, bool contentIgnoreCase = false, bool pathIncludeIgnoreCase = false, CancellationToken cancellationToken = default)
+    public Task<IReadOnlyList<CommitInfo>> GetCommitsAsync(string repoPath, int maxCount = 300, bool firstParentOnly = false, string? pathFilter = null, bool mergesOnly = false, System.DateTimeOffset? since = null, System.DateTimeOffset? until = null, string? pathExclude = null, bool pathIncludeIgnoreCase = false, CancellationToken cancellationToken = default)
     {
         CommitsCallCount++;
         LastPathIncludeIgnoreCase = pathIncludeIgnoreCase;
         LastPathFilter = pathFilter;
-        LastContentSearch = contentSearch;
         LastFirstParentOnly = firstParentOnly;
         LastMergesOnly = mergesOnly;
         LastSince = since;
         LastUntil = until;
         LastMaxCount = maxCount;
         LastPathExclude = pathExclude;
-        LastContentRegex = contentRegex;
-        LastContentIgnoreCase = contentIgnoreCase;
         return Task.FromResult<IReadOnlyList<CommitInfo>>(StubCommits.Take(maxCount).ToList());
     }
 
