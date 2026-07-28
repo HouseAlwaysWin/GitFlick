@@ -128,9 +128,23 @@ public partial class HistoryViewModel : ViewModelBase
 
     /// <summary>True when the last load hit the limit, so there are (probably) older commits to fetch.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CommitCountLabel))]
     public partial bool HasMoreCommits { get; set; }
 
     public ObservableCollection<CommitInfo> Commits { get; } = [];
+
+    /// <summary>How many commits are currently shown (after filters and paging).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CommitCountLabel))]
+    [NotifyPropertyChangedFor(nameof(ShowCommitCount))]
+    public partial int CommitCount { get; set; }
+
+    /// <summary>"N commits" for the header — N+ when older commits are still a "Load more" away.</summary>
+    public string CommitCountLabel =>
+        string.Format(Loc["History_CommitCount"], HasMoreCommits ? $"{CommitCount}+" : CommitCount.ToString());
+
+    /// <summary>Hides the count in the empty state.</summary>
+    public bool ShowCommitCount => CommitCount > 0;
 
     [ObservableProperty]
     public partial Models.CommitGraph? Graph { get; set; }
@@ -1248,6 +1262,8 @@ public partial class HistoryViewModel : ViewModelBase
         Replace(Commits, view);
         SelectedCommit = keep is not null && Commits.Contains(keep) ? keep : null;
         _reorderingCommits = false;
+
+        CommitCount = Commits.Count;
 
         // The graph aligns only with git's order, so drop its gutter when it's hidden.
         RefreshGraphGutterLayout();
