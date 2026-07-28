@@ -5,6 +5,7 @@ section to `## v<version> - <date>` when it cuts a release, so keep this list cu
 
 ## Unreleased
 
+- **History "Content" search now actually finds things.** It ran git's pickaxe (`-S`), which only lists commits that changed *how many times* a string appears — so most searches came back empty. It now uses `-G`, which finds every commit whose diff adds or removes a line containing your text (editing a line in place counts too). The case and regex toggles still apply; with regex off, your text is matched literally.
 - **Resolve conflicts inside GitFlick.** When a merge, cherry-pick, revert, or rebase stops on a conflict, a banner appears under the toolbar and double-clicking a conflicted file (or the banner's button) opens a resolver window: edit the file with its markers in place and mark it resolved, or take one whole side — then complete the operation, or abort it, without dropping to the terminal. Binary files, modify/delete pairs, and both-deleted files each get the choices that fit them (take a side, keep the file, or accept the deletion). The take-a-side buttons are labelled with what git actually wrote (e.g. `Take HEAD`) rather than a fixed "ours/theirs", because that meaning flips during a rebase — and GitFlick warns if you try to mark a file resolved while it still has `<<<<<<<` markers.
 
 ## v0.4.1 - 2026-07-24
