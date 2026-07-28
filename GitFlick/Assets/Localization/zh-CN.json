@@ -22,8 +22,6 @@
 
   "Changes_FileHistory": "文件历史",
 
-  "History_SearchType_Content": "内容",
-  "History_ContentPlaceholder": "新增或删除的文字…",
   "History_Search_Case_Tooltip": "区分大小写",
   "History_Search_Regex_Tooltip": "以正则表达式匹配",
   "History_Search_InvalidRegex": "正则表达式无效",
@@ -32,7 +30,6 @@
   "History_ExcludePaths": "排除的文件",
   "History_ExcludePathsPlaceholder": "例如 *.md 或 docs/",
   "History_PathApplyHint": "在路径栏位按 Enter 才会应用。",
-  "History_ContentApplyHint": "按 Enter 搜索文件内容",
 
   "Dialog_OK": "确定",
   "Dialog_PickRef_Title": "选择引用",

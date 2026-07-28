@@ -1035,10 +1035,6 @@
                                                                  Content="{loc:Tr History_SearchType_File}"
                                                                  IsChecked="{Binding IsFileSearch, Mode=OneWay}"
                                                                  Command="{Binding UseFileSearchCommand}" />
-                                                    <RadioButton GroupName="searchScope" FontSize="12"
-                                                                 Content="{loc:Tr History_SearchType_Content}"
-                                                                 IsChecked="{Binding IsContentSearch, Mode=OneWay}"
-                                                                 Command="{Binding UseContentSearchCommand}" />
                                                 </StackPanel>
                                                 <Button Grid.Column="1" Content="{loc:Tr History_Clear}" FontSize="11" Padding="8,2"
                                                         IsEnabled="{Binding HasSearchFilter}"
@@ -1075,13 +1071,7 @@
                                                        IsVisible="{Binding SearchRegexInvalid}"
                                                        Foreground="#F85149" FontSize="11" />
 
-                                            <!-- Content is a git pickaxe (a reload), so it applies on Enter, not
-                                                 as you type — say so, or an unapplied query reads as "no filtering". -->
-                                            <TextBlock Text="{loc:Tr History_ContentApplyHint}"
-                                                       IsVisible="{Binding IsContentSearch}"
-                                                       FontSize="10" Opacity="0.45" TextWrapping="Wrap" />
-
-                                            <!-- "files to include" — File and Content (Message has no file
+                                            <!-- "files to include" — the File scope (Message has no file
                                                  dimension). Typing here drops down the path finder below. -->
                                             <StackPanel Spacing="3" IsVisible="{Binding ShowIncludeBox}">
                                                 <TextBlock Text="{loc:Tr History_IncludePaths}" FontSize="10" Opacity="0.5" />

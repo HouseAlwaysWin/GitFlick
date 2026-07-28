@@ -156,18 +156,13 @@ public partial class MainWindow : Window
         CommitFilesList.AddHandler(PointerPressedEvent, OnCommitFileListPointerPressed, RoutingStrategies.Tunnel);
     }
 
-    // Enter in the search input. Message/File filter commit messages live, so Enter only matters for
-    // Content (a git pickaxe reload); it applies the query and closes the dropdown either way.
+    // Enter in the search input. Message and File filter commit messages live as you type, so Enter
+    // has nothing to apply — it just closes the dropdown.
     private void OnSearchBoxKeyDown(object? sender, KeyEventArgs e)
     {
-        if (e.Key != Key.Enter || Workspace is not { } workspace)
+        if (e.Key != Key.Enter)
         {
             return;
-        }
-
-        if (workspace.History.IsContentSearch)
-        {
-            workspace.History.ApplySearchCommand.Execute(null);
         }
 
         SearchDropdownButton.Flyout?.Hide();

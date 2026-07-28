@@ -327,36 +327,15 @@ public sealed class GitService : IGitService
         return url.Length > 0 ? url : null;
     }
 
-    // git log -G treats its argument as a POSIX extended regex. To match text literally (the regex
-    // toggle off), backslash-escape every ERE metacharacter first.
-    private static string EscapeEre(string text)
-    {
-        var sb = new System.Text.StringBuilder(text.Length + 8);
-        foreach (var c in text)
-        {
-            if (c is '.' or '^' or '$' or '*' or '+' or '?' or '(' or ')' or '[' or ']' or '{' or '}' or '|' or '\\')
-            {
-                sb.Append('\\');
-            }
-
-            sb.Append(c);
-        }
-
-        return sb.ToString();
-    }
-
     public async Task<IReadOnlyList<CommitInfo>> GetCommitsAsync(
         string repoPath,
         int maxCount = 300,
         bool firstParentOnly = false,
         string? pathFilter = null,
-        string? contentSearch = null,
         bool mergesOnly = false,
         DateTimeOffset? since = null,
         DateTimeOffset? until = null,
         string? pathExclude = null,
-        bool contentRegex = false,
-        bool contentIgnoreCase = false,
         bool pathIncludeIgnoreCase = false,
         CancellationToken cancellationToken = default)
     {
@@ -383,21 +362,6 @@ public sealed class GitService : IGitService
             "--format=" + CommitLogParser.Format,
             "--max-count=" + maxCount.ToString(CultureInfo.InvariantCulture),
         };
-
-        // Content search (git log -G): every commit whose diff has an added or removed line matching
-        // this text. Unlike -S (the pickaxe, which only fires when the *number* of occurrences changes),
-        // -G also catches a commit that merely edits a line containing the text — which is what people
-        // expect "search by content" to do. -G always treats its argument as a regex, so when the user
-        // hasn't asked for regex we escape the text to match it literally.
-        if (!string.IsNullOrWhiteSpace(contentSearch))
-        {
-            args.Add("-G" + (contentRegex ? contentSearch : EscapeEre(contentSearch)));
-
-            if (contentIgnoreCase)
-            {
-                args.Add("-i");   // case-insensitive match (we never pass --grep, so -i touches nothing else)
-            }
-        }
 
         // Merges only: just the merge commits — "what merges/PRs landed", the complement of
         // --first-parent's collapse. Not parent-closed, so the caller hides the lane graph.

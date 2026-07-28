@@ -42,7 +42,6 @@ public class HistoryClearFiltersTests
         vm.History.SearchCaseSensitive = true;
         vm.History.FileFilter = "src/";
         vm.History.FileExcludeFilter = "*.md";
-        vm.History.ContentFilter = "TODO";
         vm.History.SinceDate = new DateTime(2026, 7, 1);
         vm.History.UntilDate = new DateTime(2026, 7, 17);
         vm.History.FirstParentOnly = true;
@@ -111,7 +110,6 @@ public class HistoryClearFiltersTests
         Assert.False(vm.History.HasAnyFilter);
         Assert.Empty(vm.History.MessageFilter);
         Assert.Empty(vm.History.FileFilter);
-        Assert.Empty(vm.History.ContentFilter);
         Assert.Empty(vm.History.FileExcludeFilter);
         Assert.Empty(vm.History.SearchText);
         Assert.Empty(vm.History.IncludeText);
@@ -158,7 +156,6 @@ public class HistoryClearFiltersTests
 
         Assert.Null(git.LastPathFilter);
         Assert.Null(git.LastPathExclude);
-        Assert.Null(git.LastContentSearch);
         Assert.Null(git.LastSince);
         Assert.Null(git.LastUntil);
         Assert.False(git.LastFirstParentOnly);

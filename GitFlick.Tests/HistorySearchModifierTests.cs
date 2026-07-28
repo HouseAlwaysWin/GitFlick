@@ -10,8 +10,8 @@ namespace GitFlick.Tests;
 
 /// <summary>
 /// The VS Code-style search upgrades: a separate exclude input that combines with the include box,
-/// Aa / .* modifiers per scope (Message client-side; Content via git), the File scope's
-/// ":(exclude)" pathspec, and the History column clamp that keeps the table inside a narrow pane.
+/// Aa / .* modifiers over the message query, the File scope's ":(exclude)" pathspec, and the History
+/// column clamp that keeps the table inside a narrow pane.
 /// </summary>
 public class HistorySearchModifierTests
 {
@@ -42,30 +42,13 @@ public class HistorySearchModifierTests
     // ── Query and path scoping are independent filters ───────────────────────────
 
     [Fact]
-    public async Task The_query_and_the_path_boxes_reach_git_independently()
-    {
-        var (vm, git) = await LoadedWorkspace();
-
-        // Content is the scope that carries all three: a pickaxe query plus both path boxes.
-        await vm.History.UseContentSearchCommand.ExecuteAsync(null);
-        vm.History.ContentFilter = "TODO";
-        vm.History.IncludeText = "src/";
-        vm.History.ApplyIncludeCommand.Execute(null);
-        vm.History.ExcludeText = "*.md";
-        vm.History.ApplyExcludeCommand.Execute(null);
-        await vm.History.HistoryLoad;
-
-        Assert.Equal("TODO", git.LastContentSearch);
-        Assert.Equal("src/", git.LastPathFilter);
-        Assert.Equal("*.md", git.LastPathExclude);
-    }
-
-    [Fact]
     public async Task Clearing_the_search_clears_the_query_and_both_path_boxes()
     {
         var (vm, _) = await LoadedWorkspace();
-        await vm.History.UseContentSearchCommand.ExecuteAsync(null);
-        vm.History.ContentFilter = "TODO";
+
+        // File is the scope that carries all three: a message query plus both path boxes.
+        await vm.History.UseFileSearchCommand.ExecuteAsync(null);
+        vm.History.SearchText = "fix";                  // -> the message query
         vm.History.IncludeText = "src/";
         vm.History.ApplyIncludeCommand.Execute(null);
         vm.History.ExcludeText = "*.md";
@@ -141,36 +124,16 @@ public class HistorySearchModifierTests
     {
         var (vm, _) = await LoadedWorkspace();
 
-        await vm.History.UseContentSearchCommand.ExecuteAsync(null);
-        vm.History.ContentFilter = "TODO";
+        await vm.History.UseFileSearchCommand.ExecuteAsync(null);
+        vm.History.SearchText = "fix";               // -> the message query, shown quoted
         vm.History.ExcludeText = "*.md";
         vm.History.ApplyExcludeCommand.Execute(null);
         await vm.History.HistoryLoad;
 
-        Assert.Equal("⌕ TODO ≠*.md ▾", vm.History.SearchFilterLabel);
+        Assert.Equal("“fix” ≠*.md ▾", vm.History.SearchFilterLabel);
     }
 
     // ── Per-scope plumbing (what reaches git) ─────────────────────────────────────
-
-    [Fact]
-    public async Task Content_scope_passes_the_pickaxe_modifiers_to_git()
-    {
-        var (vm, git) = await LoadedWorkspace();
-
-        await vm.History.UseContentSearchCommand.ExecuteAsync(null);
-        vm.History.SearchUseRegex = true;            // -> --pickaxe-regex
-        vm.History.ContentFilter = "Hello";          // case toggle off -> -i
-
-        await vm.History.HistoryLoad;
-
-        Assert.True(git.LastContentRegex);
-        Assert.True(git.LastContentIgnoreCase);
-
-        vm.History.SearchCaseSensitive = true;       // git-level modifier change reloads
-        await vm.History.HistoryLoad;
-
-        Assert.False(git.LastContentIgnoreCase);
-    }
 
     [Fact]
     public async Task The_exclude_pathspec_only_applies_on_enter()
@@ -189,7 +152,7 @@ public class HistorySearchModifierTests
     }
 
     [Fact]
-    public async Task The_path_boxes_only_appear_where_files_are_involved()
+    public async Task The_path_boxes_only_appear_in_the_File_scope()
     {
         var (vm, _) = await LoadedWorkspace();
 
@@ -198,21 +161,14 @@ public class HistorySearchModifierTests
         Assert.False(vm.History.ShowExcludeBox);
         Assert.True(vm.History.CanUseRegex);
 
-        // File: the query box searches commit messages; the include + exclude path boxes show below
-        // it. The query is text in every scope, so regex (.*) always applies.
+        // File: the query box searches commit messages; the include + exclude path boxes show below it.
         await vm.History.UseFileSearchCommand.ExecuteAsync(null);
-        Assert.True(vm.History.ShowIncludeBox);
-        Assert.True(vm.History.ShowExcludeBox);
-        Assert.True(vm.History.CanUseRegex);
-
-        // Content searches inside files, so both path boxes narrow it — plus -i / --pickaxe-regex.
-        await vm.History.UseContentSearchCommand.ExecuteAsync(null);
         Assert.True(vm.History.ShowIncludeBox);
         Assert.True(vm.History.ShowExcludeBox);
         Assert.True(vm.History.CanUseRegex);
     }
 
-    // ── Real git: the ":(exclude)" pathspec and pickaxe modifiers ─────────────────
+    // ── Real git: the ":(exclude)" pathspec ───────────────────────────────────────
 
     [Fact]
     public async Task Git_level_path_exclude_drops_commits_that_only_touched_excluded_paths()
@@ -227,29 +183,6 @@ public class HistorySearchModifierTests
 
         Assert.Equal(2, commits.Count);
         Assert.DoesNotContain(commits, c => c.Subject == "docs");
-    }
-
-    [Fact]
-    public async Task Git_level_pickaxe_honours_regex_and_case_modifiers()
-    {
-        using var repo = new TestRepo();
-        repo.WriteFile("a.txt", "plain"); repo.Git("add", "-A"); repo.Git("commit", "-m", "base");
-        repo.WriteFile("a.txt", "plain\nHello World"); repo.Git("add", "-A"); repo.Git("commit", "-m", "adds hello");
-
-        var git = new GitService();
-
-        // Exact -S is case-sensitive: lowercase "hello" misses "Hello World"…
-        var exact = await git.GetCommitsAsync(repo.Path, contentSearch: "hello");
-        Assert.Empty(exact);
-
-        // …-i finds it, and --pickaxe-regex matches a pattern.
-        var insensitive = await git.GetCommitsAsync(repo.Path, contentSearch: "hello", contentIgnoreCase: true);
-        Assert.Single(insensitive);
-        Assert.Equal("adds hello", insensitive[0].Subject);
-
-        var regex = await git.GetCommitsAsync(repo.Path, contentSearch: "Hel+o", contentRegex: true);
-        Assert.Single(regex);
-        Assert.Equal("adds hello", regex[0].Subject);
     }
 
     // ── Column clamp (the History table's narrow-pane fit) ────────────────────────
