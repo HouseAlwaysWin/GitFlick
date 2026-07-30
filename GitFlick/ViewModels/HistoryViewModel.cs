@@ -42,6 +42,9 @@ public partial class FilterOption : ObservableObject
 
     public string Name { get; }
 
+    /// <summary>For a branch option, whether it's a remote-tracking branch (unused for authors).</summary>
+    public bool IsRemote { get; init; }
+
     [ObservableProperty]
     public partial bool IsSelected { get; set; }
 }
@@ -452,8 +455,25 @@ public partial class HistoryViewModel : ViewModelBase
     /// <summary>Distinct branches/remotes in the loaded history; ticking narrows to their commits.</summary>
     public ObservableCollection<FilterOption> BranchFilters { get; } = [];
 
-    /// <summary>The branches matching <see cref="BranchFilterSearch"/> — what the flyout actually shows.</summary>
-    public ObservableCollection<FilterOption> FilteredBranchFilters { get; } = [];
+    /// <summary>Local branches matching <see cref="BranchFilterSearch"/> — the LOCAL section's rows.</summary>
+    public ObservableCollection<FilterOption> FilteredLocalBranchFilters { get; } = [];
+
+    /// <summary>Remote-tracking branches matching the search — the REMOTE section's rows.</summary>
+    public ObservableCollection<FilterOption> FilteredRemoteBranchFilters { get; } = [];
+
+    /// <summary>Whether the loaded history has any local / remote branches — hides an empty section.</summary>
+    [ObservableProperty]
+    public partial bool HasLocalBranches { get; set; }
+
+    [ObservableProperty]
+    public partial bool HasRemoteBranches { get; set; }
+
+    /// <summary>Per-section collapse toggles (display only — a collapsed section's ticks still filter).</summary>
+    [ObservableProperty]
+    public partial bool ShowLocalBranches { get; set; } = true;
+
+    [ObservableProperty]
+    public partial bool ShowRemoteBranches { get; set; } = true;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowGraph))]
@@ -468,8 +488,7 @@ public partial class HistoryViewModel : ViewModelBase
     [ObservableProperty]
     public partial string BranchFilterSearch { get; set; } = string.Empty;
 
-    partial void OnBranchFilterSearchChanged(string value) =>
-        Narrow(BranchFilters, FilteredBranchFilters, value);
+    partial void OnBranchFilterSearchChanged(string value) => NarrowBranches();
 
     /// <summary>
     /// Fuzzy filter on commit subjects — show only commits whose message matches. Applied
@@ -1279,7 +1298,8 @@ public partial class HistoryViewModel : ViewModelBase
     {
         RebuildFilterOptions(
             AuthorFilters,
-            _graphOrder.Select(c => c.Author).Distinct().OrderBy(n => n, StringComparer.CurrentCultureIgnoreCase),
+            _graphOrder.Select(c => c.Author).Distinct().OrderBy(n => n, StringComparer.CurrentCultureIgnoreCase)
+                .Select(a => (a, false)),
             OnAuthorFilterItemChanged);
         Narrow(AuthorFilters, FilteredAuthorFilters, AuthorFilterSearch);
     }
@@ -1288,15 +1308,20 @@ public partial class HistoryViewModel : ViewModelBase
     {
         RebuildFilterOptions(
             BranchFilters,
-            _graphOrder.SelectMany(c => c.Refs).Where(r => r.Kind != GitRefKind.Tag).Select(r => r.Name)
-                .Distinct().OrderBy(n => n, StringComparer.CurrentCultureIgnoreCase),
+            _graphOrder.SelectMany(c => c.Refs).Where(r => r.Kind != GitRefKind.Tag)
+                .Select(r => (r.Name, IsRemote: r.Kind == GitRefKind.RemoteBranch))
+                .DistinctBy(r => r.Name)
+                .OrderBy(r => r.Name, StringComparer.CurrentCultureIgnoreCase),
             OnBranchFilterItemChanged);
-        Narrow(BranchFilters, FilteredBranchFilters, BranchFilterSearch);
+
+        HasLocalBranches = BranchFilters.Any(b => !b.IsRemote);
+        HasRemoteBranches = BranchFilters.Any(b => b.IsRemote);
+        NarrowBranches();
     }
 
     /// <summary>Rebuilds a checklist from the loaded history, preserving prior ticks by name.</summary>
     private static void RebuildFilterOptions(
-        ObservableCollection<FilterOption> options, IEnumerable<string> names, PropertyChangedEventHandler onChanged)
+        ObservableCollection<FilterOption> options, IEnumerable<(string Name, bool IsRemote)> items, PropertyChangedEventHandler onChanged)
     {
         var wasChosen = options.Where(o => o.IsSelected).Select(o => o.Name).ToHashSet(StringComparer.Ordinal);
 
@@ -1307,10 +1332,10 @@ public partial class HistoryViewModel : ViewModelBase
 
         options.Clear();
 
-        foreach (var name in names)
+        foreach (var (name, isRemote) in items)
         {
             // Tick before subscribing so restoring a selection doesn't re-enter ApplyView mid-build.
-            var item = new FilterOption(name) { IsSelected = wasChosen.Contains(name) };
+            var item = new FilterOption(name) { IsRemote = isRemote, IsSelected = wasChosen.Contains(name) };
             item.PropertyChanged += onChanged;
             options.Add(item);
         }
@@ -1329,6 +1354,24 @@ public partial class HistoryViewModel : ViewModelBase
             {
                 shown.Add(option);
             }
+        }
+    }
+
+    /// <summary>Splits the branch options into the LOCAL and REMOTE sections, honouring the search box.</summary>
+    private void NarrowBranches()
+    {
+        var query = BranchFilterSearch.Trim();
+        FilteredLocalBranchFilters.Clear();
+        FilteredRemoteBranchFilters.Clear();
+
+        foreach (var option in BranchFilters)
+        {
+            if (query.Length > 0 && !FuzzyMatcher.TryMatch(option.Name, query, out _))
+            {
+                continue;
+            }
+
+            (option.IsRemote ? FilteredRemoteBranchFilters : FilteredLocalBranchFilters).Add(option);
         }
     }
 

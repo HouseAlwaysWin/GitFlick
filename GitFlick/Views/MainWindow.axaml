@@ -1186,16 +1186,38 @@
                                             <TextBox Text="{Binding BranchFilterSearch}" PlaceholderText="{loc:Tr History_SearchBranches}"
                                                      VerticalContentAlignment="Center"
                                                      FontSize="12" Padding="6,3" />
-                                            <ScrollViewer MaxHeight="280">
-                                                <ItemsControl ItemsSource="{Binding FilteredBranchFilters}">
-                                                    <ItemsControl.ItemTemplate>
-                                                        <DataTemplate x:DataType="vm:FilterOption">
-                                                            <CheckBox Content="{Binding Name}"
-                                                                      IsChecked="{Binding IsSelected, Mode=TwoWay}"
-                                                                      Margin="0,1" />
-                                                        </DataTemplate>
-                                                    </ItemsControl.ItemTemplate>
-                                                </ItemsControl>
+                                            <!-- LOCAL / REMOTE sections; each Expander collapses on its own,
+                                                 so a repo with many remotes can fold that half away. A
+                                                 collapsed section still filters — its ticks stay applied. -->
+                                            <ScrollViewer MaxHeight="300">
+                                                <StackPanel Spacing="2">
+                                                    <Expander Header="{loc:Tr Branch_LocalHeader}"
+                                                              IsExpanded="{Binding ShowLocalBranches}"
+                                                              IsVisible="{Binding HasLocalBranches}">
+                                                        <ItemsControl ItemsSource="{Binding FilteredLocalBranchFilters}">
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate x:DataType="vm:FilterOption">
+                                                                    <CheckBox Content="{Binding Name}"
+                                                                              IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                                                              Margin="0,1" />
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                    </Expander>
+                                                    <Expander Header="{loc:Tr Branch_RemoteHeader}"
+                                                              IsExpanded="{Binding ShowRemoteBranches}"
+                                                              IsVisible="{Binding HasRemoteBranches}">
+                                                        <ItemsControl ItemsSource="{Binding FilteredRemoteBranchFilters}">
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate x:DataType="vm:FilterOption">
+                                                                    <CheckBox Content="{Binding Name}"
+                                                                              IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                                                              Margin="0,1" />
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                    </Expander>
+                                                </StackPanel>
                                             </ScrollViewer>
                                         </StackPanel>
                                     </Flyout>
