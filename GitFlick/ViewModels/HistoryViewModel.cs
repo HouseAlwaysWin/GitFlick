@@ -463,22 +463,33 @@ public partial class HistoryViewModel : ViewModelBase
 
     /// <summary>Whether the loaded history has any local / remote branches — hides an empty section.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasBothBranchKinds))]
+    [NotifyPropertyChangedFor(nameof(LocalSectionVisible))]
+    [NotifyPropertyChangedFor(nameof(BothSectionsShown))]
     public partial bool HasLocalBranches { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasBothBranchKinds))]
+    [NotifyPropertyChangedFor(nameof(RemoteSectionVisible))]
+    [NotifyPropertyChangedFor(nameof(BothSectionsShown))]
     public partial bool HasRemoteBranches { get; set; }
 
-    /// <summary>Both section kinds are present — the only time the LOCAL/REMOTE divider is drawn.</summary>
-    public bool HasBothBranchKinds => HasLocalBranches && HasRemoteBranches;
-
-    /// <summary>Per-section show/hide toggles (display only — a hidden section's ticks still filter).</summary>
+    /// <summary>Per-section show/hide toggles, driven by the two checkboxes atop the flyout (display
+    /// only — a hidden section's ticks still filter).</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(LocalSectionVisible))]
+    [NotifyPropertyChangedFor(nameof(BothSectionsShown))]
     public partial bool ShowLocalBranches { get; set; } = true;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RemoteSectionVisible))]
+    [NotifyPropertyChangedFor(nameof(BothSectionsShown))]
     public partial bool ShowRemoteBranches { get; set; } = true;
+
+    /// <summary>A section (its header + list) shows only when that kind exists and its box is ticked.</summary>
+    public bool LocalSectionVisible => HasLocalBranches && ShowLocalBranches;
+    public bool RemoteSectionVisible => HasRemoteBranches && ShowRemoteBranches;
+
+    /// <summary>Both sections are on screen — the only time the divider between them is drawn.</summary>
+    public bool BothSectionsShown => LocalSectionVisible && RemoteSectionVisible;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowGraph))]

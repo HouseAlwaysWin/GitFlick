@@ -40,9 +40,9 @@ public class HistoryBranchSectionsTests
 
         Assert.True(vm.History.HasLocalBranches);
         Assert.True(vm.History.HasRemoteBranches);
-        Assert.True(vm.History.HasBothBranchKinds);   // both present → the divider is drawn
-        Assert.True(vm.History.ShowLocalBranches);    // both sections shown by default
-        Assert.True(vm.History.ShowRemoteBranches);
+        Assert.True(vm.History.LocalSectionVisible);   // both sections shown by default
+        Assert.True(vm.History.RemoteSectionVisible);
+        Assert.True(vm.History.BothSectionsShown);     // both on screen → the divider is drawn
 
         Assert.All(vm.History.FilteredLocalBranchFilters, b => Assert.False(b.IsRemote));
         Assert.All(vm.History.FilteredRemoteBranchFilters, b => Assert.True(b.IsRemote));
@@ -71,6 +71,7 @@ public class HistoryBranchSectionsTests
         var vm = await Loaded();
         vm.History.ShowRemoteBranches = false;        // hide the REMOTE section's list
 
+        Assert.False(vm.History.RemoteSectionVisible);
         vm.History.BranchFilters.Single(b => b.Name == "origin/main").IsSelected = true;
 
         Assert.True(vm.History.HasBranchFilter);       // the tick still filters despite being hidden
@@ -87,7 +88,9 @@ public class HistoryBranchSectionsTests
 
         Assert.True(vm.History.HasLocalBranches);
         Assert.False(vm.History.HasRemoteBranches);
-        Assert.False(vm.History.HasBothBranchKinds);   // no divider with only one section
+        Assert.True(vm.History.LocalSectionVisible);
+        Assert.False(vm.History.RemoteSectionVisible);
+        Assert.False(vm.History.BothSectionsShown);    // no divider with only one section
         Assert.Empty(vm.History.FilteredRemoteBranchFilters);
     }
 }

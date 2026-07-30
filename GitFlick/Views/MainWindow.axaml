@@ -1186,45 +1186,51 @@
                                             <TextBox Text="{Binding BranchFilterSearch}" PlaceholderText="{loc:Tr History_SearchBranches}"
                                                      VerticalContentAlignment="Center"
                                                      FontSize="12" Padding="6,3" />
-                                            <!-- LOCAL / REMOTE sections split by a divider. Each section's
-                                                 header checkbox shows or hides that section's branch list;
-                                                 either way its ticked branches still filter the history. -->
-                                            <ScrollViewer MaxHeight="300">
+                                            <!-- Two show/hide checkboxes side by side at the top; below, each
+                                                 section shows just its header + branch list when its box is
+                                                 ticked. A hidden section's ticked branches still filter. -->
+                                            <StackPanel Orientation="Horizontal" Spacing="16" Margin="0,2">
+                                                <CheckBox Content="{loc:Tr Branch_LocalHeader}"
+                                                          IsChecked="{Binding ShowLocalBranches}"
+                                                          IsVisible="{Binding HasLocalBranches}"
+                                                          ToolTip.Tip="{loc:Tr History_BranchSection_Tooltip}" />
+                                                <CheckBox Content="{loc:Tr Branch_RemoteHeader}"
+                                                          IsChecked="{Binding ShowRemoteBranches}"
+                                                          IsVisible="{Binding HasRemoteBranches}"
+                                                          ToolTip.Tip="{loc:Tr History_BranchSection_Tooltip}" />
+                                            </StackPanel>
+                                            <ScrollViewer MaxHeight="280">
                                                 <StackPanel Spacing="4">
-                                                    <CheckBox Content="{loc:Tr Branch_LocalHeader}"
-                                                              FontSize="11" FontWeight="SemiBold"
-                                                              IsChecked="{Binding ShowLocalBranches}"
-                                                              IsVisible="{Binding HasLocalBranches}"
-                                                              ToolTip.Tip="{loc:Tr History_BranchSection_Tooltip}" />
-                                                    <ItemsControl ItemsSource="{Binding FilteredLocalBranchFilters}"
-                                                                  IsVisible="{Binding ShowLocalBranches}" Margin="10,0,0,0">
-                                                        <ItemsControl.ItemTemplate>
-                                                            <DataTemplate x:DataType="vm:FilterOption">
-                                                                <CheckBox Content="{Binding Name}"
-                                                                          IsChecked="{Binding IsSelected, Mode=TwoWay}"
-                                                                          Margin="0,1" />
-                                                            </DataTemplate>
-                                                        </ItemsControl.ItemTemplate>
-                                                    </ItemsControl>
+                                                    <StackPanel Spacing="3" IsVisible="{Binding LocalSectionVisible}">
+                                                        <TextBlock Text="{loc:Tr Branch_LocalHeader}"
+                                                                   FontSize="10" FontWeight="SemiBold" Opacity="0.5" />
+                                                        <ItemsControl ItemsSource="{Binding FilteredLocalBranchFilters}" Margin="6,0,0,0">
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate x:DataType="vm:FilterOption">
+                                                                    <CheckBox Content="{Binding Name}"
+                                                                              IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                                                              Margin="0,1" />
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                    </StackPanel>
 
                                                     <Border Height="1" Background="#30808080" Margin="0,2"
-                                                            IsVisible="{Binding HasBothBranchKinds}" />
+                                                            IsVisible="{Binding BothSectionsShown}" />
 
-                                                    <CheckBox Content="{loc:Tr Branch_RemoteHeader}"
-                                                              FontSize="11" FontWeight="SemiBold"
-                                                              IsChecked="{Binding ShowRemoteBranches}"
-                                                              IsVisible="{Binding HasRemoteBranches}"
-                                                              ToolTip.Tip="{loc:Tr History_BranchSection_Tooltip}" />
-                                                    <ItemsControl ItemsSource="{Binding FilteredRemoteBranchFilters}"
-                                                                  IsVisible="{Binding ShowRemoteBranches}" Margin="10,0,0,0">
-                                                        <ItemsControl.ItemTemplate>
-                                                            <DataTemplate x:DataType="vm:FilterOption">
-                                                                <CheckBox Content="{Binding Name}"
-                                                                          IsChecked="{Binding IsSelected, Mode=TwoWay}"
-                                                                          Margin="0,1" />
-                                                            </DataTemplate>
-                                                        </ItemsControl.ItemTemplate>
-                                                    </ItemsControl>
+                                                    <StackPanel Spacing="3" IsVisible="{Binding RemoteSectionVisible}">
+                                                        <TextBlock Text="{loc:Tr Branch_RemoteHeader}"
+                                                                   FontSize="10" FontWeight="SemiBold" Opacity="0.5" />
+                                                        <ItemsControl ItemsSource="{Binding FilteredRemoteBranchFilters}" Margin="6,0,0,0">
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate x:DataType="vm:FilterOption">
+                                                                    <CheckBox Content="{Binding Name}"
+                                                                              IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                                                              Margin="0,1" />
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                    </StackPanel>
                                                 </StackPanel>
                                             </ScrollViewer>
                                         </StackPanel>
