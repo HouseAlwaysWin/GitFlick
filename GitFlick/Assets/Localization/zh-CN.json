@@ -219,6 +219,7 @@
   "History_Clear": "清除",
   "History_SearchAuthors": "搜索作者…",
   "History_BranchFilter_Tooltip": "仅显示可从勾选分支到达的提交（可多选）。",
+  "History_BranchSection_Tooltip": "显示或隐藏此区块的分支",
   "History_ShowOnlyBranches": "仅显示这些分支",
   "History_SearchBranches": "搜索分支…",
   "History_ClearFilters": "✕ 清除过滤",
