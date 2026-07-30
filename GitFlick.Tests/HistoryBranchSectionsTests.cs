@@ -40,6 +40,7 @@ public class HistoryBranchSectionsTests
 
         Assert.True(vm.History.HasLocalBranches);
         Assert.True(vm.History.HasRemoteBranches);
+        Assert.True(vm.History.HasBothBranchKinds);   // both present → the divider is drawn
         Assert.True(vm.History.ShowLocalBranches);    // both sections shown by default
         Assert.True(vm.History.ShowRemoteBranches);
 
@@ -65,14 +66,14 @@ public class HistoryBranchSectionsTests
     }
 
     [Fact]
-    public async Task A_collapsed_section_still_applies_its_selection()
+    public async Task A_hidden_section_still_applies_its_selection()
     {
         var vm = await Loaded();
-        vm.History.ShowRemoteBranches = false;        // fold the REMOTE section away
+        vm.History.ShowRemoteBranches = false;        // hide the REMOTE section's list
 
         vm.History.BranchFilters.Single(b => b.Name == "origin/main").IsSelected = true;
 
-        Assert.True(vm.History.HasBranchFilter);       // the tick still filters despite the collapse
+        Assert.True(vm.History.HasBranchFilter);       // the tick still filters despite being hidden
         Assert.Single(vm.History.Commits);             // only origin/main's commit is reachable
     }
 
@@ -86,6 +87,7 @@ public class HistoryBranchSectionsTests
 
         Assert.True(vm.History.HasLocalBranches);
         Assert.False(vm.History.HasRemoteBranches);
+        Assert.False(vm.History.HasBothBranchKinds);   // no divider with only one section
         Assert.Empty(vm.History.FilteredRemoteBranchFilters);
     }
 }

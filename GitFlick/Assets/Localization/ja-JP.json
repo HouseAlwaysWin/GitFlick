@@ -219,6 +219,7 @@
   "History_Clear": "クリア",
   "History_SearchAuthors": "作成者を検索…",
   "History_BranchFilter_Tooltip": "チェックしたブランチから到達可能なコミットのみ表示します（複数選択可）。",
+  "History_BranchSection_Tooltip": "このセクションのブランチを表示/非表示",
   "History_ShowOnlyBranches": "これらのブランチのみ表示",
   "History_SearchBranches": "ブランチを検索…",
   "History_ClearFilters": "✕ フィルターをクリア",

@@ -219,6 +219,7 @@
   "History_Clear": "Clear",
   "History_SearchAuthors": "Search authors…",
   "History_BranchFilter_Tooltip": "Show only commits reachable from the ticked branches (multi-select).",
+  "History_BranchSection_Tooltip": "Show or hide this section's branches",
   "History_ShowOnlyBranches": "SHOW ONLY THESE BRANCHES",
   "History_SearchBranches": "Search branches…",
   "History_ClearFilters": "✕ Clear filters",

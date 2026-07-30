@@ -1186,37 +1186,45 @@
                                             <TextBox Text="{Binding BranchFilterSearch}" PlaceholderText="{loc:Tr History_SearchBranches}"
                                                      VerticalContentAlignment="Center"
                                                      FontSize="12" Padding="6,3" />
-                                            <!-- LOCAL / REMOTE sections; each Expander collapses on its own,
-                                                 so a repo with many remotes can fold that half away. A
-                                                 collapsed section still filters — its ticks stay applied. -->
+                                            <!-- LOCAL / REMOTE sections split by a divider. Each section's
+                                                 header checkbox shows or hides that section's branch list;
+                                                 either way its ticked branches still filter the history. -->
                                             <ScrollViewer MaxHeight="300">
-                                                <StackPanel Spacing="2">
-                                                    <Expander Header="{loc:Tr Branch_LocalHeader}"
-                                                              IsExpanded="{Binding ShowLocalBranches}"
-                                                              IsVisible="{Binding HasLocalBranches}">
-                                                        <ItemsControl ItemsSource="{Binding FilteredLocalBranchFilters}">
-                                                            <ItemsControl.ItemTemplate>
-                                                                <DataTemplate x:DataType="vm:FilterOption">
-                                                                    <CheckBox Content="{Binding Name}"
-                                                                              IsChecked="{Binding IsSelected, Mode=TwoWay}"
-                                                                              Margin="0,1" />
-                                                                </DataTemplate>
-                                                            </ItemsControl.ItemTemplate>
-                                                        </ItemsControl>
-                                                    </Expander>
-                                                    <Expander Header="{loc:Tr Branch_RemoteHeader}"
-                                                              IsExpanded="{Binding ShowRemoteBranches}"
-                                                              IsVisible="{Binding HasRemoteBranches}">
-                                                        <ItemsControl ItemsSource="{Binding FilteredRemoteBranchFilters}">
-                                                            <ItemsControl.ItemTemplate>
-                                                                <DataTemplate x:DataType="vm:FilterOption">
-                                                                    <CheckBox Content="{Binding Name}"
-                                                                              IsChecked="{Binding IsSelected, Mode=TwoWay}"
-                                                                              Margin="0,1" />
-                                                                </DataTemplate>
-                                                            </ItemsControl.ItemTemplate>
-                                                        </ItemsControl>
-                                                    </Expander>
+                                                <StackPanel Spacing="4">
+                                                    <CheckBox Content="{loc:Tr Branch_LocalHeader}"
+                                                              FontSize="11" FontWeight="SemiBold"
+                                                              IsChecked="{Binding ShowLocalBranches}"
+                                                              IsVisible="{Binding HasLocalBranches}"
+                                                              ToolTip.Tip="{loc:Tr History_BranchSection_Tooltip}" />
+                                                    <ItemsControl ItemsSource="{Binding FilteredLocalBranchFilters}"
+                                                                  IsVisible="{Binding ShowLocalBranches}" Margin="10,0,0,0">
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate x:DataType="vm:FilterOption">
+                                                                <CheckBox Content="{Binding Name}"
+                                                                          IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                                                          Margin="0,1" />
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+
+                                                    <Border Height="1" Background="#30808080" Margin="0,2"
+                                                            IsVisible="{Binding HasBothBranchKinds}" />
+
+                                                    <CheckBox Content="{loc:Tr Branch_RemoteHeader}"
+                                                              FontSize="11" FontWeight="SemiBold"
+                                                              IsChecked="{Binding ShowRemoteBranches}"
+                                                              IsVisible="{Binding HasRemoteBranches}"
+                                                              ToolTip.Tip="{loc:Tr History_BranchSection_Tooltip}" />
+                                                    <ItemsControl ItemsSource="{Binding FilteredRemoteBranchFilters}"
+                                                                  IsVisible="{Binding ShowRemoteBranches}" Margin="10,0,0,0">
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate x:DataType="vm:FilterOption">
+                                                                <CheckBox Content="{Binding Name}"
+                                                                          IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                                                          Margin="0,1" />
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
                                                 </StackPanel>
                                             </ScrollViewer>
                                         </StackPanel>

@@ -463,12 +463,17 @@ public partial class HistoryViewModel : ViewModelBase
 
     /// <summary>Whether the loaded history has any local / remote branches — hides an empty section.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasBothBranchKinds))]
     public partial bool HasLocalBranches { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasBothBranchKinds))]
     public partial bool HasRemoteBranches { get; set; }
 
-    /// <summary>Per-section collapse toggles (display only — a collapsed section's ticks still filter).</summary>
+    /// <summary>Both section kinds are present — the only time the LOCAL/REMOTE divider is drawn.</summary>
+    public bool HasBothBranchKinds => HasLocalBranches && HasRemoteBranches;
+
+    /// <summary>Per-section show/hide toggles (display only — a hidden section's ticks still filter).</summary>
     [ObservableProperty]
     public partial bool ShowLocalBranches { get; set; } = true;
 
